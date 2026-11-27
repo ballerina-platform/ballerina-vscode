@@ -8,27 +8,6 @@
   "categories": [
     {
       "metadata": {
-        "label": "Dayforce",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_dayforce_0.1.0.png",
-        "data": {
-          "isAgentSupport": true
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "dayforce",
-        "packageName": "dayforce",
-        "object": "Client",
-        "symbol": "init",
-        "version": "0.1.0",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
         "label": "Trello",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trello_2.0.1.png",
@@ -50,9 +29,9 @@
     },
     {
       "metadata": {
-        "label": "OracleDB",
-        "description": "Represents a OracleDB client.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_oracledb_1.16.0.png",
+        "label": "The Movie DB",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_themoviedb_2.0.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -60,11 +39,74 @@
       "codedata": {
         "node": "NEW_CONNECTION",
         "org": "ballerinax",
-        "module": "oracledb",
-        "packageName": "oracledb",
+        "module": "themoviedb",
+        "packageName": "themoviedb",
         "object": "Client",
         "symbol": "init",
-        "version": "1.16.0",
+        "version": "2.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Pipedrive",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_pipedrive_2.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "pipedrive",
+        "packageName": "pipedrive",
+        "object": "Client",
+        "symbol": "init",
+        "version": "2.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Bitly",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_bitly_2.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "bitly",
+        "packageName": "bitly",
+        "object": "Client",
+        "symbol": "init",
+        "version": "2.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Dayforce",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_dayforce_0.1.0.png",
+        "data": {
+          "isAgentSupport": true
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "dayforce",
+        "packageName": "dayforce",
+        "object": "Client",
+        "symbol": "init",
+        "version": "0.1.0",
         "isGenerated": false
       },
       "enabled": true
@@ -86,6 +128,27 @@
         "object": "Client",
         "symbol": "init",
         "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "OracleDB",
+        "description": "Represents a OracleDB client.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_oracledb_1.17.2.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "oracledb",
+        "packageName": "oracledb",
+        "object": "Client",
+        "symbol": "init",
+        "version": "1.17.2",
         "isGenerated": false
       },
       "enabled": true
@@ -134,6 +197,27 @@
     },
     {
       "metadata": {
+        "label": "Xero Accounts",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_xero.accounts_2.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "xero.accounts",
+        "packageName": "xero.accounts",
+        "object": "Client",
+        "symbol": "init",
+        "version": "2.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
         "label": "Microsoft OneDrive",
         "description": "",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.onedrive_3.0.2.png",
@@ -170,6 +254,69 @@
         "object": "Client",
         "symbol": "init",
         "version": "1.0.2",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "commercetools Data",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.customizedata_2.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "commercetools.customizedata",
+        "packageName": "commercetools.customizedata",
+        "object": "Client",
+        "symbol": "init",
+        "version": "2.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "commercetools Pricing",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.pricingdiscount_2.0.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "commercetools.pricingdiscount",
+        "packageName": "commercetools.pricingdiscount",
+        "object": "Client",
+        "symbol": "init",
+        "version": "2.0.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "AWS Secret Manager",
+        "description": "AWS Secret Manager client.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.secretmanager_1.0.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "aws.secretmanager",
+        "packageName": "aws.secretmanager",
+        "object": "Client",
+        "symbol": "init",
+        "version": "1.0.1",
         "isGenerated": false
       },
       "enabled": true
@@ -218,9 +365,9 @@
     },
     {
       "metadata": {
-        "label": "AWS Secret Manager",
-        "description": "AWS Secret Manager client.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.secretmanager_0.4.1.png",
+        "label": "Responses",
+        "description": "",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.responses_1.0.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -228,20 +375,20 @@
       "codedata": {
         "node": "NEW_CONNECTION",
         "org": "ballerinax",
-        "module": "aws.secretmanager",
-        "packageName": "aws.secretmanager",
+        "module": "azure.openai.responses",
+        "packageName": "azure.openai.responses",
         "object": "Client",
         "symbol": "init",
-        "version": "0.4.1",
+        "version": "1.0.0",
         "isGenerated": false
       },
       "enabled": true
     },
     {
       "metadata": {
-        "label": "AWS Marketplace MPM",
-        "description": "AWS Marketplace metering client.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.marketplace.mpm_0.2.1.png",
+        "label": "Storecove",
+        "description": "Storecove API",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_storecove_2.0.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -249,20 +396,20 @@
       "codedata": {
         "node": "NEW_CONNECTION",
         "org": "ballerinax",
-        "module": "aws.marketplace.mpm",
-        "packageName": "aws.marketplace.mpm",
+        "module": "storecove",
+        "packageName": "storecove",
         "object": "Client",
         "symbol": "init",
-        "version": "0.2.1",
+        "version": "2.0.0",
         "isGenerated": false
       },
       "enabled": true
     },
     {
       "metadata": {
-        "label": "AWS Marketplace MPE",
-        "description": "AWS Marketplace entitlement client.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.marketplace.mpe_0.2.1.png",
+        "label": "Shortcut",
+        "description": "Shortcut API",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_shortcut_2.0.0.png",
         "data": {
           "isAgentSupport": false
         }
@@ -270,158 +417,11 @@
       "codedata": {
         "node": "NEW_CONNECTION",
         "org": "ballerinax",
-        "module": "aws.marketplace.mpe",
-        "packageName": "aws.marketplace.mpe",
+        "module": "shortcut",
+        "packageName": "shortcut",
         "object": "Client",
         "symbol": "init",
-        "version": "0.2.1",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "WebSocket",
-        "description": "Represents a WebSocket synchronous client endpoint.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_websocket_2.15.2.png",
-        "data": {
-          "isAgentSupport": false
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerina",
-        "module": "websocket",
-        "packageName": "websocket",
-        "object": "Client",
-        "symbol": "init",
-        "version": "2.15.2",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "HubSpot Associations",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.crm.associations_2.0.1.png",
-        "data": {
-          "isAgentSupport": false
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "hubspot.crm.associations",
-        "packageName": "hubspot.crm.associations",
-        "object": "Client",
-        "symbol": "init",
-        "version": "2.0.1",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "HubSpot Transactional",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.transactional_1.0.1.png",
-        "data": {
-          "isAgentSupport": true
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "hubspot.marketing.transactional",
-        "packageName": "hubspot.marketing.transactional",
-        "object": "Client",
-        "symbol": "init",
-        "version": "1.0.1",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "HubSpot Campaigns",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.campaigns_2.0.1.png",
-        "data": {
-          "isAgentSupport": true
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "hubspot.marketing.campaigns",
-        "packageName": "hubspot.marketing.campaigns",
-        "object": "Client",
-        "symbol": "init",
-        "version": "2.0.1",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "HubSpot Marketing Events",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.events_1.0.1.png",
-        "data": {
-          "isAgentSupport": true
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "hubspot.marketing.events",
-        "packageName": "hubspot.marketing.events",
-        "object": "Client",
-        "symbol": "init",
-        "version": "1.0.1",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "HubSpot Import",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.crm.import_4.0.1.png",
-        "data": {
-          "isAgentSupport": true
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "hubspot.crm.import",
-        "packageName": "hubspot.crm.import",
-        "object": "Client",
-        "symbol": "init",
-        "version": "4.0.1",
-        "isGenerated": false
-      },
-      "enabled": true
-    },
-    {
-      "metadata": {
-        "label": "HubSpot Marketing Emails",
-        "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_hubspot.marketing.emails_1.0.1.png",
-        "data": {
-          "isAgentSupport": true
-        }
-      },
-      "codedata": {
-        "node": "NEW_CONNECTION",
-        "org": "ballerinax",
-        "module": "hubspot.marketing.emails",
-        "packageName": "hubspot.marketing.emails",
-        "object": "Client",
-        "symbol": "init",
-        "version": "1.0.1",
+        "version": "2.0.0",
         "isGenerated": false
       },
       "enabled": true

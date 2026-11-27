@@ -26,10 +26,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  * Runs the connector grouping rules over the bundled package index, which the catalogue is derived from at runtime.
@@ -38,6 +40,8 @@ import java.util.Set;
  * @since 1.8.0
  */
 public class ConnectorIndexKeywordTest {
+
+    private static final Logger LOGGER = Logger.getLogger(ConnectorIndexKeywordTest.class.getName());
 
     private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
 
@@ -107,8 +111,19 @@ public class ConnectorIndexKeywordTest {
                 .filter(connector -> connector.keywords().stream().anyMatch(k -> k.startsWith("Area/")))
                 .count();
         Assert.assertTrue(area > 100, "Expected the current Area/ scheme in the index, found " + area);
-        Assert.assertTrue(area < connectors.size() / 2,
-                "Area/ now covers most connectors; the legacy scheme may no longer be needed");
+        // The finer categories are filled from legacy keywords. Shrinking well before any of them empties out is the
+        // signal that Central is retiring those keywords and the categories need another source.
+        long finer = connectors.stream()
+                .filter(connector -> ConnectorCategoryResolver.finerLegacyCategories().contains(
+                        ConnectorCategoryResolver.categorize(moduleOf(connector), connector.keywords().stream()
+                                .filter(keyword -> !keyword.startsWith("Area/")).toList())))
+                .count();
+        Assert.assertTrue(finer > 50, "Only " + finer + " connectors reach a finer category through legacy "
+                + "keywords; the finer categories may need another source");
+    }
+
+    private static String moduleOf(IndexedConnector connector) {
+        return connector.searchResult().packageInfo().moduleName();
     }
 
     @Test(description = "Pull counts are populated, since they rank every unpinned connector.")
@@ -135,20 +150,44 @@ public class ConnectorIndexKeywordTest {
         Assert.assertTrue(problems.isEmpty(), String.join("; ", problems));
     }
 
-    @Test(description = "Every pinned entry resolves, and into the category it is pinned under.")
-    public void testPinnedEntriesResolveIntoTheirCategory() {
-        List<String> problems = new ArrayList<>();
+    @Test(description = "Every pinned entry is in the catalogue. Pins are grouped under their own category, so only "
+            + "their presence depends on the index.")
+    public void testPinnedEntriesAreInTheCatalogue() {
+        List<String> missing = new ArrayList<>();
         for (String category : ConnectorCategoryResolver.categoryOrder()) {
             for (String pin : ConnectorCategoryResolver.pinnedEntries(category)) {
-                String actual = catalogue.get(pin);
-                if (actual == null) {
-                    problems.add(pin + " is pinned under " + category + " but is not in the catalogue");
-                } else if (!actual.equals(category)) {
-                    problems.add(pin + " is pinned under " + category + " but resolves to " + actual);
+                if (!catalogue.containsKey(pin)) {
+                    missing.add(pin + " is pinned under " + category);
                 }
             }
         }
-        Assert.assertTrue(problems.isEmpty(), String.join("; ", problems));
+        Assert.assertTrue(missing.isEmpty(), "Pinned entries not in the catalogue: " + String.join("; ", missing));
+    }
+
+    @Test(description = "Few pins depend on the override, since the keywords Central gives them still place most of "
+            + "them correctly. Growing drift means Central re-filed connectors and the pins should be reviewed.")
+    public void testPinDriftStaysSmall() {
+        Map<String, IndexedConnector> byKey = new HashMap<>();
+        connectors.forEach(connector -> byKey.merge(
+                ConnectorCategoryResolver.key(moduleOf(connector), connector.searchResult().name()), connector,
+                (existing, candidate) -> candidate.pullCount() > existing.pullCount() ? candidate : existing));
+        List<String> drift = new ArrayList<>();
+        for (String category : ConnectorCategoryResolver.categoryOrder()) {
+            for (String pin : ConnectorCategoryResolver.pinnedEntries(category)) {
+                IndexedConnector connector = byKey.get(pin);
+                if (connector == null) {
+                    continue;
+                }
+                String byKeywords = ConnectorCategoryResolver.categorize(moduleOf(connector), connector.keywords());
+                if (!byKeywords.equals(category)) {
+                    drift.add(pin + " is pinned under " + category + " but its keywords place it in " + byKeywords);
+                }
+            }
+        }
+        if (!drift.isEmpty()) {
+            LOGGER.info("Pins held in place by the override: " + String.join("; ", drift));
+        }
+        Assert.assertTrue(drift.size() <= 10, drift.size() + " pins drifted: " + String.join("; ", drift));
     }
 
     @Test(description = "Every curated Popular entry resolves, or the first screen renders short.")

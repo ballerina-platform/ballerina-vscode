@@ -5,5 +5,27 @@
   "queryMap": {
     "q": "grpc"
   },
-  "categories": []
+  "categories": [
+    {
+      "metadata": {
+        "label": "A2a Rest",
+        "description": "An A2A protocol client for a remote agent, over the HTTP+JSON binding.\n\nGive it the agent's base URL, or an `a2a:AgentCard` already resolved via\n`a2a:resolveAgentCard`. It resolves the card, requires it to declare an\nHTTP+JSON interface, and speaks A2A v1.0 to it — so a card declaring only\nJSON-RPC or gRPC, or a 0.x protocol version, is rejected at construction\nrather than at the first call.\n\n```ballerina\na2a:RestClient agent = check new (\"https://agent.example.com\");\na2a:Task|a2a:Message reply = check agent->sendMessage({message: msg});\n```\n\nA client is cheap to construct and needs no teardown — there is deliberately\nno `close`, because an `http:Client` routes through a process-wide pool that\nevicts idle connections on its own. Still, prefer one long-lived client per\nagent: construction is wasted work per call. Setting `poolConfig` in\n`clientConfig` opts out of the shared pool into a private one that cannot be\nreleased, so reuse is required there rather than merely preferred.\n\nEach method's `+ return` names the `a2a:Error` subtype a protocol failure\nproduces; a transport or decode failure comes back as `a2a:InternalError`.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_a2a_0.8.0.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerina",
+        "module": "a2a",
+        "packageName": "a2a",
+        "object": "RestClient",
+        "symbol": "init",
+        "version": "0.8.0",
+        "isGenerated": false
+      },
+      "enabled": true
+    }
+  ]
 }

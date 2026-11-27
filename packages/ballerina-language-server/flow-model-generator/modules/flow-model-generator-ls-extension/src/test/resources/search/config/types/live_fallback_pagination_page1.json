@@ -44,7 +44,7 @@
               "metadata": {
                 "label": "Command",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -52,7 +52,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "Command",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             },
@@ -60,7 +60,7 @@
               "metadata": {
                 "label": "EnvProperties",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -68,7 +68,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "EnvProperties",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             },
@@ -76,7 +76,7 @@
               "metadata": {
                 "label": "Error",
                 "description": "Represents OS module related errors.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -84,7 +84,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "Error",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             },
@@ -92,7 +92,7 @@
               "metadata": {
                 "label": "Process",
                 "description": "This object contains information on a process being created from Ballerina.\nThis is returned from the `exec` function in the `os` module.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_os_1.10.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -100,7 +100,7 @@
                 "module": "os",
                 "packageName": "os",
                 "symbol": "Process",
-                "version": "1.10.1"
+                "version": "1.10.3"
               },
               "enabled": true
             }

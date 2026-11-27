@@ -117,7 +117,7 @@
               "metadata": {
                 "label": "parseToStream",
                 "description": "Parse a CSV byte block stream as a stream of records or arrays.\nThis function processes the CSV data incrementally, yielding one record at a time,\nmaking it memory-efficient for large files.\n\n```ballerina\nstream<byte[], io:Error?> csvByteStream = check io:fileReadBlocksAsStream(\"example.csv\");\nstream<record {int id; string name;}, csv:Error?> recordStream = check csv:parseToStream(csvByteStream);\ncheck recordStream.forEach(function(record {int id; string name;} rec) {\n    io:println(rec);\n});\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.csv_0.8.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_data.csv_1.0.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -125,7 +125,7 @@
                 "module": "data.csv",
                 "packageName": "data.csv",
                 "symbol": "parseToStream",
-                "version": "0.8.2"
+                "version": "1.0.1"
               },
               "enabled": true
             }

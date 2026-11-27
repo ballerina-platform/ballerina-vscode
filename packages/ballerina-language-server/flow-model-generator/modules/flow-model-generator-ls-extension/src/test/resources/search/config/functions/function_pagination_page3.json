@@ -41,7 +41,7 @@
               "metadata": {
                 "label": "applyInboundConfig",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_soap_2.3.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_soap_2.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -49,7 +49,7 @@
                 "module": "soap",
                 "packageName": "soap",
                 "symbol": "applyInboundConfig",
-                "version": "2.3.1"
+                "version": "2.4.0"
               },
               "enabled": true
             },
@@ -57,7 +57,7 @@
               "metadata": {
                 "label": "applySecurityPolicies",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_soap_2.3.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_soap_2.4.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -65,7 +65,7 @@
                 "module": "soap",
                 "packageName": "soap",
                 "symbol": "applySecurityPolicies",
-                "version": "2.3.1"
+                "version": "2.4.0"
               },
               "enabled": true
             }
@@ -123,6 +123,63 @@
         },
         {
           "metadata": {
+            "label": "ai.eval",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "assertContainsMatch",
+                "description": "Checks that the expected response recorded in the eval set appears as a substring\nof the agent response, allowing the agent to elaborate around a canonical answer.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai.eval_0.9.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai.eval",
+                "packageName": "ai.eval",
+                "symbol": "assertContainsMatch",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "assertContentCoverage",
+                "description": "Checks that the required strings all appear in the agent's output. For a thread,\nthe check runs against the combined output of every trace, so each required string\nneed only appear in one response. An empty required list is a configuration error\nand fails.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai.eval_0.9.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai.eval",
+                "packageName": "ai.eval",
+                "symbol": "assertContentCoverage",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "assertContentSafety",
+                "description": "Checks that agent responses contain none of the prohibited strings. For a thread,\none offending response fails the whole thread. An empty prohibited list is a\nconfiguration error and fails.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai.eval_0.9.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai.eval",
+                "packageName": "ai.eval",
+                "symbol": "assertContentSafety",
+                "version": "0.9.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
             "label": "test",
             "description": "",
             "keywords": []
@@ -140,54 +197,6 @@
                 "module": "test",
                 "packageName": "test",
                 "symbol": "assertEquals",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "assertExactEquals",
-                "description": "Asserts whether the given values are exactly equal. If it is not, an AssertError is thrown with the given errorMessage.\n\n### Example\n```ballerina\nimport ballerina/test;\n class Person {\n     public string name = \"\";\n     public int age = 0;\n     public Person? parent = ();\n     private string email = \"default@abc.com\";\n     string address = \"No 20, Palm grove\";\n }\n @test:Config {}\n function testAssertExactEqualsObject() {\n     Person p1 = new;\n     Person p2 = p1;\n     test:assertExactEquals(p1, p2, msg = \"Objects are not exactly equal\");\n }\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_test_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "test",
-                "packageName": "test",
-                "symbol": "assertExactEquals",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "assertFail",
-                "description": "Assert failure is triggered based on your discretion. AssertError is thrown with the given errorMessage.\n\n### Example\n```ballerina\nimport ballerina/test;\n @test:Config {}\n function foo() {\n     error? e = trap bar(); // Expecting `bar()` to panic\n     if e is error {\n         test:assertEquals(e.message().toString(), \"Invalid Operation\", msg = \"Invalid error reason\");\n     } else {\n         test:assertFail(msg = \"Expected an error\");\n     }\n }\n function bar() {\n     panic error(\"Invalid Operation\");\n }\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_test_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "test",
-                "packageName": "test",
-                "symbol": "assertFail",
-                "version": "0.0.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "assertFalse",
-                "description": "Asserts whether the given condition is false. If it is not, a AssertError is thrown with the given errorMessage.\n\n### Example\n```ballerina\nimport ballerina/test;\n @test:Config {}\n function testAssertFalse() {\n     boolean value = false;\n     test:assertFalse(value, msg = \"AssertFalse failed\");\n }\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_test_0.0.0.png"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "test",
-                "packageName": "test",
-                "symbol": "assertFalse",
                 "version": "0.0.0"
               },
               "enabled": true
@@ -217,7 +226,7 @@
               "metadata": {
                 "label": "adtA17ToBundle",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -225,7 +234,7 @@
                 "module": "health.hl7v23.utils.v2tofhirr4",
                 "packageName": "health.hl7v23.utils.v2tofhirr4",
                 "symbol": "adtA17ToBundle",
-                "version": "1.1.0"
+                "version": "1.1.1"
               },
               "enabled": true
             },
@@ -233,7 +242,7 @@
               "metadata": {
                 "label": "aigToAppointment",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -241,7 +250,7 @@
                 "module": "health.hl7v23.utils.v2tofhirr4",
                 "packageName": "health.hl7v23.utils.v2tofhirr4",
                 "symbol": "aigToAppointment",
-                "version": "1.1.0"
+                "version": "1.1.1"
               },
               "enabled": true
             },
@@ -249,7 +258,7 @@
               "metadata": {
                 "label": "ailToAppointment",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -257,7 +266,7 @@
                 "module": "health.hl7v23.utils.v2tofhirr4",
                 "packageName": "health.hl7v23.utils.v2tofhirr4",
                 "symbol": "ailToAppointment",
-                "version": "1.1.0"
+                "version": "1.1.1"
               },
               "enabled": true
             },
@@ -265,7 +274,7 @@
               "metadata": {
                 "label": "aipToAppointment",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -273,7 +282,7 @@
                 "module": "health.hl7v23.utils.v2tofhirr4",
                 "packageName": "health.hl7v23.utils.v2tofhirr4",
                 "symbol": "aipToAppointment",
-                "version": "1.1.0"
+                "version": "1.1.1"
               },
               "enabled": true
             },
@@ -281,7 +290,7 @@
               "metadata": {
                 "label": "aisToAppointment",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -289,7 +298,7 @@
                 "module": "health.hl7v23.utils.v2tofhirr4",
                 "packageName": "health.hl7v23.utils.v2tofhirr4",
                 "symbol": "aisToAppointment",
-                "version": "1.1.0"
+                "version": "1.1.1"
               },
               "enabled": true
             },
@@ -297,7 +306,7 @@
               "metadata": {
                 "label": "al1ToAllerygyIntolerance",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.hl7v23.utils.v2tofhirr4_1.1.1.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -305,7 +314,7 @@
                 "module": "health.hl7v23.utils.v2tofhirr4",
                 "packageName": "health.hl7v23.utils.v2tofhirr4",
                 "symbol": "al1ToAllerygyIntolerance",
-                "version": "1.1.0"
+                "version": "1.1.1"
               },
               "enabled": true
             }
@@ -338,24 +347,24 @@
         },
         {
           "metadata": {
-            "label": "health.fhir.r4",
+            "label": "salesforce.pubsub",
             "description": "",
             "keywords": []
           },
           "items": [
             {
               "metadata": {
-                "label": "annotationDataTypeValidationFunction",
-                "description": "This function validates the data type definition of Annotation.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "label": "ambiguousPublishError",
+                "description": "Creates the request-level error returned when one or more Publish RPCs in a\nbatch (a batch is one or more requests once split by size) ended without a\ndefinitive response from Salesforce.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce.pubsub_0.1.0.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
                 "org": "ballerinax",
-                "module": "health.fhir.r4",
-                "packageName": "health.fhir.r4",
-                "symbol": "annotationDataTypeValidationFunction",
-                "version": "6.3.2"
+                "module": "salesforce.pubsub",
+                "packageName": "salesforce.pubsub",
+                "symbol": "ambiguousPublishError",
+                "version": "0.1.0"
               },
               "enabled": true
             }

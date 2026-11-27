@@ -253,7 +253,7 @@
               "metadata": {
                 "label": "TargetType",
                 "description": "The types of data values that are expected by the HTTP `client` to return after the data binding operation.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -261,7 +261,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "TargetType",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             },
@@ -269,7 +269,7 @@
               "metadata": {
                 "label": "HttpOperation",
                 "description": "Defines the HTTP operations related to circuit breaker, failover and load balancer.\n\n`FORWARD`: Forward the specified payload\n`GET`: Request a resource\n`POST`: Create a new resource\n`DELETE`: Deletes the specified resource\n`OPTIONS`: Request communication options available\n`PUT`: Replace the target resource\n`PATCH`: Apply partial modification to the resource\n`HEAD`: Identical to `GET` but no resource body should be returned\n`SUBMIT`: Submits a http request and returns an HttpFuture object\n`NONE`: No operation should be performed",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.18.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -277,7 +277,7 @@
                 "module": "http",
                 "packageName": "http",
                 "symbol": "HttpOperation",
-                "version": "2.16.2"
+                "version": "2.18.3"
               },
               "enabled": true
             }
@@ -306,7 +306,7 @@
               "metadata": {
                 "label": "Operation",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_formstack_1.3.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_formstack_1.3.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -314,7 +314,7 @@
                 "module": "formstack",
                 "packageName": "formstack",
                 "symbol": "Operation",
-                "version": "1.3.1"
+                "version": "1.3.2"
               },
               "enabled": true
             }
@@ -420,6 +420,79 @@
         },
         {
           "metadata": {
+            "label": "microsoft.excel",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Operation",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.excel_3.0.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.excel",
+                "packageName": "microsoft.excel",
+                "symbol": "Operation",
+                "version": "3.0.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OperationCollectionResponse",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.excel_3.0.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.excel",
+                "packageName": "microsoft.excel",
+                "symbol": "OperationCollectionResponse",
+                "version": "3.0.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OperationError",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.excel_3.0.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.excel",
+                "packageName": "microsoft.excel",
+                "symbol": "OperationError",
+                "version": "3.0.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OperationStatus",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.excel_3.0.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.excel",
+                "packageName": "microsoft.excel",
+                "symbol": "OperationStatus",
+                "version": "3.0.0"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
             "label": "microsoft.onedrive",
             "description": "",
             "keywords": []
@@ -493,24 +566,40 @@
         },
         {
           "metadata": {
-            "label": "aws.simpledb",
+            "label": "microsoft.onenote",
             "description": "",
             "keywords": []
           },
           "items": [
             {
               "metadata": {
-                "label": "OperationError",
+                "label": "Operation",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.simpledb_2.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.onenote_3.0.0.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
                 "org": "ballerinax",
-                "module": "aws.simpledb",
-                "packageName": "aws.simpledb",
-                "symbol": "OperationError",
-                "version": "2.2.0"
+                "module": "microsoft.onenote",
+                "packageName": "microsoft.onenote",
+                "symbol": "Operation",
+                "version": "3.0.0"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "OperationStatus",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.onenote_3.0.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.onenote",
+                "packageName": "microsoft.onenote",
+                "symbol": "OperationStatus",
+                "version": "3.0.0"
               },
               "enabled": true
             }
@@ -552,7 +641,7 @@
               "metadata": {
                 "label": "OperationStatus",
                 "description": "Device operation status.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_file360_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_file360_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -560,48 +649,7 @@
                 "module": "file360",
                 "packageName": "file360",
                 "symbol": "OperationStatus",
-                "version": "1.5.1"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "microsoft.dynamics365.finance",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Operation",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.finance_0.2.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "microsoft.dynamics365.finance",
-                "packageName": "microsoft.dynamics365.finance",
-                "symbol": "Operation",
-                "version": "0.2.0"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "OperationsCollection",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.finance_0.2.0.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "microsoft.dynamics365.finance",
-                "packageName": "microsoft.dynamics365.finance",
-                "symbol": "OperationsCollection",
-                "version": "0.2.0"
+                "version": "1.5.2"
               },
               "enabled": true
             }
@@ -618,7 +666,7 @@
               "metadata": {
                 "label": "Operation",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.1.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -626,7 +674,7 @@
                 "module": "microsoft.dynamics365.scm",
                 "packageName": "microsoft.dynamics365.scm",
                 "symbol": "Operation",
-                "version": "0.2.0"
+                "version": "0.2.1"
               },
               "enabled": true
             },
@@ -634,7 +682,7 @@
               "metadata": {
                 "label": "OperationsCollection",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.1.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -642,7 +690,7 @@
                 "module": "microsoft.dynamics365.scm",
                 "packageName": "microsoft.dynamics365.scm",
                 "symbol": "OperationsCollection",
-                "version": "0.2.0"
+                "version": "0.2.1"
               },
               "enabled": true
             }
@@ -659,7 +707,7 @@
               "metadata": {
                 "label": "OperationConfig",
                 "description": "Operation configuration.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -667,7 +715,7 @@
                 "module": "health.fhir.r4",
                 "packageName": "health.fhir.r4",
                 "symbol": "OperationConfig",
-                "version": "6.3.2"
+                "version": "6.3.3"
               },
               "enabled": true
             },
@@ -675,7 +723,7 @@
               "metadata": {
                 "label": "OperationOutcomeIssueSeverity",
                 "description": "OperationOutcomeIssueSeverity enum",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.2.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4_6.3.3.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -683,7 +731,7 @@
                 "module": "health.fhir.r4",
                 "packageName": "health.fhir.r4",
                 "symbol": "OperationOutcomeIssueSeverity",
-                "version": "6.3.2"
+                "version": "6.3.3"
               },
               "enabled": true
             }
@@ -700,7 +748,7 @@
               "metadata": {
                 "label": "OperationConfig",
                 "description": "Operation configuration.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.1.0.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -708,7 +756,7 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "OperationConfig",
-                "version": "1.0.1"
+                "version": "1.1.0"
               },
               "enabled": true
             },
@@ -716,7 +764,7 @@
               "metadata": {
                 "label": "OperationOutcomeIssueSeverity",
                 "description": "OperationOutcomeIssueSeverity enum",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.0.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r5_1.1.0.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -724,7 +772,7 @@
                 "module": "health.fhir.r5",
                 "packageName": "health.fhir.r5",
                 "symbol": "OperationOutcomeIssueSeverity",
-                "version": "1.0.1"
+                "version": "1.1.0"
               },
               "enabled": true
             }
@@ -773,6 +821,31 @@
         },
         {
           "metadata": {
+            "label": "microsoft.dynamics365.finance.workflow",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Operation",
+                "description": "",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.finance.workflow_0.8.2.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "microsoft.dynamics365.finance.workflow",
+                "packageName": "microsoft.dynamics365.finance.workflow",
+                "symbol": "Operation",
+                "version": "0.8.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
             "label": "health.fhir.r4.international401",
             "description": "",
             "keywords": []
@@ -782,7 +855,7 @@
               "metadata": {
                 "label": "OperationDefinitionExtensions",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.international401_4.0.3.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.international401_4.0.5.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -790,80 +863,7 @@
                 "module": "health.fhir.r4.international401",
                 "packageName": "health.fhir.r4.international401",
                 "symbol": "OperationDefinitionExtensions",
-                "version": "4.0.3"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "OperationdefinitionAllowedType",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.international401_4.0.3.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r4.international401",
-                "packageName": "health.fhir.r4.international401",
-                "symbol": "OperationdefinitionAllowedType",
-                "version": "4.0.3"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "OperationdefinitionProfile",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.international401_4.0.3.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r4.international401",
-                "packageName": "health.fhir.r4.international401",
-                "symbol": "OperationdefinitionProfile",
-                "version": "4.0.3"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "OperationoutcomeAuthority",
-                "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_health.fhir.r4.international401_4.0.3.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "health.fhir.r4.international401",
-                "packageName": "health.fhir.r4.international401",
-                "symbol": "OperationoutcomeAuthority",
-                "version": "4.0.3"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "azure.iothub",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "OperationInputs",
-                "description": "Input values.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.iothub_1.5.1.png"
-              },
-              "codedata": {
-                "node": "TYPEDESC",
-                "org": "ballerinax",
-                "module": "azure.iothub",
-                "packageName": "azure.iothub",
-                "symbol": "OperationInputs",
-                "version": "1.5.1"
+                "version": "4.0.5"
               },
               "enabled": true
             }

@@ -34,8 +34,9 @@ import java.util.Set;
  * Groups connectors into browse categories using the keywords carried by the package index.
  *
  * <p>
- * Central runs two keyword schemes: the current {@code Area/Name} and the legacy {@code Area/Subarea}. Only about a
- * third of the indexed connectors carry the former, so both are read, in that precedence.
+ * Central runs two keyword schemes: the current {@code Area/Name} and the legacy {@code Area/Subarea}. Most indexed
+ * connectors now carry both. The current scheme wins, except where it gives no category or only a broad one and a
+ * legacy keyword places the connector in a finer category (see {@link #FINER_LEGACY_CATEGORIES}).
  * </p>
  *
  * @since 1.8.0
@@ -100,6 +101,24 @@ public final class ConnectorCategoryResolver {
             Map.entry("Support", List.of("zendesk:Client", "servicenow:Client")),
             Map.entry("Human Resources", List.of("workday.common:Client")));
 
+    /**
+     * Each pinned entry mapped to the category it is pinned under. A pin is a curated placement, so it is not left to
+     * the keywords Central happens to give the package.
+     */
+    private static final Map<String, String> PINNED_CATEGORY = pinnedCategories();
+
+    private static Map<String, String> pinnedCategories() {
+        Map<String, String> pinned = new HashMap<>();
+        // PINS iterates in no fixed order, so a duplicate would be placed differently from one run to the next.
+        PINS.forEach((category, entries) -> entries.forEach(entry -> {
+            String previous = pinned.putIfAbsent(entry, category);
+            if (previous != null && !previous.equals(category)) {
+                throw new IllegalStateException(entry + " is pinned under both " + previous + " and " + category);
+            }
+        }));
+        return Map.copyOf(pinned);
+    }
+
     private static final Map<String, String> AREA = Map.ofEntries(
             Map.entry("AI", "AI & Machine Learning"),
             Map.entry("AI & Machine Learning", "AI & Machine Learning"),
@@ -124,8 +143,29 @@ public final class ConnectorCategoryResolver {
             Map.entry("Cloud & Infrastructure", "Cloud & DevOps"),
             Map.entry("System", "Cloud & DevOps"),
             Map.entry("Human Resources", "Human Resources"),
+            Map.entry("HRMS", "Human Resources"),
+            Map.entry("ERP", "ERP & Business Operations"),
+            Map.entry("Databases", "Database"),
+            Map.entry("Network & Protocols", "Network"),
+            Map.entry("Analytics", "Analytics"),
             Map.entry("Healthcare", OTHER_CATEGORY),
             Map.entry("Compliance", OTHER_CATEGORY));
+
+    /**
+     * Categories where the legacy keyword is preferred over a broad {@code Area/} placement, or over none. The current
+     * scheme mostly has no counterpart for them, so it files their connectors under a catch-all area instead, e.g.
+     * news and weather APIs under Productivity & Collaboration.
+     */
+    private static final Set<String> FINER_LEGACY_CATEGORIES = Set.of(
+            "Media & Content", "Website & Apps", "Analytics", "Support", "IoT & Devices", "Education",
+            "Lifestyle & News");
+
+    /**
+     * The catch-all categories the {@code Area/} scheme files connectors under when it has nothing more specific. Only
+     * these give way to a finer legacy category; a specific {@code Area/}, such as AI & Machine Learning, is kept.
+     */
+    private static final Set<String> BROAD_AREA_CATEGORIES = Set.of(
+            "Productivity & Collaboration", "Cloud & DevOps", "Storage & Files", "CRM & Sales");
 
     /**
      * The subarea is load-bearing: {@code IT Operations/Databases} and {@code IT Operations/Source Control} are
@@ -272,28 +312,49 @@ public final class ConnectorCategoryResolver {
         if (keywords == null) {
             return OTHER_CATEGORY;
         }
+        String finer = null;
+        for (String keyword : keywords) {
+            String category = legacyCategory(keyword);
+            if (category != null && FINER_LEGACY_CATEGORIES.contains(category)) {
+                finer = category;
+                break;
+            }
+        }
+        String area = null;
         for (String keyword : keywords) {
             if (keyword.startsWith(AREA_PREFIX)) {
-                String category = AREA.get(keyword.substring(AREA_PREFIX.length()));
-                if (category != null) {
-                    return category;
+                area = AREA.get(keyword.substring(AREA_PREFIX.length()));
+                if (area != null) {
+                    break;
                 }
             }
         }
+        if (finer != null && (area == null || BROAD_AREA_CATEGORIES.contains(area))) {
+            return finer;
+        }
+        if (area != null) {
+            return area;
+        }
         for (String keyword : keywords) {
-            if (keyword.indexOf('/') < 0 || isReserved(keyword)) {
-                continue;
-            }
-            String category = LEGACY.get(keyword);
-            if (category != null) {
-                return category;
-            }
-            category = LEGACY.get(keyword.substring(0, keyword.indexOf('/')));
+            String category = legacyCategory(keyword);
             if (category != null) {
                 return category;
             }
         }
         return OTHER_CATEGORY;
+    }
+
+    /**
+     * Resolves a legacy {@code Area/Subarea} keyword, matching the subarea first and then the area alone.
+     *
+     * @return the category, or null when the keyword is not a mapped legacy keyword
+     */
+    private static String legacyCategory(String keyword) {
+        if (keyword.indexOf('/') < 0 || isReserved(keyword)) {
+            return null;
+        }
+        String category = LEGACY.get(keyword);
+        return category != null ? category : LEGACY.get(keyword.substring(0, keyword.indexOf('/')));
     }
 
     private static boolean isReserved(String keyword) {
@@ -319,7 +380,8 @@ public final class ConnectorCategoryResolver {
                 || EXCLUDED_MODULE_SUBSTRINGS.stream().anyMatch(module::contains)) {
             return false;
         }
-        if (keywords != null) {
+        // A hand-placed module is a known connector, whatever Type/ Central gives it (ldap is typed as a library).
+        if (keywords != null && !MANUAL.containsKey(moduleName) && !STDLIB.containsKey(moduleName)) {
             List<String> types = keywords.stream().filter(k -> k.startsWith("Type/")).toList();
             if (!types.isEmpty() && EXCLUDED_TYPE_KEYWORDS.containsAll(types)) {
                 return false;
@@ -356,9 +418,13 @@ public final class ConnectorCategoryResolver {
         }
 
         Map<String, List<CatalogueEntry>> byCategory = new HashMap<>();
-        byKey.forEach((entryKey, connector) -> byCategory
-                .computeIfAbsent(categorize(moduleOf(connector), connector.keywords()), c -> new ArrayList<>())
-                .add(new CatalogueEntry(entryKey, connector)));
+        byKey.forEach((entryKey, connector) -> {
+            String category = PINNED_CATEGORY.get(entryKey);
+            if (category == null) {
+                category = categorize(moduleOf(connector), connector.keywords());
+            }
+            byCategory.computeIfAbsent(category, c -> new ArrayList<>()).add(new CatalogueEntry(entryKey, connector));
+        });
 
         Map<String, List<SearchResult>> catalogue = new LinkedHashMap<>();
         for (String category : CATEGORY_ORDER) {
@@ -415,6 +481,10 @@ public final class ConnectorCategoryResolver {
 
     public static List<String> popularEntries() {
         return POPULAR_ENTRIES;
+    }
+
+    public static Set<String> finerLegacyCategories() {
+        return FINER_LEGACY_CATEGORIES;
     }
 
     public static List<String> pinnedEntries(String category) {

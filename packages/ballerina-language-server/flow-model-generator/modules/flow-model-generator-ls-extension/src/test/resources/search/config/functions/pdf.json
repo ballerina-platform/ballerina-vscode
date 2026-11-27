@@ -75,7 +75,7 @@
               "metadata": {
                 "label": "extractText",
                 "description": "Extracts text content from each page of a PDF document.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -83,7 +83,7 @@
                 "module": "pdf",
                 "packageName": "pdf",
                 "symbol": "extractText",
-                "version": "0.9.1"
+                "version": "0.9.3"
               },
               "enabled": true
             },
@@ -91,7 +91,7 @@
               "metadata": {
                 "label": "fileExtractText",
                 "description": "Extracts text content from each page of a PDF file.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -99,7 +99,7 @@
                 "module": "pdf",
                 "packageName": "pdf",
                 "symbol": "fileExtractText",
-                "version": "0.9.1"
+                "version": "0.9.3"
               },
               "enabled": true
             },
@@ -107,7 +107,7 @@
               "metadata": {
                 "label": "urlExtractText",
                 "description": "Extracts text content from each page of a PDF at the given URL.\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_pdf_0.9.3.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -115,7 +115,7 @@
                 "module": "pdf",
                 "packageName": "pdf",
                 "symbol": "urlExtractText",
-                "version": "0.9.1"
+                "version": "0.9.3"
               },
               "enabled": true
             }

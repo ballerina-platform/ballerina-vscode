@@ -5,5 +5,27 @@
   "queryMap": {
     "q": "persist"
   },
-  "categories": []
+  "categories": [
+    {
+      "metadata": {
+        "label": "Solace Message Producer",
+        "description": "MessageProducer for publishing messages to Solace.\n\nSupports both guaranteed (PERSISTENT) and direct (DIRECT) message delivery modes.\nMessages are published to specified destinations (topics or queues). Guaranteed messages are sent either\nasynchronously (`send`), or by waiting for the broker acknowledgement (`sendAwaitAcknowledgement`).\n\nExample usage:\n```ballerina\nfinal solace:MessageProducer producer = check new (\n    host = \"tcp://broker:55555\",\n    auth = {username: \"default\"}\n);\nsolace:Message message = {\n    payload: \"Hello Solace\".toBytes(),\n    deliveryMode: solace:PERSISTENT,\n    priority: 4\n};\ncheck producer->send(message, {topicName: \"orders/created\"});\ncheck producer->close();\n```",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_1.2.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "solace",
+        "packageName": "solace",
+        "object": "MessageProducer",
+        "symbol": "init",
+        "version": "1.2.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    }
+  ]
 }

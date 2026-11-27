@@ -264,7 +264,7 @@
               "metadata": {
                 "label": "ForecastModel",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.1.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -272,7 +272,7 @@
                 "module": "microsoft.dynamics365.scm",
                 "packageName": "microsoft.dynamics365.scm",
                 "symbol": "ForecastModel",
-                "version": "0.2.0"
+                "version": "0.2.1"
               },
               "enabled": true
             },
@@ -280,7 +280,7 @@
               "metadata": {
                 "label": "ForecastModelsCollection",
                 "description": "",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_microsoft.dynamics365.scm_0.2.1.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -288,7 +288,7 @@
                 "module": "microsoft.dynamics365.scm",
                 "packageName": "microsoft.dynamics365.scm",
                 "symbol": "ForecastModelsCollection",
-                "version": "0.2.0"
+                "version": "0.2.1"
               },
               "enabled": true
             }
@@ -305,7 +305,7 @@
               "metadata": {
                 "label": "ForecastCurrent",
                 "description": "Current weather data API response",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -313,7 +313,7 @@
                 "module": "openweathermap",
                 "packageName": "openweathermap",
                 "symbol": "ForecastCurrent",
-                "version": "1.5.1"
+                "version": "1.5.2"
               },
               "enabled": true
             },
@@ -321,7 +321,7 @@
               "metadata": {
                 "label": "WeatherForecast",
                 "description": "Weather forecast data",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -329,7 +329,7 @@
                 "module": "openweathermap",
                 "packageName": "openweathermap",
                 "symbol": "WeatherForecast",
-                "version": "1.5.1"
+                "version": "1.5.2"
               },
               "enabled": true
             },
@@ -337,7 +337,7 @@
               "metadata": {
                 "label": "Daily",
                 "description": "Daily forecast weather data API response",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -345,7 +345,7 @@
                 "module": "openweathermap",
                 "packageName": "openweathermap",
                 "symbol": "Daily",
-                "version": "1.5.1"
+                "version": "1.5.2"
               },
               "enabled": true
             },
@@ -353,7 +353,7 @@
               "metadata": {
                 "label": "Hourly",
                 "description": "Hourly forecast weather data API response",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -361,7 +361,7 @@
                 "module": "openweathermap",
                 "packageName": "openweathermap",
                 "symbol": "Hourly",
-                "version": "1.5.1"
+                "version": "1.5.2"
               },
               "enabled": true
             },
@@ -369,7 +369,7 @@
               "metadata": {
                 "label": "Minutely",
                 "description": "Minute forecast weather data API response",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openweathermap_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -377,7 +377,32 @@
                 "module": "openweathermap",
                 "packageName": "openweathermap",
                 "symbol": "Minutely",
-                "version": "1.5.1"
+                "version": "1.5.2"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "plaid",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "ForecastedMonthlyIncome",
+                "description": "An object representing the predicted average monthly net income amount. This amount reflects the funds deposited into the account and may not include any withheld income such as taxes or other payroll deductions",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_plaid_2.0.0.png"
+              },
+              "codedata": {
+                "node": "TYPEDESC",
+                "org": "ballerinax",
+                "module": "plaid",
+                "packageName": "plaid",
+                "symbol": "ForecastedMonthlyIncome",
+                "version": "2.0.0"
               },
               "enabled": true
             }
@@ -394,7 +419,7 @@
               "metadata": {
                 "label": "ArimaForecastingMetrics",
                 "description": "Model evaluation metrics for ARIMA forecasting models.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.bigquery_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.bigquery_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -402,7 +427,7 @@
                 "module": "googleapis.bigquery",
                 "packageName": "googleapis.bigquery",
                 "symbol": "ArimaForecastingMetrics",
-                "version": "1.5.1"
+                "version": "1.5.2"
               },
               "enabled": true
             },
@@ -410,7 +435,7 @@
               "metadata": {
                 "label": "ArimaSingleModelForecastingMetrics",
                 "description": "Model evaluation metrics for a single ARIMA forecasting model.",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.bigquery_1.5.1.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.bigquery_1.5.2.png"
               },
               "codedata": {
                 "node": "TYPEDESC",
@@ -418,7 +443,7 @@
                 "module": "googleapis.bigquery",
                 "packageName": "googleapis.bigquery",
                 "symbol": "ArimaSingleModelForecastingMetrics",
-                "version": "1.5.1"
+                "version": "1.5.2"
               },
               "enabled": true
             }

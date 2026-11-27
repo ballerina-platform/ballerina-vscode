@@ -38,7 +38,7 @@ import java.util.Set;
  *     <li>{@code ballerina/np} has 3 types while {@code ballerinax/np} has none - a same-name, different-org pair
  *     that is only distinguishable if a query binds organization and module name together. {@code Package.name} has
  *     no uniqueness constraint, so this is legal index content, not corruption.</li>
- *     <li>{@code xlibb/solace} (32 types) and {@code ballerinax/solace} (29) are the same collision with rows on
+ *     <li>{@code xlibb/solace} (33 types) and {@code ballerinax/solace} (38) are the same collision with rows on
  *     both sides, so an org-blind query merges two unrelated vendors' connectors.</li>
  *     <li>{@code ballerinax/np} is present in {@code Package} with zero {@code Type} rows, so "has no types" must
  *     not be read as "not indexed".</li>
@@ -83,14 +83,14 @@ public class SearchDatabaseManagerTypeSearchTest {
     @Test(description = "Two orgs publishing the same module name must never have their types merged")
     public void testSearchTypesByPackagesDoesNotMergeCollidingOrgs() {
         List<SearchResult> xlibbResults = dbManager.searchTypesByPackages(Set.of(mod(XLIBB, "solace")), 100, 0);
-        Assert.assertEquals(xlibbResults.size(), 32);
+        Assert.assertEquals(xlibbResults.size(), 33);
         for (SearchResult result : xlibbResults) {
             Assert.assertEquals(result.packageInfo().org(), XLIBB);
         }
 
         List<SearchResult> ballerinaxResults =
                 dbManager.searchTypesByPackages(Set.of(mod(BALLERINAX, "solace")), 100, 0);
-        Assert.assertEquals(ballerinaxResults.size(), 29);
+        Assert.assertEquals(ballerinaxResults.size(), 38);
         for (SearchResult result : ballerinaxResults) {
             Assert.assertEquals(result.packageInfo().org(), BALLERINAX);
         }
@@ -119,16 +119,16 @@ public class SearchDatabaseManagerTypeSearchTest {
     public void testCollidingModuleNamesFromTwoOrgsCoexist() {
         Set<ModuleCoordinate> bothOrgs = Set.of(mod(XLIBB, "solace"), mod(BALLERINAX, "solace"));
 
-        Assert.assertEquals(dbManager.countIndexedTypes(bothOrgs), 61, "xlibb/solace=32 + ballerinax/solace=29");
+        Assert.assertEquals(dbManager.countIndexedTypes(bothOrgs), 71, "xlibb/solace=33 + ballerinax/solace=38");
         Assert.assertEquals(dbManager.findIndexedModules(bothOrgs), bothOrgs,
                 "both orgs are indexed and must each be reported, so neither is misread as missing");
 
-        List<SearchResult> page = dbManager.searchTypesByPackages(bothOrgs, 61, 0);
-        Assert.assertEquals(page.size(), 61);
+        List<SearchResult> page = dbManager.searchTypesByPackages(bothOrgs, 71, 0);
+        Assert.assertEquals(page.size(), 71);
         long xlibbCount = page.stream().filter(r -> XLIBB.equals(r.packageInfo().org())).count();
         long ballerinaxCount = page.stream().filter(r -> BALLERINAX.equals(r.packageInfo().org())).count();
-        Assert.assertEquals(xlibbCount, 32, "keying by module name alone would have dropped one org entirely");
-        Assert.assertEquals(ballerinaxCount, 29);
+        Assert.assertEquals(xlibbCount, 33, "keying by module name alone would have dropped one org entirely");
+        Assert.assertEquals(ballerinaxCount, 38);
     }
 
     @Test(description = "A colliding pair where only one org is indexed must still resolve the other live")

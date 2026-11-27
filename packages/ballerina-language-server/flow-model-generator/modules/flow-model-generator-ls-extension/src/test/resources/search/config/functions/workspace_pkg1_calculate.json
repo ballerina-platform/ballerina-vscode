@@ -134,7 +134,7 @@
               "metadata": {
                 "label": "cosineSimilarity",
                 "description": "Calculates the cosine similarity between two float vectors.\n\n```ballerina\nfloat[] v1 = [1.0, 2.0, 3.0];\nfloat[] v2 = [4.0, 5.0, 6.0];\ncosineSimilarity(v1, v2) ⇒ 0.9746318461970762\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -142,7 +142,7 @@
                 "module": "math.vector",
                 "packageName": "math.vector",
                 "symbol": "cosineSimilarity",
-                "version": "1.2.0"
+                "version": "1.2.2"
               },
               "enabled": true
             },
@@ -150,7 +150,7 @@
               "metadata": {
                 "label": "dotProduct",
                 "description": "Calculates the dot product of two float vectors.\n\n```ballerina\nfloat[] v1 = [1.0, 2.0, 3.0];\nfloat[] v2 = [4.0, 5.0, 6.0];\ndotProduct(v1, v2) ⇒ 32.0\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -158,7 +158,7 @@
                 "module": "math.vector",
                 "packageName": "math.vector",
                 "symbol": "dotProduct",
-                "version": "1.2.0"
+                "version": "1.2.2"
               },
               "enabled": true
             },
@@ -166,7 +166,7 @@
               "metadata": {
                 "label": "euclideanDistance",
                 "description": "Calculates the Euclidean distance between two float vectors.\n\n```ballerina\nfloat[] v1 = [1.0, 2.0, 3.0];\nfloat[] v2 = [4.0, 5.0, 6.0];\neuclideanDistance(v1, v2) ⇒ 5.196152422706632\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -174,7 +174,7 @@
                 "module": "math.vector",
                 "packageName": "math.vector",
                 "symbol": "euclideanDistance",
-                "version": "1.2.0"
+                "version": "1.2.2"
               },
               "enabled": true
             },
@@ -182,7 +182,7 @@
               "metadata": {
                 "label": "manhattanDistance",
                 "description": "Calculates the Manhattan distance between two float vectors.\n\n```ballerina\nfloat[] v1 = [1.0, 2.0, 3.0];\nfloat[] v2 = [4.0, 5.0, 6.0];\nmanhattanDistance(v1, v2) ⇒ 9.0\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -190,7 +190,7 @@
                 "module": "math.vector",
                 "packageName": "math.vector",
                 "symbol": "manhattanDistance",
-                "version": "1.2.0"
+                "version": "1.2.2"
               },
               "enabled": true
             },
@@ -198,7 +198,7 @@
               "metadata": {
                 "label": "vectorNorm",
                 "description": "Calculates the L1 and L2 norm of a float vector.\n\n```ballerina\nfloat[] v = [1.0, 2.0, 3.0];\nvectorNorm(v, vector:L2) ⇒ 3.7416573867739413\nvectorNorm(v, vector:L1) ⇒ 6.0\n```\n",
-                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.0.png"
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_math.vector_1.2.2.png"
               },
               "codedata": {
                 "node": "FUNCTION_CALL",
@@ -206,7 +206,7 @@
                 "module": "math.vector",
                 "packageName": "math.vector",
                 "symbol": "vectorNorm",
-                "version": "1.2.0"
+                "version": "1.2.2"
               },
               "enabled": true
             }
@@ -223,7 +223,33 @@
           "Library"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "salesforce.pubsub",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "retryDelay",
+                "description": "Calculates bounded exponential backoff for a one-based retry number.\n",
+                "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce.pubsub_0.1.0.png"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerinax",
+                "module": "salesforce.pubsub",
+                "packageName": "salesforce.pubsub",
+                "symbol": "retryDelay",
+                "version": "0.1.0"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     }
   ]
 }
