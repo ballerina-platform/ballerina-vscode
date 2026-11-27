@@ -312,6 +312,7 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
     const guarded = (where: string, pending: Promise<void>) => checks.push(pending.catch((failure) => {
         console.warn(`[ExpressionAssist] could not check ${where}`, failure);
     }));
+    const current = [...req.slots.map((slot) => slot.value), ...req.groups.flatMap((group) => group.rows.flatMap(Object.values))].join("\n");
     // `set` takes the value back when the check quoted plain text the model left bare.
     const check = (where: string, property: ExpressionProperty, expression: string, set: (value: string) => void) => {
         const kind = selectedKind(property);
@@ -342,7 +343,7 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
                 if (!named.length) {
                     set(checked.expression);
                 }
-                const secret = checked.errors.length ? undefined : secretInValue(expression);
+                const secret = checked.errors.length ? undefined : secretInValue(expression, current);
                 errors.push(...[...checked.errors, ...(secret ? [secret] : [])].map((error) => `${where}: ${error}`));
                 checked.hints.forEach((hint) => hints.add(hint));
             }));

@@ -39,6 +39,7 @@ const active = new Map<string, AbortController>();
 
 interface Escalatable {
     verified: boolean;
+    finished?: boolean;
     best?: { errors: string[] };
 }
 
@@ -60,7 +61,8 @@ export async function withEscalation<S extends Escalatable, R extends object>(
     }
     const second = newRun();
     const escalated = await attempt(second, ANTHROPIC_SONNET, `\n\nA faster model tried this first and failed. ${retryNote(first)}\nA different approach is fine.`);
-    const answer = firstCameCloser(first, second) ? response : escalated;
+    // A question, decline or hand-off from the stronger model is for the user; the first run wins only over one that also failed or stopped.
+    const answer = (failed(second) || !second.finished) && firstCameCloser(first, second) ? response : escalated;
     // shortcut: dev-only trace of both runs, so the eval counts their tokens; remove with the trace below.
     const trace = (escalated as { trace?: object }).trace;
     return trace ? { ...answer, trace: { ...trace, first: (response as { trace?: object }).trace } } : answer;

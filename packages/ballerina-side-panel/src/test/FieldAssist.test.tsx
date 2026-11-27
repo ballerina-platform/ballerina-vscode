@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ExpressionAssistResponse } from "@wso2/ballerina-core";
 import {
@@ -29,7 +29,7 @@ import {
 } from "../components/editors/FieldAssist/FieldAssist";
 import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
 import { FormAssistDescription, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
-import { AppliedMark, AssistHostValue, markUndone } from "../components/editors/FieldAssist/AssistHost";
+import { AppliedMark, AssistHostProvider, AssistHostValue, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 
 interface HarnessProps {
@@ -339,5 +339,40 @@ describe("undone changes", () => {
         markUndone(host, "discount", { inField: true, request: "round it" } as AppliedMark);
         expect(thread.marks.get(1)).toBe("(undone)");
         expect(thread.marks.has(0)).toBe(false);
+    });
+});
+
+describe("field threads in a host", () => {
+    const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "1" }));
+    function HostedField() {
+        const host = useAssistHost()!;
+        useEffect(() => host.registerField("expression", {} as never), [host.registerField]);
+        return <Harness initial="" assist={assist} thread={host.fieldThread("expression")} />;
+    }
+    // `form` keys the form, as a rebuild does; no form is the node list between two forms.
+    const Panel = ({ form }: { form?: number }) => <AssistHostProvider>{form !== undefined && <HostedField key={form} />}</AssistHostProvider>;
+
+    async function askInFirstForm() {
+        const view = render(<Panel form={1} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("the text hello world");
+        return view;
+    }
+
+    it("keep a field's thread when its form rebuilds", async () => {
+        const view = await askInFirstForm();
+        view.rerender(<Panel form={2} />);
+        fireEvent.click(screen.getByText("open"));
+
+        expect(screen.getByText("the text hello world")).toBeTruthy();
+    });
+
+    it("start empty in a new form once the old one went away", async () => {
+        const view = await askInFirstForm();
+        view.rerender(<Panel />);
+        view.rerender(<Panel form={2} />);
+        fireEvent.click(screen.getByText("open"));
+
+        expect(screen.queryByText("the text hello world")).toBeNull();
     });
 });

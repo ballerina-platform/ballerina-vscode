@@ -51,7 +51,8 @@ jest.mock("../features/ai/agent/console-summary", () => ({ untilAborted: (promis
 jest.mock("../features/ai/service/prompt-enhancement/promptEnhancement", () => ({ toAIRequestError: (error: Error) => error }));
 jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] }));
 
-import { abortAssist, firstCameCloser, runAssist, stallGuard } from "../features/ai/expression-assist/run";
+import { workspace } from "vscode";
+import { abortAssist, firstCameCloser, runAssist, stallGuard, withEscalation } from "../features/ai/expression-assist/run";
 
 describe("runAssist", () => {
     it("treats a stop after a finished step as a stop, not a finished run", async () => {
@@ -150,5 +151,36 @@ describe("firstCameCloser", () => {
         expect(firstCameCloser(run(false, ["a"]), run(true, []))).toBe(false);
         expect(firstCameCloser(run(false, ["a"]), run(false, ["b"]))).toBe(false);
         expect(firstCameCloser(run(false), run(false, ["b"]))).toBe(false);
+    });
+});
+
+describe("withEscalation", () => {
+    type Run = { verified: boolean; finished?: boolean; best?: { errors: string[] }; question?: string };
+    const failed = (run: Run) => !!run.finished && !run.verified && !run.question;
+    const escalate = (second: Partial<Run>) => {
+        let calls = 0;
+        return withEscalation<Run, { from: string }>(
+            async (run) => {
+                Object.assign(run, calls++ === 0 ? { finished: true, best: { errors: ["a"] } } : second);
+                return { from: calls === 1 ? "first" : "second" };
+            },
+            () => ({ verified: false }),
+            failed,
+            () => "",
+        );
+    };
+
+    beforeEach(() => {
+        jest.spyOn(workspace, "getConfiguration").mockReturnValue({ get: () => true } as never);
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    it("answers with the stronger model's question though it submitted nothing", async () => {
+        expect(await escalate({ finished: true, question: "Which one?" })).toEqual({ from: "second" });
+    });
+
+    it("keeps the first run's closest try over a stronger run that failed or stopped with nothing", async () => {
+        expect(await escalate({ finished: true })).toEqual({ from: "first" });
+        expect(await escalate({ finished: false })).toEqual({ from: "first" });
     });
 });

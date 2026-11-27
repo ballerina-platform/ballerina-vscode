@@ -24,7 +24,7 @@ jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
 import { checkForm, joinCandidates, needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
-import { asDeclared, namedIn } from "../features/ai/expression-assist/configurable";
+import { asDeclared, createConfigurableTool, namedIn } from "../features/ai/expression-assist/configurable";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";
 
 const run = (verified: boolean) => ({
@@ -67,6 +67,27 @@ describe("form Copilot configurable tool", () => {
 
     it("is left out of an ordinary request", () => {
         expect(needsConfigurable(request("message like Ann borrowed 3 books", [{ path: "message" }]))).toBe(false);
+    });
+});
+
+describe("a new configurable's name", () => {
+    // The check compiles the name where the value goes, as the language server reports it.
+    const propose = async (nameErrors: string[]) => {
+        const onWhole = jest.fn();
+        const check = async (expression: string) => (expression === "apiKey" ? nameErrors : []);
+        const reply = await createConfigurableTool(check, onWhole, jest.fn()).execute!(
+            { name: "apiKey", type: "string", documentation: "", useFieldValue: true }, { toolCallId: "1", messages: [] });
+        return { reply, declared: onWhole.mock.calls.length > 0 };
+    };
+
+    it("is free only when the name is undefined here", async () => {
+        expect(await propose(["undefined symbol 'apiKey'"])).toEqual({ reply: "OK", declared: true });
+    });
+
+    it("is refused when the name is declared with another type, or is a keyword", async () => {
+        expect(await propose(["incompatible types: expected 'string', found 'int'"])).toMatchObject({ declared: false, reply: expect.stringMatching(/Pick another name/) });
+        expect(await propose(["invalid token 'type'"])).toMatchObject({ declared: false });
+        expect(await propose([])).toMatchObject({ declared: false, reply: expect.stringMatching(/already exists/) });
     });
 });
 

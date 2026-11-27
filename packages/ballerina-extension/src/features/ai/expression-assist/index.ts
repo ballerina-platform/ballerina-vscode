@@ -159,7 +159,7 @@ async function submitValue(req: ExpressionAssistRequest, run: RunState, names: s
     const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
     // The let around a value that names a new configurable is there only for the check.
     const value = named.length ? { expression: clean, actions: named } : { expression: checked.expression };
-    const secret = checked.errors.length ? undefined : secretInValue(clean);
+    const secret = checked.errors.length ? undefined : secretInValue(clean, req.context.expression);
     const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : secret ? [secret] : checked.errors };
     const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
     return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, next);

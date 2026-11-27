@@ -192,6 +192,7 @@ export async function runAssistActions(
     const diagram = rpcClient.getBIDiagramRpcClient();
     const { projectPath } = await rpcClient.getVisualizerLocation();
     const toml = await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
+    const packageName = `${toml?.package?.org}/${toml?.package?.name}`;
     for (const { name, type, documentation, useFieldValue } of actions) {
         const { flowNode: node } = await diagram.getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
         // One created from a test file belongs to that file.
@@ -207,28 +208,26 @@ export async function runAssistActions(
         await diagram.updateConfigVariablesV2({
             configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
             configVariable: node,
-            packageName: `${toml?.package?.org}/${toml?.package?.name}`,
+            packageName,
             moduleName: "",
         });
     }
-    return () => removeConfigurables(rpcClient, projectPath, actions.map(({ name }) => name));
+    return () => removeConfigurables(rpcClient, projectPath, packageName, actions.map(({ name }) => name));
 }
 
-// Deletes configurables by name, with their Config.toml values; each delete moves the rest, so the list is read again.
-export async function removeConfigurables(rpcClient: BallerinaRpcClient, projectPath: string, names: string[]): Promise<void> {
+// Deletes configurables the root module declares, with their Config.toml values; each delete moves the rest, so the list is read again.
+export async function removeConfigurables(rpcClient: BallerinaRpcClient, projectPath: string, packageName: string, names: string[]): Promise<void> {
     const diagram = rpcClient.getBIDiagramRpcClient();
     for (const name of names) {
         const { configVariables } = await diagram.getConfigVariablesV2({ projectPath: "", includeLibraries: false });
-        const found = Object.entries(configVariables as unknown as Record<string, Record<string, FlowNode[]>> ?? {})
-            .flatMap(([packageName, modules]) => Object.entries(modules)
-                .map(([moduleName, nodes]) => ({ packageName, moduleName, node: nodes.find((node) => node.properties?.variable?.value === name) })))
-            .find(({ node }) => node);
-        if (found?.node) {
+        const declared = (configVariables as unknown as Record<string, Record<string, FlowNode[]>>)?.[packageName]?.[""] ?? [];
+        const node = declared.find((node) => node.properties?.variable?.value === name);
+        if (node) {
             await diagram.deleteConfigVariableV2({
                 configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
-                configVariable: found.node,
-                packageName: found.packageName,
-                moduleName: found.moduleName,
+                configVariable: node,
+                packageName,
+                moduleName: "",
             });
         }
     }

@@ -318,6 +318,12 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         keptThreads.current.set(key, kept);
         return { ...kept, keep: (history) => { kept.history = history; } };
     }, []);
+    // A form that went away, e.g. back to the node list, takes its threads along; a rebuilt form re-registers in the same commit.
+    useEffect(() => {
+        if (!fields.count && !sources.count) {
+            keptThreads.current.clear();
+        }
+    }, [fields.count, sources.count]);
     const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.(instruction), [fieldThreads.all]);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
