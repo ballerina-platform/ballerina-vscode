@@ -533,7 +533,7 @@ function DeploymentOptions({
         disabledTooltip = hasDeployableIntegration ? "" : "No deployable integration(s) found";
     }
 
-    // On Devant, the words it always used: creating an integration there deploys it.
+    // Devant's words: creating an integration there deploys it.
     const isDevant = platformExtState?.platform === "devant";
     if (isDevant) {
         const devantRefresh = isRefreshing ? refreshButton : (

@@ -20,6 +20,7 @@ import React from "react";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { IntroText } from "../AddConnectionPopup/styles";
+import { hasDevantProject } from "./utils";
 
 /** What the Add Connection list says on Devant without a linked project: sign in, or deploy or associate the workspace. */
 export function DevantSignInIntro() {
@@ -28,7 +29,7 @@ export function DevantSignInIntro() {
         return null;
     }
     // Signed in with a project linked: the cloud resources are listed below instead.
-    if (platformExtState?.isLoggedIn && platformExtState?.devant?.selectedContext?.project) {
+    if (hasDevantProject(platformExtState)) {
         return null;
     }
     // Signed in through WSO2 Integrator without access for this extension: logging in asks for it.

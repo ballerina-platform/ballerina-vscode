@@ -18,11 +18,9 @@
 
 import type { PlatformExtAPI } from "@wso2/ballerina-core";
 import { getCloudPlatform } from "../../utils/cloud-auth";
+import { DEVANT_PLATFORM } from "./devant/platform-utils";
 import { DevantPlatformExtRpcManager } from "./devant/rpc-manager";
 import { PlatformExtRpcManager } from "./rpc-manager";
-
-/** Devant's name, as WSO2 Integrator reports the platform in its configuration. */
-export const DEVANT_PLATFORM = "devant";
 
 /** What either platform's manager answers: the screens' calls, and the debugger's and the diagram's. */
 export type PlatformExtManager = Pick<

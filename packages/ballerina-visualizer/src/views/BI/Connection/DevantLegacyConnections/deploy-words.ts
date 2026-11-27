@@ -16,7 +16,7 @@
  * under the License.
  */
 
-/** What the deploy cards said on Devant (6.0.1): an integration is deployed when it is created there. */
+/** What the deploy cards say on Devant, where an integration is deployed when it is created. */
 export const DEVANT_DEPLOY_WORDS = {
     refreshTooltip: "Refresh deployment status",
     refreshingTooltip: "Refreshing deployment status…",
@@ -32,7 +32,7 @@ export const DEVANT_DEPLOY_WORDS = {
     deployRemaining: "Deploy Remaining",
 };
 
-/** The partly deployed workspace's lines, as 6.0.1 put them. */
+/** The lines of a workspace with some integrations deployed and some not. */
 export function devantPartlyDeployedWords(params: {
     deployableCount: number;
     deployableNames: string;

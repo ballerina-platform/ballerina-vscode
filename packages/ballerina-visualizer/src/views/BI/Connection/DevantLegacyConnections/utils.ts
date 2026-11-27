@@ -21,9 +21,9 @@ import { MarketplaceItem, MarketplaceItemSchema, Project, ServiceInfoVisibilityE
 import { PlatformExtState } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import styled from "@emotion/styled";
 
-/** Whether the signed-in user has a Devant project selected, which the Devant connection screens need. */
+/** Whether the signed-in user has a Devant project selected, with the organization it is in, which the Devant connection screens need. */
 export const hasDevantProject = (state?: PlatformExtState | null): boolean =>
-    !!state?.isLoggedIn && !!state?.devant?.selectedContext?.project;
+    !!state?.isLoggedIn && !!state?.devant?.selectedContext?.project && !!state?.devant?.selectedContext?.org;
 
 export const ProgressWrap = styled.div`
     display: flex;

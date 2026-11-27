@@ -1815,6 +1815,10 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         try {
             platformExtStore.getState().setConnectionState({ loading: true });
             const connections = await this.getAllConnections();
+            // A switch to another platform meanwhile: its manager has the list now.
+            if (getCloudPlatform()) {
+                return;
+            }
             platformExtStore.getState().setConnectionState({ list: connections, loading: false });
         } catch (err) {
             platformExtStore.getState().setConnectionState({ loading: false });

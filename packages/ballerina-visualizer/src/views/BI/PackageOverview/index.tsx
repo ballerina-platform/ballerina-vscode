@@ -633,7 +633,8 @@ function DeploymentOptions({
         queryKey: ["cloud-integration-status", projectPath],
         // null, not undefined: an absent status is kept as such and clears what was read before.
         queryFn: async () => (await rpcClient.getPlatformRpcClient().getCloudIntegrationStatus({ projectPath })) ?? null,
-        enabled: platformExtState.isExtInstalled && isDeployed,
+        // Devant's card shows no build or rollout.
+        enabled: platformExtState.isExtInstalled && isDeployed && platformExtState.platform !== "devant",
         refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
     });
     const headline = cloudHeadline(cloudStatus);
@@ -678,7 +679,7 @@ function DeploymentOptions({
             <div>
                 <Title variant="h3">Deployment Options</Title>
 
-                {/* On Devant, the card it always showed: creating an integration there deploys it. */}
+                {/* Devant's card: creating an integration there deploys it. */}
                 {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform === "devant" && (
                     <DeploymentOption
                         title={

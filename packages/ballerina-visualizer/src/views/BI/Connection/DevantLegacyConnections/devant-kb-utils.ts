@@ -108,7 +108,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     // createInternalConnection resolves to undefined on failure; roll back the placeholder configs.
     if (!createdConnection) {
         await platformRpcClient.deleteDevantTempConfigs({ nodes: devantConfigs.map((c) => c.node!) });
-        throw new Error("Could not create the Devant connection for this knowledge base.");
+        throw new Error("Could not create the WSO2 Cloud connection for this knowledge base.");
     }
 
     // Rewrite each placeholder to `= os:getEnv("CHOREO_...")` using Devant's env-var names.

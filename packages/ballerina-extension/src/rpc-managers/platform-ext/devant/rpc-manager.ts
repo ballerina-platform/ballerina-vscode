@@ -122,11 +122,8 @@ import {
     ProxyConfigEnvVars,
     Templates,
 } from "../platform-utils";
-import { addProxyConfigurable, DEVANT_API_KEY_HEADER, hasDevantContextYaml } from "./platform-utils";
+import { addProxyConfigurable, DEVANT_API_KEY_HEADER, DEVANT_PLATFORM, hasDevantContextYaml } from "./platform-utils";
 import { isComponent, toEnvironment } from "./mapping";
-
-/** Devant's name, as WSO2 Integrator reports the platform in its configuration. */
-const DEVANT = "devant";
 
 const EMPTY_DEVANT_STATE: DevantPlatformExtState = { userInfo: null, components: [] };
 
@@ -138,12 +135,13 @@ const MAX_DETAIL_REREADS = 4;
 
 let missingDevantApiReported = false;
 
-/** Devant's API inside the connected API; an error when WSO2 Integrator offers none, as before it knew Devant. */
+/** Devant's API inside the connected API; an error when WSO2 Integrator offers none. */
 function devantOf(api: CloudAPI): DevantAPI {
     const devant = (api.platformApis as { devant?: DevantAPI } | undefined)?.devant;
     if (!devant) {
-        const message = "WSO2 Integrator offers no Devant API to the Ballerina extension. Update WSO2 Integrator to use Devant here.";
-        if (!missingDevantApiReported) {
+        const message = "WSO2 Integrator does not offer its WSO2 Cloud features to the Ballerina extension. Update WSO2 Integrator to use them here.";
+        // Said once, and not for a call that outlived a switch to another platform.
+        if (!missingDevantApiReported && isDevant()) {
             missingDevantApiReported = true;
             log(message);
             void window.showWarningMessage(message);
@@ -158,7 +156,21 @@ function devantState(): DevantPlatformExtState {
 }
 
 function isDevant(): boolean {
-    return getCloudPlatform() === DEVANT;
+    return getCloudPlatform() === DEVANT_PLATFORM;
+}
+
+/** Signed in through WSO2 Integrator, but this extension is not allowed to use that sign-in (yet). */
+const isCloudAccessMissing = (access: CloudAccess | undefined): boolean => access === "no-access" || access === "declined";
+
+/**
+ * `next` with the organization and project the store holds for the same handles, which WSO2 Integrator reads a
+ * moment after it knows the handles.
+ */
+function filledFrom(next: ContextItemEnriched | undefined, known: ContextItemEnriched | undefined): ContextItemEnriched | undefined {
+    if (!next || !known || next.orgHandle !== known.orgHandle || next.projectHandle !== known.projectHandle) {
+        return next;
+    }
+    return { ...next, org: next.org ?? known.org, project: next.project ?? known.project };
 }
 
 /**
@@ -166,10 +178,6 @@ function isDevant(): boolean {
  * offers for Devant beside its own. The Devant screens read `state.devant`;
  * the store is pushed to the webview by the WSO2 Cloud manager.
  */
-
-/** Signed in through WSO2 Integrator, but this extension is not allowed to use that sign-in (yet). */
-const isCloudAccessMissing = (access: CloudAccess | undefined): boolean => access === "no-access" || access === "declined";
-
 export class DevantPlatformExtRpcManager implements PlatformExtManager {
     private static gate: IWso2PlatformExtensionGate | undefined;
     /** What the store hears through the current session's API, which stops delivering once the key is replaced. */
@@ -194,7 +202,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         const startTime = Date.now();
         while (!gate.isActive()) {
             if (Date.now() - startTime > ACTIVATION_TIMEOUT_MS) {
-                log("Timeout: Platform extension failed to activate within 30 seconds");
+                log(`Timeout: Platform extension failed to activate within ${ACTIVATION_TIMEOUT_MS / 1000} seconds`);
                 throw new Error("WI extension cloud features activation timeout");
             }
             await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -240,7 +248,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         }
         platformExtStore.getState().setState({
             ...shared,
-            platform: DEVANT,
+            platform: DEVANT_PLATFORM,
             ...(devant ? { devant: { ...devantState(), ...devant } } : {}),
         });
     }
@@ -312,7 +320,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             connected = await this.connect();
             authState = connected?.api.getAuthState();
             userInfo = connected?.devant.getAuthState().userInfo ?? null;
-            selectedContext = connected?.devant.getSelectedContext() ?? undefined;
+            selectedContext = filledFrom(connected?.devant.getSelectedContext() ?? undefined, devantState().selectedContext);
         } catch (error) {
             // A key replaced while this ran: the session change that replaced it runs this again.
             log(`Failed to read the Devant session from WSO2 Integrator: ${error}`);
@@ -356,8 +364,9 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         const debouncedEnvListRefresh = debounce((context?: ContextItemEnriched) => this.refreshEnvironments(context), 1000);
         this.sessionSubscriptions.push(devant.subscribeContextState((context) => {
             const signedIn = platformExtStore.getState().state?.isLoggedIn;
-            this.update({}, { selectedContext: signedIn ? context : undefined });
-            debouncedEnvListRefresh(context);
+            const selectedContext = signedIn ? filledFrom(context, devantState().selectedContext) : undefined;
+            this.update({}, { selectedContext });
+            debouncedEnvListRefresh(selectedContext);
         }));
     }
 
@@ -381,8 +390,8 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
                 return;
             }
             const userInfo = devant.getAuthState().userInfo;
-            const selectedContext = devant.getSelectedContext() ?? undefined;
             const previous = devantState().selectedContext;
+            const selectedContext = filledFrom(devant.getSelectedContext() ?? undefined, previous);
             this.update({}, { userInfo, selectedContext });
             if (selectedContext?.project?.id !== previous?.project?.id || selectedContext?.org?.id !== previous?.org?.id) {
                 await this.refreshEnvironments(selectedContext);
@@ -464,7 +473,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
     /** Refetches the connections when the component or the project changes; nothing is pushed to the webview here. */
     private initConnectionRefetch() {
         platformExtStore.subscribe((state, prevState) => {
-            if (!isDevant() || state.state?.platform !== DEVANT) {
+            if (!isDevant() || state.state?.platform !== DEVANT_PLATFORM) {
                 return;
             }
             const next = state.state?.devant;
@@ -848,6 +857,11 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
             }
 
             const state = platformExtStore.getState().state;
+            // A run right after start-up: WSO2 Integrator may not have read the project yet.
+            const pending = devantState().selectedContext;
+            if (state?.isLoggedIn && pending && (!pending.org || !pending.project)) {
+                await this.rereadDetails(MAX_DETAIL_REREADS);
+            }
             const { selectedContext, selectedComponent, selectedEnv } = devantState();
             // Signed in through WSO2 Integrator, but this extension may not use the sign-in yet: say so rather than run without the connections.
             if (debugConfig.request === "launch" && (requiresProxy || debugConfig?.choreoConnect) && isCloudAccessMissing(state?.cloudAccess)) {

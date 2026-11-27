@@ -25,6 +25,9 @@ import { Uri, WorkspaceEdit, workspace } from "vscode";
 import { StateMachine } from "../../../stateMachine";
 import { getRepoRoot, ProxyConfigEnvVars } from "../platform-utils";
 
+/** Devant's name, as WSO2 Integrator reports the platform in its configuration. */
+export const DEVANT_PLATFORM = "devant";
+
 /** The header Devant's gateway takes an API key in. */
 export const DEVANT_API_KEY_HEADER = "Choreo-API-Key";
 
