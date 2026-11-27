@@ -599,6 +599,8 @@ function DeploymentOptions({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
+    // The platform the integration is created on, as WSO2 Integrator works against it.
+    const cloudName = platformExtState?.platform === "devant" ? "Devant" : "WSO2 Cloud";
 
     const toggleOption = (option: string) => {
         setExpandedOptions(prev => {
@@ -635,7 +637,8 @@ function DeploymentOptions({
         enabled: platformExtState.isExtInstalled && isDeployed,
         refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
     });
-    const headline = cloudHeadline(cloudStatus);
+    const cloudHeadlineOf = cloudHeadline(cloudStatus);
+    const headline = { ...cloudHeadlineOf, title: cloudHeadlineOf.title.replace("WSO2 Cloud", cloudName) };
     const statusRows = cloudStatusRows(cloudStatus);
     const statusNote = cloudStatusNote(cloudStatus);
 
@@ -647,7 +650,7 @@ function DeploymentOptions({
         } catch (error) {
             // WSO2 Integrator reports a failed push itself; this is the command not running at all.
             rpcClient.getCommonRpcClient().showErrorMessage({
-                message: `Could not push the changes to WSO2 Cloud: ${error instanceof Error ? error.message : String(error)}`,
+                message: `Could not push the changes to ${cloudName}: ${error instanceof Error ? error.message : String(error)}`,
             });
         } finally {
             setPushedAt(Date.now());
@@ -689,19 +692,19 @@ function DeploymentOptions({
                                     {isRefreshing ? (
                                         <ProgressRing sx={{ width: 16, height: 16 }} />
                                     ) : (
-                                        <Button appearance="icon" tooltip="Refresh the WSO2 Cloud status" onClick={handleRefreshDeploymentStatus}>
+                                        <Button appearance="icon" tooltip={`Refresh the ${cloudName} status`} onClick={handleRefreshDeploymentStatus}>
                                             <Codicon name="refresh" />
                                         </Button>
                                     )}
                                 </DevantHeaderWrap>
                             ) : (
-                                "Create in WSO2 Cloud"
+                                `Create in ${cloudName}`
                             )
                         }
                         description={
                             isDeployed
                                 ? headline.description
-                                : "Create your integration in WSO2 Cloud. Its first build starts with the create; deploy it from the console."
+                                : `Create your integration in ${cloudName}. Its first build starts with the create; deploy it from the console.`
                         }
                         details={
                             isDeployed && (statusRows.length > 0 || statusNote) ? (
@@ -726,7 +729,7 @@ function DeploymentOptions({
                         secondaryAction={
                             hasLocalChanges
                                 ? {
-                                    description: "Local changes are not in WSO2 Cloud. Push them to start a build.",
+                                    description: `Local changes are not in ${cloudName}. Push them to start a build.`,
                                     buttonText: "Push Changes",
                                     onClick: handlePushChanges,
                                 }
