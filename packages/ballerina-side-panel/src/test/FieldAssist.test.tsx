@@ -214,7 +214,7 @@ describe("FieldAssist", () => {
     });
 
     it("clears the thread, so the next request goes without the earlier ones", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ reply: "It adds tax." }));
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ explanation: "It adds tax." }));
         render(<Harness initial="subtotal" assist={assist} />);
         fireEvent.click(screen.getByText("open"));
         await ask("what does this do");
