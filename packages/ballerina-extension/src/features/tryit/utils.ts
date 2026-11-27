@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { exec, execSync } from 'child_process';
+import { execFile, execSync } from 'child_process';
 import { debug } from '../../utils';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -156,8 +156,12 @@ export function findRunningBallerinaProcesses(projectPath: string): Promise<Proc
     }
 
     // Execute the 'ps' command to retrieve running processes with command
+    const searchStr = `-XX:HeapDumpPath=${resolvedPath}`;
     return new Promise((resolve, reject) => {
-        exec(getPSCommand(platform, `-XX:HeapDumpPath=${resolvedPath}`), (error, stdout) => {
+        const [command, args] = getPSCommand(platform);
+        // A UTF-8 locale stops macOS ps from escaping non-ASCII path characters.
+        const env = { ...process.env, LC_ALL: 'C.UTF-8', BAL_PS_SEARCH: searchStr };
+        execFile(command, args, { env, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
             if (error) {
                 debug(`Failed to detect running Ballerina processes: ${error.message}`);
                 return reject(error);
@@ -165,7 +169,9 @@ export function findRunningBallerinaProcesses(projectPath: string): Promise<Proc
 
             // Parse the output of the 'ps' command
             const out = stdout.trim().split('\n');
-            const processes = platform === 'win32' ? out.slice(out.length - 1) : out; // Exclude the header row
+            const processes = platform === 'win32'
+                ? out.slice(out.length - 1) // Exclude the header row
+                : out.filter(line => line.toLowerCase().includes(searchStr.toLowerCase()));
 
             // Extract the service name, PID, and command information
             let balProcesses = processes.map((service) => {
@@ -222,15 +228,19 @@ function getServicePorts(pid: string): number[] {
     return [];
 }
 
+// WQL LIKE escaping: \ and ' get a backslash; [ % _ go in brackets.
+const WINDOWS_PS_SCRIPT = String.raw`$v = $env:BAL_PS_SEARCH -replace "[\\']", '\$0' -replace '[\[%_]', '[$0]'; Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%$v%'" | Format-Table Name,ProcessId,commandLine | Out-String -Width 512`;
+
 // Function to get the platform-specific 'ps' command
-function getPSCommand(platform: string, searchStr: string): string {
+// No shell: the project path reaches PowerShell only through BAL_PS_SEARCH, never as command text.
+function getPSCommand(platform: string): [string, string[]] {
     switch (platform) {
         case 'darwin':
-            return `ps -A -o comm,pid,command | grep -iF -e "${searchStr}"`;
+            return ['ps', ['-A', '-o', 'comm,pid,command']];
         case 'linux':
-            return `ps -A -o comm,pid,cmd | grep -iF -e "${searchStr}"`;
+            return ['ps', ['-A', '-o', 'comm,pid,cmd']];
         case 'win32':
-            return `powershell -command "Get-CimInstance -query \\"select * from win32_process WHERE commandLine LIKE '%${searchStr.replaceAll("\\", "\\\\")}%'\\" | Format-Table Name,ProcessId,commandLine | Out-String -Width 512"`;
+            return ['powershell', ['-command', WINDOWS_PS_SCRIPT]];
         default:
             throw new Error(`Unsupported platform: ${platform}`);
     }
