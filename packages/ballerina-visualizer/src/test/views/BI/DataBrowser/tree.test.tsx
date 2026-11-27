@@ -24,7 +24,7 @@ jest.mock("@wso2/ballerina-side-panel", () => ({
     HighlightedText: ({ text }: { text: string }) => <>{text}</>,
     setDraggedInsert: () => undefined,
 }));
-jest.mock("@wso2/ui-toolkit", () => ({ Icon: () => <span />, Codicon: () => <span />, ThemeColors: {} }));
+jest.mock("@wso2/ui-toolkit", () => ({ Icon: () => <span />, Codicon: () => <span />, Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>, ThemeColors: {} }));
 jest.mock("@wso2/ballerina-rpc-client", () => ({}));
 jest.mock("../../../../utils/bi", () => ({}));
 jest.mock("../../../../views/BI/HelperPaneNew/utils/iconUtils", () => ({ HelperPaneIconType: {}, getHelperPaneIcon: (): null => null }));
@@ -44,7 +44,7 @@ function renderTree(onInsert: jest.Mock, fetchFields = jest.fn().mockResolvedVal
 }
 
 // The button shows on hover, and the keyboard skips rows without a layout box; jsdom has neither.
-const insertButton = () => screen.getByTitle("Insert");
+const insertButton = () => screen.getByLabelText("Insert payload");
 beforeAll(() => {
     jest.spyOn(Element.prototype, "getClientRects").mockReturnValue([{}] as unknown as DOMRectList);
 });

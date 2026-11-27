@@ -202,7 +202,7 @@ export namespace S {
     export const InsertButton = styled(StepperButton)`
         display: none;
         flex-shrink: 0;
-        [role="treeitem"]:hover > &, [role="treeitem"]:focus-visible > & {
+        [role="treeitem"]:hover &, [role="treeitem"]:focus-visible & {
             display: inline-flex;
         }
     `;

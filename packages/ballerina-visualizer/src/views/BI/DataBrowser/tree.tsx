@@ -19,7 +19,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { DEFAULT_CHIP_COLOR, DropAction, HighlightedText, setDraggedInsert } from "@wso2/ballerina-side-panel";
-import { Codicon, Icon } from "@wso2/ui-toolkit";
+import { Icon, Tooltip } from "@wso2/ui-toolkit";
 import { HelperPaneIconType, getHelperPaneIcon } from "../HelperPaneNew/utils/iconUtils";
 import { canExpand, DataItem, displayPath } from "./useDataTree";
 import { S } from "./styles";
@@ -153,18 +153,21 @@ export function DataNode(props: DataNodeProps) {
                 {item.elementOf && <IndexStepper index={index} onChange={setIndex} />}
                 <S.Type title={item.type}>{shortType(item.type, module)}</S.Type>
                 {expandable && onInsert && (
-                    <S.InsertButton
-                        data-insert
-                        tabIndex={-1}
-                        aria-label="Insert"
-                        title="Insert"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            insert();
-                        }}
-                    >
-                        <Codicon name="insert" />
-                    </S.InsertButton>
+                    <Tooltip content={`Insert ${displayPath(item.path)}`} containerSx={{ display: "inline-flex", flexShrink: 0 }}>
+                        <S.InsertButton
+                            data-insert
+                            tabIndex={-1}
+                            aria-label={`Insert ${displayPath(item.path)}`}
+                            // An empty title keeps the row's own title from showing over the tooltip.
+                            title=""
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                insert();
+                            }}
+                        >
+                            <Icon name="bi-return" sx={{ width: "16px", height: "16px" }} iconSx={{ fontSize: "16px" }} />
+                        </S.InsertButton>
+                    </Tooltip>
                 )}
             </S.Row>
             {expanded && (
