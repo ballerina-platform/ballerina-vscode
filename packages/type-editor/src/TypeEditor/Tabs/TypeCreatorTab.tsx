@@ -30,6 +30,7 @@ import { ArrayEditor } from "../ArrayEditor";
 import { debounce } from "lodash";
 import { URI, Utils } from "vscode-uri";
 import { EditorContext } from "../Contexts/TypeEditorContext";
+import { AssistMark } from "@wso2/ballerina-side-panel";
 
 const CategoryRow = styled.div<{ showBorder?: boolean }>`
     display: flex;
@@ -552,17 +553,20 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
         <>
             <CategoryRow>
                 {isNewType && (
-                    <Dropdown
-                        id="type-selector"
-                        data-testid="type-kind-dropdown"
-                        label="Kind"
-                        value={getTypeKindLabel(selectedTypeKind, isGraphql)}
-                        items={getAvailableTypeKinds(isGraphql, selectedTypeKind).map((kind) => ({
-                            label: getTypeKindLabel(kind, isGraphql),
-                            value: getTypeKindLabel(kind, isGraphql)
-                        }))}
-                        onChange={(e) => handleTypeKindChange(e.target.value)}
-                    />
+                    <div>
+                        <Dropdown
+                            id="type-selector"
+                            data-testid="type-kind-dropdown"
+                            label="Kind"
+                            value={getTypeKindLabel(selectedTypeKind, isGraphql)}
+                            items={getAvailableTypeKinds(isGraphql, selectedTypeKind).map((kind) => ({
+                                label: getTypeKindLabel(kind, isGraphql),
+                                value: getTypeKindLabel(kind, isGraphql)
+                            }))}
+                            onChange={(e) => handleTypeKindChange(e.target.value)}
+                        />
+                        <AssistMark fieldKey="kind" />
+                    </div>
                 )}
                 {!isNewType && !isEditing && !type.properties["name"]?.editable && (
                     <InputWrapper>
@@ -646,6 +650,7 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
                             onFocus={(e) => { e.target.select(); validateTypeName(e.target.value) }}
                             ref={nameInputRef}
                         />
+                        <AssistMark fieldKey="name" />
                     </TextFieldWrapper>
                 )}
             </CategoryRow>

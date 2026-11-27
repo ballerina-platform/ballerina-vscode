@@ -43,7 +43,11 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
 
 jest.mock("@wso2/ballerina-side-panel", () => ({
     FormAssist: ({ intro }: { intro: { hint: string; starters: string[] } }) => <p>{intro.hint} {intro.starters.join(", ")}</p>,
+    AssistHostProvider: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+    AssistHeaderButton: () => <button>Copilot</button>,
 }));
+
+jest.mock("../../../components/Modal", () => ({ ModalHeaderSlot: jest.requireActual("react").createContext(null) }));
 
 jest.mock("@wso2/type-editor", () => ({ TypeEditor: (): null => null, ContextTypeEditor: (): null => null }));
 jest.mock("@wso2/ui-toolkit", () => ({ Overlay: (): null => null, ThemeColors: {} }));
@@ -55,6 +59,7 @@ jest.mock("./utils", () => ({}));
 jest.mock("../Forms/form-utils", () => ({ assistFormInForm: jest.fn() }));
 
 import { FormTypeEditor } from "./index";
+import { ModalHeaderSlot } from "../../../components/Modal";
 
 const ORDER = {
     name: "Order", editable: true, metadata: { label: "", description: "" }, properties: {},
@@ -76,23 +81,38 @@ describe("FormTypeEditor Copilot", () => {
         container.remove();
     });
 
-    const renderEditor = async (type: Type | undefined) => {
+    const renderEditor = async (type: Type | undefined, slot: HTMLElement | null = null, isPopupTypeForm = true) => {
         await act(async () => {
             root.render(
-                <FormTypeEditor
-                    type={type}
-                    newType={false}
-                    newTypeValue="ZzProbe"
-                    onTypeChange={jest.fn()}
-                    onTypeCreate={jest.fn()}
-                    onSaveType={jest.fn()}
-                    getNewTypeCreateForm={jest.fn()}
-                    refetchTypes={false}
-                    isPopupTypeForm={true}
-                />
+                <ModalHeaderSlot.Provider value={slot}>
+                    <FormTypeEditor
+                        type={type}
+                        newType={false}
+                        newTypeValue="ZzProbe"
+                        onTypeChange={jest.fn()}
+                        onTypeCreate={jest.fn()}
+                        onSaveType={jest.fn()}
+                        getNewTypeCreateForm={jest.fn()}
+                        refetchTypes={false}
+                        isPopupTypeForm={isPopupTypeForm}
+                    />
+                </ModalHeaderSlot.Provider>
             );
         });
     };
+
+    it("gives a popup type form its own Copilot host, with the button in the dialog's header", async () => {
+        const slot = document.createElement("div");
+        await renderEditor(undefined, slot);
+        expect(slot.textContent).toBe("Copilot");
+        expect(container.querySelector("section")?.textContent).toContain("Describe the type you need.");
+    });
+
+    it("leaves a side-panel type form on the panel's Copilot host", async () => {
+        await renderEditor(undefined, null, false);
+        expect(container.querySelector("section")).toBeNull();
+        expect(container.textContent).toContain("Describe the type you need.");
+    });
 
     it("offers the new-type Copilot when a form's Type field opens it without a type", async () => {
         await renderEditor(undefined);

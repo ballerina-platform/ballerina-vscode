@@ -146,11 +146,13 @@ function valueBox(field: HTMLElement): HTMLElement {
 
 function besideField(field: HTMLElement, side: ReviewSide, cardHeight: number): Beside | undefined {
     const view = field.ownerDocument.defaultView;
-    if (!view || field.closest("[role=dialog]")) {
+    const dialog = field.closest("[role=dialog]");
+    // In a dialog only the start side lies outside it.
+    if (!view || (dialog && side !== "start")) {
         return undefined;
     }
     const box = field.getBoundingClientRect();
-    const form = scrollParent(field)?.getBoundingClientRect() ?? new DOMRect(0, 0, view.innerWidth, view.innerHeight);
+    const form = (dialog ?? scrollParent(field))?.getBoundingClientRect() ?? new DOMRect(0, 0, view.innerWidth, view.innerHeight);
     // A side panel's canvas lies left of its form; a page's margin lies right of its fields.
     const [from, to] = side === "start" ? [CARD_GAP, form.left - CARD_GAP] : [box.right + CARD_GAP, view.innerWidth - CARD_GAP];
     const width = Math.min(CARD_WIDTH, to - from);
@@ -215,8 +217,8 @@ export function ChangeCard({ host, fieldKey, mark, field }: ChangeCardProps) {
             <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} />
         </S.ChangeCard>
     );
-    // Out of the form's flow, so the fields below stay where they are.
-    return beside ? createPortal(changeCard, field.ownerDocument.body) : changeCard;
+    // Out of the form's flow, so the fields below stay where they are; inside a dialog, so it stays above the dialog's backdrop.
+    return beside ? createPortal(changeCard, field.closest("[role=dialog]") ?? field.ownerDocument.body) : changeCard;
 }
 
 function cardLabel(host: AssistHostValue, fieldKey: string, mark: AppliedMark): string {
