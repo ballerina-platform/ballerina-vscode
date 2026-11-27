@@ -28,6 +28,8 @@ interface RowShape {
     item: (field: FormField, toProperty: (field: FormField) => ExpressionProperty) => FormAssistGroup["item"];
     rows: (held: unknown) => Row[];
     held: (rows: Row[], field: FormField, current: unknown) => unknown;
+    // Set when the editor marks each row on its own; names one row, e.g. "Parameter".
+    rowLabel?: (field: FormField) => string;
 }
 
 const typed = (property: ExpressionProperty, type: Partial<InputType>): ExpressionProperty =>
@@ -126,6 +128,7 @@ const paramsShape: RowShape = {
             .map((param, id) => ({ ...param, id }))
             .map((param) => (config?.handleParameter ? config.handleParameter(param) : param));
     },
+    rowLabel: (field) => field.addNewButtonLabel || "Parameter",
 };
 
 const ROW_SHAPES: Partial<Record<FormFieldInputType, RowShape>> = {

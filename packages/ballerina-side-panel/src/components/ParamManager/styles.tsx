@@ -19,6 +19,7 @@
 import { CSSObject } from "@emotion/react";
 import styled from "@emotion/styled";
 import { FIELD_RADIUS } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { CHANGED_FIELD } from "../editors/FieldAssist/styles";
 
 export interface ContainerProps {
     readonly?: boolean;
@@ -139,6 +140,10 @@ export const HeaderLabel = styled.div`
     width: 100%;
     height: 32px;
     align-items: center;
+    &[${CHANGED_FIELD}] {
+        border-color: var(--field-changed-border);
+        background: var(--field-changed-background);
+    }
 `;
 
 export const ActionIconWrapper = styled.div`

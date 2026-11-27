@@ -116,6 +116,9 @@ function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) 
 
 const ROW_KEY = /^(.+)-(\d+)$/;
 
+// The list a row's mark key belongs to, e.g. `parameters` for `parameters-1`.
+export const rowGroup = (key: string) => key.match(ROW_KEY)?.[1];
+
 // A row's mark key once the row `removed` is gone: the rows below it move up one.
 export function renumbered(key: string, removed: string): string {
     const [, group, index] = key.match(ROW_KEY) ?? [];

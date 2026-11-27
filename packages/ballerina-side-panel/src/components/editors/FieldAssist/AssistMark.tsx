@@ -20,7 +20,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Global } from "@emotion/react";
 import { scrollParent, useAssistHost } from "./AssistHost";
 import type { FormField } from "../../Form/types";
-import { ChangeCard, currentReview } from "./ChangeReview";
+import { ChangeCard, currentReview, rowGroup } from "./ChangeReview";
 import { keysWithin } from "./formFields";
 import { CHANGED_FIELD, S, changedFieldStyles } from "./styles";
 
@@ -109,9 +109,9 @@ export function useCopilotChanged(fieldKeys: string[]): boolean {
 export function SectionChanges({ fields = [], keys, onReveal }: { fields?: FormField[]; keys?: string[]; onReveal: () => void }) {
     const host = useAssistHost();
     const fieldKeys = keys ?? keysWithin(fields);
-    const marks = host?.applied?.marks;
-    const count = fieldKeys.filter((key) => marks?.[key]).length;
-    const reviewed = !!host?.reviewKey && fieldKeys.includes(host.reviewKey);
+    const within = (key: string) => fieldKeys.includes(key) || fieldKeys.includes(rowGroup(key) ?? "");
+    const count = Object.keys(host?.applied?.marks ?? {}).filter(within).length;
+    const reviewed = !!host?.reviewKey && within(host.reviewKey);
     useEffect(() => {
         if (count || reviewed) {
             onReveal();

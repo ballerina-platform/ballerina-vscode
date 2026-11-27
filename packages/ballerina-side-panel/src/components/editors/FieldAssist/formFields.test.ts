@@ -148,6 +148,8 @@ describe("form fields for the Copilot", () => {
         } as Partial<FormField>);
         const tree = treeFields([params]);
         expect(describeForm(tree, {}, toProperty).groups[0]).toMatchObject({
+            rowField: "parameters",
+            rowLabel: "Parameter",
             rows: [{ type: "Person", variable: "person" }],
             item: [{ key: "type", property: { types: [{ fieldType: "TYPE" }] } }, { key: "variable" }, { key: "required", property: { optional: true } }],
         });

@@ -169,6 +169,7 @@ export function describeForm(tree: TreeField[], values: Values, toProperty: (fie
     }));
     const groups = tree.filter((entry) => entry.kind === "ROWS").map(({ field, when }) => {
         const shape = rowShape(field)!;
+        const rowLabel = shape.rowLabel?.(field);
         return {
             id: field.key,
             label: field.label,
@@ -177,6 +178,7 @@ export function describeForm(tree: TreeField[], values: Values, toProperty: (fie
             rows: shape.rows(values[field.key] ?? field.value),
             min: 0,
             when,
+            ...(rowLabel && { rowField: field.key, rowLabel }),
         };
     });
     return { slots, groups };
