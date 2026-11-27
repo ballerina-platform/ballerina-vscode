@@ -20,27 +20,27 @@ import styled from "@emotion/styled";
 import { FlowNode } from "@wso2/ballerina-core";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 
-const Container = styled.div`
+export const Container = styled.div`
     padding: 20px;
     box-sizing: border-box;
     height: calc(100vh - 56px);
     overflow-y: auto;
 `;
 
-const Description = styled.div`
+export const Description = styled.div`
     font-size: var(--vscode-font-size);
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     margin-bottom: 24px;
     line-height: 1.5;
 `;
 
-const Column = styled.div`
+export const Column = styled.div`
     display: flex;
     flex-direction: column;
     gap: 12px;
 `;
 
-const OptionCard = styled.div`
+export const OptionCard = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -56,37 +56,42 @@ const OptionCard = styled.div`
     }
 `;
 
-const OptionHeader = styled.div`
+export const OptionHeader = styled.div`
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 12px;
 `;
 
-const OptionIcon = styled.div`
+export const OptionIcon = styled.div`
     color: ${ThemeColors.PRIMARY};
     font-size: 18px;
     display: flex;
     align-items: center;
 `;
 
-const OptionTitle = styled.div`
+export const OptionTitle = styled.div`
     font-size: 14px;
     font-family: GilmerBold;
     color: ${ThemeColors.ON_SURFACE};
 `;
 
-const OptionDescription = styled.div`
+export const OptionDescription = styled.div`
     font-size: var(--vscode-font-size);
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     margin-left: 24px;
     line-height: 1.4;
 `;
 
+// Use Agent offers both kinds of agent: one in the integration, or a remote one over A2A
+export const INTEGRATION_AGENT_LABEL = "Agent";
+export const REMOTE_AGENT_LABEL = "A2A Agent";
+
 export const TOOL_OPTION_LABELS = {
     CONNECTION: "Use Connector",
     FUNCTION: "Use Function",
     AGENT: "Use Agent",
+    REMOTE_AGENT: `Use Agent - ${REMOTE_AGENT_LABEL}`,
     KNOWLEDGE_BASE: "Use Knowledge Base",
     MCP: "Use MCP Server",
     CUSTOM: "Create Custom Tool",
@@ -177,8 +182,8 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         <OptionTitle>{TOOL_OPTION_LABELS.AGENT}</OptionTitle>
                     </OptionHeader>
                     <OptionDescription>
-                        Delegate to another agent in your integration. It is wrapped as a tool, so this
-                        agent can hand off requests and use the response.
+                        Delegate to another agent in your integration, or to a remote agent over the A2A
+                        protocol. It is wrapped as a tool, so this agent can hand off requests and use the response.
                     </OptionDescription>
                 </OptionCard>
 

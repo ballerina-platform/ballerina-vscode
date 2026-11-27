@@ -42,7 +42,7 @@ import {
 import { Button, Icon, ImageWithFallback, Item, Menu, MenuItem, Popover, ThemeColors } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { A2aIcon, ThemeListener } from "../../NodeIcon";
+import NodeIcon, { A2aIcon, A2aLogoIcon, ThemeListener } from "../../NodeIcon";
 import { AIModelIcon } from "../../AIModelIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -1002,6 +1002,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         if (toolType === "MCP Server") {
             agentNode?.onSelectMcpToolkit && agentNode.onSelectMcpToolkit(tool, model.node);
             setAnchorEl(null);
+        } else if (toolType === "A2A Agent") {
+            agentNode?.onSelectA2aToolkit && agentNode.onSelectA2aToolkit(tool, model.node);
+            setAnchorEl(null);
         } else {
             agentNode?.onSelectTool && agentNode.onSelectTool(tool, model.node);
             setAnchorEl(null);
@@ -1158,7 +1161,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const toolMenuItems = (tool: ToolData): Item[] => {
         const canOpen = agentNode?.canOpenTool?.(tool) ?? true;
         return [
-            ...(canOpen && (agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit) ? [{
+            ...(canOpen && (agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit || agentNode?.onSelectA2aToolkit) ? [{
                 id: "edit",
                 label: "Edit",
                 onClick: () => onToolClick(tool),
@@ -1925,7 +1928,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 if (event.detail > 1) {
                                     return;
                                 }
-                                tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool);
+                                tool.type == "MCP Server" || tool.type == "A2A Agent" ? onToolClick(tool) : onImplementTool(tool);
                             }}
                             onContextMenu={(e) => {
                                 if (!readOnly && !toolLocked) {
@@ -1995,7 +1998,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 style={{ pointerEvents: "none" }}
                             >
                                 <div className="connector-icon">
-                                    {tool.type === "Agent" ? (
+                                    {tool.type === "A2A Agent" ? (
+                                        <A2aLogoIcon size={24} />
+                                    ) : tool.type === "Agent" ? (
                                         <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
                                     ) : tool.type === "MCP Server" && !tool.path ? (
                                         // No icon URL until saved; ConnectorIcon draws this glyph once there is one.

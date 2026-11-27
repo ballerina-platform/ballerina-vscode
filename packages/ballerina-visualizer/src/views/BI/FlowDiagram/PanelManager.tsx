@@ -84,11 +84,14 @@ export enum SidePanelView {
     NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
     NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
     NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
+    USE_AGENT = "USE_AGENT",
     NEW_TOOL_FROM_AGENT = "NEW_TOOL_FROM_AGENT",
     NEW_TOOL_FROM_AGENT_FORM = "NEW_TOOL_FROM_AGENT_FORM",
     NEW_TOOL_FROM_KNOWLEDGE_BASE = "NEW_TOOL_FROM_KNOWLEDGE_BASE",
     ADD_MCP_SERVER = "ADD_MCP_SERVER",
     EDIT_MCP_SERVER = "EDIT_MCP_SERVER",
+    ADD_REMOTE_AGENT = "ADD_REMOTE_AGENT",
+    EDIT_REMOTE_AGENT = "EDIT_REMOTE_AGENT",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
@@ -648,11 +651,14 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.USE_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
             case SidePanelView.ADD_MCP_SERVER:
             case SidePanelView.EDIT_MCP_SERVER:
+            case SidePanelView.ADD_REMOTE_AGENT:
+            case SidePanelView.EDIT_REMOTE_AGENT:
                 return agentEditor ? <AgentEditorPanelContent controller={agentEditor} /> : null;
 
             case SidePanelView.CONNECTION_CONFIG:
@@ -763,10 +769,13 @@ export function PanelManager(props: PanelManagerProps) {
             case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-            case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.USE_AGENT:
             case SidePanelView.NEW_TOOL_FROM_KNOWLEDGE_BASE:
             case SidePanelView.ADD_MCP_SERVER:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.ADD_TOOL);
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.ADD_REMOTE_AGENT:
+                return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.USE_AGENT);
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
                 return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.NEW_TOOL_FROM_AGENT);
             case SidePanelView.CONNECTION_SELECT:
@@ -785,6 +794,8 @@ export function PanelManager(props: PanelManagerProps) {
                 return "Configure Memory";
             case SidePanelView.AGENT_MEMORY_STORE:
                 return "Configure Memory Store";
+            case SidePanelView.USE_AGENT:
+                return addToolTitle("AGENT");
             case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
                 return addToolTitle("AGENT");
@@ -794,6 +805,10 @@ export function PanelManager(props: PanelManagerProps) {
                 return addToolTitle("MCP");
             case SidePanelView.EDIT_MCP_SERVER:
                 return "Edit MCP Server";
+            case SidePanelView.ADD_REMOTE_AGENT:
+                return addToolTitle("REMOTE_AGENT");
+            case SidePanelView.EDIT_REMOTE_AGENT:
+                return "Edit A2A Agent";
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
                 return addToolTitle("CONNECTION");
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:

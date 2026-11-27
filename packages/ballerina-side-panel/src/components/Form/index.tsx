@@ -526,6 +526,8 @@ const toDiagnosticList = (fieldDiagnostics: FormField["diagnostics"]): FormDiagn
 export interface FormHandle {
     /** Sets a field the way an edit would, so watchers and derived fields follow it. */
     setFieldValue: (key: string, value: unknown) => void;
+    /** Checks fields again against their current rules, so an error from rules that have since changed is cleared. */
+    revalidate: (keys: string[]) => void;
 }
 
 export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
@@ -602,7 +604,8 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
 
     useImperativeHandle(ref, () => ({
         setFieldValue: (key: string, value: unknown) => setValue(key, value, { shouldDirty: true }),
-    }), [setValue]);
+        revalidate: (keys: string[]) => { void trigger(keys); },
+    }), [setValue, trigger]);
 
     // Owned here (not just rendered via DiagnosticsStoreProvider below) so the Save button can read
     // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own

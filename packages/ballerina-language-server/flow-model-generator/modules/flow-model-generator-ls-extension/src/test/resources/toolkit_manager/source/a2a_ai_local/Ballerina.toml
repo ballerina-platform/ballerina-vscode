@@ -1,0 +1,11 @@
+[package]
+org = "admin"
+name = "a2a_ai_local"
+version = "0.1.0"
+distribution = "2201.14.0"
+
+[[dependency]]
+org = "ballerina"
+name = "ai"
+version = "1.18.0"
+repository = "local"

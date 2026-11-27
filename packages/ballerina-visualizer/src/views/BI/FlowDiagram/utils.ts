@@ -21,6 +21,7 @@ import type { Category as PanelCategory, Item as PanelItem } from "@wso2/balleri
 import type { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { URI, Utils } from "vscode-uri";
 import type { SidePanelView } from "./PanelManager";
+import { identifiersIn } from "../AIChatAgent/A2a/remoteAgentConnection";
 
 // Filter out connections where name starts with _ and module is "ai" or "ai.agent"
 export const filterConnections = (categories: Category[]): Category[] => {
@@ -224,6 +225,42 @@ export async function deleteMcpToolkit(rpcClient: BallerinaRpcClient, name: stri
     const referenced = await agentManager.getReferencedAgentManagerConfigurables({ projectPath }).catch((): string[] => []);
     await deleteMcpToolkitSource(rpcClient, name);
     await agentManager.removeUnusedAgentManagerConfigurables({ projectPath, referenced }).catch((): undefined => undefined);
+}
+
+/**
+ * Deletes a remote agent's toolkit variable, and the configurables its connection reads that are named after it,
+ * which are the ones the Use Remote Agent form generated.
+ */
+export async function deleteA2aToolkit(rpcClient: BallerinaRpcClient, name: string): Promise<void> {
+    const moduleNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
+    const variable = moduleNodes.flowModel?.variables?.find(
+        (candidate) => candidate.codedata?.node === "A2A_TOOL_KIT" && candidate.properties.variable?.value === name
+    );
+    if (!variable) {
+        return;
+    }
+    const properties = variable.properties as Record<string, { value?: unknown } | undefined>;
+    const read = new Set(["agent", "headers", "clientConfig", "secret"]
+        .flatMap((key) => identifiersIn(typeof properties[key]?.value === "string" ? properties[key]!.value as string : undefined)));
+    const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+        segments: [variable.codedata.lineRange.fileName],
+    })).filePath;
+    await rpcClient.getBIDiagramRpcClient().deleteFlowNode({ filePath, flowNode: variable });
+
+    const { projectPath } = await rpcClient.getVisualizerLocation();
+    const configFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ["config.bal"] })).filePath;
+    // Each deletion shifts the file, so what is declared is read fresh every time.
+    for (const configurable of Array.from(read).filter((identifier) => identifier.startsWith(name))) {
+        const declared = await rpcClient.getBIDiagramRpcClient().getConfigVariablesV2({ projectPath, includeLibraries: false });
+        for (const [packageName, modules] of Object.entries((declared?.configVariables ?? {}) as Record<string, Record<string, FlowNode[]>>)) {
+            const node = modules[""]?.find((candidate) => candidate.properties?.variable?.value === configurable);
+            if (node) {
+                await rpcClient.getBIDiagramRpcClient().deleteConfigVariableV2({
+                    configFilePath, configVariable: node, packageName, moduleName: "",
+                });
+            }
+        }
+    }
 }
 
 async function deleteMcpToolkitSource(rpcClient: BallerinaRpcClient, name: string): Promise<void> {

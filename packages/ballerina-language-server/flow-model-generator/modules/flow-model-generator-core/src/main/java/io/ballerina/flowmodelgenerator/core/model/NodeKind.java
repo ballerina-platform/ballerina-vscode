@@ -110,6 +110,7 @@ public enum NodeKind {
     MEMORY,
     SHORT_TERM_MEMORY_STORE,
     MCP_TOOL_KIT,
+    A2A_TOOL_KIT,
     AGENT_ID_AUTH_CONFIG,
     WORKFLOW,
     WORKFLOW_RUN,

@@ -20,7 +20,7 @@ export { Diagram } from "./components/Diagram";
 export { MemoizedDiagram } from "./components/Diagram";
 
 // components
-export { A2aIcon, DurableAgentIcon, NodeIcon, getNodeChartColor, getWorkflowFunctionIconName } from "./components/NodeIcon";
+export { A2aIcon, A2aLogoIcon, DurableAgentIcon, NodeIcon, getNodeChartColor, getWorkflowFunctionIconName } from "./components/NodeIcon";
 export { ConnectorIcon } from "./components/ConnectorIcon";
 export { AIModelIcon } from "./components/AIModelIcon";
 

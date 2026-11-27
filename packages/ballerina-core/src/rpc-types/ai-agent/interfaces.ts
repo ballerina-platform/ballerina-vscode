@@ -116,3 +116,93 @@ export interface GenerateAgentSkillsResponse {
     /** New skills, each as "Name: description", ready to add to the Skills field. */
     skills: string[];
 }
+
+export interface A2aSkillInfo {
+    id: string;
+    name: string;
+    description: string;
+    tags: string[];
+    examples: string[];
+}
+
+export interface A2aSecuritySchemeInfo {
+    /** The scheme's name in the card (the key under `securitySchemes`). */
+    name: string;
+    /** A readable kind, such as "Bearer", "Basic", "API key" or "OAuth2". */
+    kind: string;
+    /**
+     * Whether `ai:A2aToolKit`'s `secret` can carry this scheme. The A2A client sends a secret only for HTTP Bearer,
+     * HTTP Basic and an API key in a header; OAuth2, OpenID Connect, mutual TLS and an API key in a query or cookie
+     * need `clientConfig` or `headers` instead.
+     */
+    acceptsSecret: boolean;
+    /** Where an API key is sent: `header`, `query` or `cookie`. Only set for an API key scheme. */
+    location?: string;
+}
+
+/** The parts of an Agent Card the "Use Remote Agent (A2A)" form shows. */
+export interface A2aAgentCardInfo {
+    name: string;
+    description: string;
+    version: string;
+    provider?: string;
+    documentationUrl?: string;
+    endpointUrl?: string;
+    protocolBinding?: string;
+    protocolVersion?: string;
+    /** Every protocol binding the card lists, such as `HTTP+JSON` or `JSONRPC`. */
+    protocolBindings: string[];
+    streaming: boolean;
+    pushNotifications: boolean;
+    extendedAgentCard: boolean;
+    securitySchemes: A2aSecuritySchemeInfo[];
+    /**
+     * The schemes the card's first security requirement names, which a caller must satisfy together. Empty when the
+     * card asks for no credential. `ai:A2aToolKit` files its one `secret` under the single scheme named here.
+     */
+    requiredSchemes: string[];
+    inputModes: string[];
+    outputModes: string[];
+    skills: A2aSkillInfo[];
+}
+
+export interface A2aCardFetchRequest {
+    /** An agent URL, an Agent Card URL, or the card's JSON text. */
+    source: string;
+    /** Headers to send when fetching the card, for an agent behind a gateway that protects it. Never stored. */
+    headers?: Record<string, string>;
+}
+
+export interface A2aCardFetchResponse {
+    card?: A2aAgentCardInfo;
+    /** The agent's base URL, with any `/.well-known/agent-card.json` suffix removed. */
+    agentUrl?: string;
+    /** Set when the source was pasted JSON rather than a URL, so no URL is known. */
+    fromJson?: boolean;
+    /** A suggested name for the toolkit variable, derived from the card name. */
+    toolkitName?: string;
+    /** Set when the toolkit cannot call the agent, such as a card that lists no HTTP+JSON interface. */
+    unsupported?: string;
+    /**
+     * Set when the agent asked for credentials to serve its card (HTTP 401 or 403), as a gateway in front of it may.
+     * The toolkit sends `headers` and `clientConfig.auth` when it reads the card, so the agent can still be added.
+     */
+    credentialsRequired?: boolean;
+    error?: string;
+}
+
+/** A configurable the remote agent's connection reads, declared with the toolkit. */
+export interface A2aConfigurable {
+    name: string;
+    /** The Ballerina expression it defaults to, such as `"http://localhost:9092"`. Empty for a required one. */
+    defaultValue?: string;
+    /** The value written to Config.toml, as plain text. Never written into the code. */
+    configValue?: string;
+}
+
+export interface A2aToolKitUpdateRequest {
+    agentFlowNode: FlowNode;
+    /** The `A2A_TOOL_KIT` node: a new one from the template, or an existing one being edited. */
+    updatedNode: FlowNode;
+    configurables: A2aConfigurable[];
+}

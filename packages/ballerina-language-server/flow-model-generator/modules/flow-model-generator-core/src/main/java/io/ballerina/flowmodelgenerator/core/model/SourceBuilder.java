@@ -178,7 +178,7 @@ public class SourceBuilder {
             case NEW_CONNECTION, MODEL_PROVIDER, EMBEDDING_PROVIDER, VECTOR_STORE, KNOWLEDGE_BASE,
                  DATA_LOADER, CHUNKER, CLASS_INIT, DATA_MAPPER_DEFINITION,
                  FUNCTION_DEFINITION, NP_FUNCTION, NP_FUNCTION_DEFINITION, AUTOMATION,
-                 AGENT, AGENT_TOOL, MEMORY, SHORT_TERM_MEMORY_STORE, MCP_TOOL_KIT -> true;
+                 AGENT, AGENT_TOOL, MEMORY, SHORT_TERM_MEMORY_STORE, MCP_TOOL_KIT, A2A_TOOL_KIT -> true;
             default -> false;
         };
     }
@@ -187,7 +187,7 @@ public class SourceBuilder {
         if (Boolean.TRUE.equals(isNew) || lineRange == null) {
             String defaultFile = switch (node) {
                 case NEW_CONNECTION, MODEL_PROVIDER, EMBEDDING_PROVIDER, VECTOR_STORE, KNOWLEDGE_BASE,
-                     DATA_LOADER, CHUNKER, CLASS_INIT -> CONNECTIONS_BAL;
+                     DATA_LOADER, CHUNKER, CLASS_INIT, A2A_TOOL_KIT -> CONNECTIONS_BAL;
                 case DATA_MAPPER_DEFINITION -> DATA_MAPPINGS_BAL;
                 case WORKFLOW, DURABLE_AGENT -> WORKFLOWS_BAL;
                 case FUNCTION_DEFINITION, NP_FUNCTION, NP_FUNCTION_DEFINITION, ACTIVITY,

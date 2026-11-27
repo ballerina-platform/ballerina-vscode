@@ -22,7 +22,7 @@ import { AgentNodeActions } from "@wso2/bi-diagram";
 import { AgentUsage, EVENT_TYPE, Flow, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, SearchNodesQuery, ToolData, VisualizerLocation }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { deleteMcpToolkit, findFunctionByName } from "../FlowDiagram/utils";
+import { deleteA2aToolkit, deleteMcpToolkit, findFunctionByName } from "../FlowDiagram/utils";
 import { createApprovalFunctionActions } from "./approvalFunctionActions";
 import {
     AddingTool,
@@ -48,8 +48,8 @@ import { getExistingToolNames } from "./toolForm";
 
 export type AgentEditorView =
     | "NONE" | "MEMORY" | "MEMORY_STORE" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
-    | "NEW_TOOL_FUNCTION" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "NEW_TOOL_KNOWLEDGE_BASE"
-    | "ADD_MCP" | "EDIT_MCP";
+    | "NEW_TOOL_FUNCTION" | "USE_AGENT" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "NEW_TOOL_KNOWLEDGE_BASE"
+    | "ADD_MCP" | "EDIT_MCP" | "ADD_A2A" | "EDIT_A2A";
 
 export interface AgentEditorHost {
     projectPath: string;
@@ -360,6 +360,16 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 // Deleting the toolkit class can drop an import above the agent and move it.
                 return { ok: true, position: await resolveAgentNodePosition(node, rpcClient) };
             }
+            if (tool.type === "A2A Agent") {
+                const latest = await withCurrentAgentTools(node, rpcClient);
+                const updated = await removeToolFromAgentNode(latest.node, tool.name);
+                if (updated) {
+                    await writeAgentNode(updated, rpcClient);
+                }
+                await deleteA2aToolkit(rpcClient, tool.name);
+                // Deleting the toolkit can drop an import above the agent and move it.
+                return { ok: true, position: await resolveAgentNodePosition(node, rpcClient) };
+            }
             const agentVarName = node.properties?.variable?.value as string;
             const agentPosition = (artifacts?: ProjectStructureArtifactResponse[]) =>
                 artifacts?.find((artifact) => artifact.name === agentVarName)?.position;
@@ -415,7 +425,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     // The tool disappears at once and its edits queue up, so deleting several tools in a row never waits on a save.
     const deleteTool = useCallback(async (tool: ToolData, node: FlowNode, drawn?: FlowNode) => {
         // Read the tool's approval function before the tool's annotation goes away with it.
-        const approvalFunction = tool.type?.includes("MCP Server") ? undefined : await approvalActions.approvalFunctionOfTool(
+        const approvalFunction = tool.type?.includes("MCP Server") || tool.type === "A2A Agent" ? undefined : await approvalActions.approvalFunctionOfTool(
             tool.name, node.codedata?.lineRange?.fileName || "agents.bal", host.projectPath
         );
         // Deleting the tool also deletes its approval function, and any logic written in it, so ask first.
@@ -435,7 +445,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             name: tool.name,
         };
         setDeletingTools((current) => [...current, entry]);
-        if (view === "EDIT_MCP" && selectedTool?.name === tool.name) {
+        if ((view === "EDIT_MCP" || view === "EDIT_A2A") && selectedTool?.name === tool.name) {
             resetView();
         }
         // A failed deletion leaves the tool in the source, so it shows again at once.
@@ -485,6 +495,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onSelectMcpToolkit: (tool, node) => {
             setBackOverride(null); activate(resolve(node)); setSelectedTool(tool); startSession(); setView("EDIT_MCP");
         },
+        onSelectA2aToolkit: (tool, node) => {
+            setBackOverride(null); activate(resolve(node)); setSelectedTool(tool); startSession(); setView("EDIT_A2A");
+        },
         onDeleteTool: (tool, node) => void deleteTool(tool, resolve(node), node),
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
         canOpenTool: (tool) => !isImportedTool(tool) || workspaceTools.current.has(tool.name),
@@ -509,6 +522,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         }
         if (view === "NEW_TOOL_AGENT_FORM") {
             setView("NEW_TOOL_AGENT");
+            return;
+        }
+        if (view === "NEW_TOOL_AGENT" || view === "ADD_A2A") {
+            setView("USE_AGENT");
             return;
         }
         setView("ADD_TOOL");

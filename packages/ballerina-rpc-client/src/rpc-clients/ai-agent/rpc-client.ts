@@ -18,6 +18,9 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    A2aCardFetchRequest,
+    A2aCardFetchResponse,
+    A2aToolKitUpdateRequest,
     AIAgentAPI,
     AiModuleOrgRequest,
     AiModuleOrgResponse,
@@ -32,6 +35,8 @@ import {
     AIToolsResponse,
     configureDefaultModelProvider,
     DefaultProviderKind,
+    fetchA2aAgentCard,
+    updateA2aToolKit,
     genAgentDefinition,
     GenAgentDefinitionRequest,
     getAiModuleOrg,
@@ -92,6 +97,14 @@ export class AiAgentRpcClient implements AIAgentAPI {
 
     getTool(params: AIToolRequest): Promise<AIToolResponse> {
         return this._messenger.sendRequest(getTool, HOST_EXTENSION, params);
+    }
+
+    updateA2aToolKit(params: A2aToolKitUpdateRequest): Promise<void> {
+        return this._messenger.sendRequest(updateA2aToolKit, HOST_EXTENSION, params);
+    }
+
+    fetchA2aAgentCard(params: A2aCardFetchRequest): Promise<A2aCardFetchResponse> {
+        return this._messenger.sendRequest(fetchA2aAgentCard, HOST_EXTENSION, params);
     }
 
     getMcpTools(params: McpToolsRequest): Promise<McpToolsResponse> {

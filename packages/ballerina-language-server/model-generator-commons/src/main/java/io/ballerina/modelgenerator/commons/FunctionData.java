@@ -171,6 +171,7 @@ public class FunctionData {
         DATA_LOADER,
         CHUNKER,
         MCP_TOOL_KIT,
+        A2A_TOOL_KIT,
         REMOTE,
         RESOURCE,
         LISTENER_INIT,
@@ -187,7 +188,8 @@ public class FunctionData {
                 FunctionData.Kind.DATA_LOADER,
                 FunctionData.Kind.CHUNKER,
                 FunctionData.Kind.KNOWLEDGE_BASE,
-                FunctionData.Kind.MCP_TOOL_KIT
+                FunctionData.Kind.MCP_TOOL_KIT,
+                FunctionData.Kind.A2A_TOOL_KIT
         );
 
         public static boolean isAiClassKind(Kind kind) {

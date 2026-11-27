@@ -85,3 +85,26 @@ it("drops a queued add whose tool name an earlier queued add put on the agent", 
     expect(showErrorMessage).toHaveBeenCalledWith({ message: expect.stringContaining("already on the agent") });
     expect(controller.current.addingTools.map((tool) => tool.name)).toEqual(["xTool"]);
 });
+
+it("goes back from either Use Agent choice to the Use Agent choices", () => {
+    current = agent("[]");
+    const host = { projectPath: "/p", onModelSelect: jest.fn(), onRefresh: jest.fn() };
+    const controller = {} as { current: AgentEditorController };
+    function Probe(): null {
+        controller.current = useAgentEditorController(host);
+        return null;
+    }
+    act(() => createRoot(document.createElement("div")).render(<Probe />));
+
+    act(() => controller.current.diagramCallbacks.onAddTool(agent("[]")));
+    act(() => controller.current.openView("USE_AGENT"));
+    act(() => controller.current.openView("ADD_A2A"));
+    act(() => controller.current.back());
+    expect(controller.current.view).toBe("USE_AGENT");
+
+    act(() => controller.current.openView("NEW_TOOL_AGENT"));
+    act(() => controller.current.back());
+    expect(controller.current.view).toBe("USE_AGENT");
+    act(() => controller.current.back());
+    expect(controller.current.view).toBe("ADD_TOOL");
+});
