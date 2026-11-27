@@ -63,6 +63,8 @@ const render = (dom: HTMLElement, signature: FnSignature | null) => {
 
 type FieldOf = (view: EditorView) => HTMLElement | null;
 
+const HINT_GAP = 4;
+
 // One tooltip object per editor, so moving between arguments rewrites the text instead of remounting it.
 const signatureTooltip = (fieldOf: FieldOf): Tooltip => ({
     pos: 0,
@@ -73,10 +75,21 @@ const signatureTooltip = (fieldOf: FieldOf): Tooltip => ({
         render(dom, view.state.field(signatureField));
         // Spans the whole field, so it sits above or below it, never over what is being typed.
         const field = () => (fieldOf(view) ?? view.dom).getBoundingClientRect();
+        // A field with no room above or below it, like the expanded editor, takes the hint at the cursor's line.
+        const anchor = () => {
+            const box = field();
+            const space = scrollAreaSpace(view);
+            const height = dom.offsetHeight + HINT_GAP;
+            if (box.top - space.top >= height || space.bottom - box.bottom >= height) {
+                return box;
+            }
+            const line = view.coordsAtPos(view.state.selection.main.head) ?? box;
+            return { left: box.left, right: box.right, top: line.top, bottom: line.bottom };
+        };
         return {
             dom,
-            offset: { x: 0, y: 4 },
-            getCoords: field,
+            offset: { x: 0, y: HINT_GAP },
+            getCoords: anchor,
             mount: () => {
                 dom.style.width = `${field().width}px`;
             },
@@ -179,10 +192,10 @@ const signatureTheme = EditorView.baseTheme({
     },
 });
 
-// Tooltips are positioned inside the form's scroll area, which clips them, so they must fit there rather than in the window.
+// Tooltips are positioned inside the nearest clipping box, e.g. the form's scroll area or the expanded editor's body, so they must fit there.
 export const scrollAreaSpace = (view: EditorView) => {
     for (let element = view.dom.parentElement; element; element = element.parentElement) {
-        if (/(auto|scroll)/.test(getComputedStyle(element).overflowY)) {
+        if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(element).overflowY)) {
             return element.getBoundingClientRect();
         }
     }
