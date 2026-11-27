@@ -121,14 +121,14 @@ export function DataNode(props: DataNodeProps) {
 
     const insert = () => onInsert?.(item.path);
 
-    // A named type can turn out to hold nothing to open (a string alias, a union of string values); the row is then a value.
-    const toggle = () => {
+    // A named type can turn out to hold nothing to open (a string alias, a union of string values); its chevron then goes.
+    const toggle = (event: React.MouseEvent) => {
+        event.stopPropagation();
         if (!expanded && !fields) {
             fetchFields(item).then((found) => {
                 setFields(found);
                 if (found.length === 0) {
                     setExpanded(false);
-                    insert();
                 }
             });
         }
@@ -144,10 +144,12 @@ export function DataNode(props: DataNodeProps) {
                 aria-level={depth + 1}
                 depth={depth}
                 title={`${displayPath(item.path)}: ${item.type}`}
-                onClick={expandable ? toggle : insert}
+                onClick={insert}
                 {...dragProps(item.path, (target) => target.insert(item.path))}
             >
-                <S.Chevron>{expandable && <Arrow direction={expanded ? "down" : "right"} />}</S.Chevron>
+                <S.Chevron data-toggle={expandable || undefined} onClick={expandable ? toggle : undefined}>
+                    {expandable && <Arrow direction={expanded ? "down" : "right"} />}
+                </S.Chevron>
                 {item.enumMember && getHelperPaneIcon(HelperPaneIconType.VALUE, "16px")}
                 <S.Name>{item.elementOf ? `Item ${index}` : <HighlightedText text={displayPath(item.name)} query={query} />}</S.Name>
                 {item.elementOf && <IndexStepper index={index} onChange={setIndex} />}
@@ -183,6 +185,8 @@ function IndexStepper({ index, onChange }: { index: number; onChange: (index: nu
 }
 
 const levelOf = (row: HTMLElement) => Number(row.getAttribute("aria-level") ?? 1);
+// A value row opens by its chevron, a click on the row inserts it; a group row opens on click.
+const openOrClose = (row: HTMLElement) => (row.querySelector<HTMLElement>("[data-toggle]") ?? row).click();
 
 // Up and Down move, Right and Left open and close, Enter runs; Left on a closed field goes to its parent, on a top row (like Backspace) back.
 export const treeKeyDown = (onLeaveTop: () => void, onBack?: () => void) => (event: React.KeyboardEvent<HTMLElement>) => {
@@ -194,10 +198,10 @@ export const treeKeyDown = (onLeaveTop: () => void, onBack?: () => void) => (eve
     const actions: Record<string, () => void> = {
         ArrowDown: () => rows[index + 1]?.focus(),
         ArrowUp: () => (index > 0 ? rows[index - 1].focus() : onLeaveTop()),
-        ArrowRight: () => expanded === "false" && row.click(),
+        ArrowRight: () => expanded === "false" && openOrClose(row),
         ArrowLeft: () => {
             if (expanded === "true") {
-                row.click();
+                openOrClose(row);
             } else if (levelOf(row) > 1) {
                 rows.slice(0, index).reverse().find((other) => levelOf(other) < levelOf(row))?.focus();
             } else {
