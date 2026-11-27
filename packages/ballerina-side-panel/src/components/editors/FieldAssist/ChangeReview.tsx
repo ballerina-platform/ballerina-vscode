@@ -23,7 +23,7 @@ import type { AssistFlowChange } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ChipText, StandardIcon, getTokenIconClass } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 import { TokenType } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
+import { AppliedChanges, AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
 import { PromptInput } from "./AssistShell";
 import { HandoffCard, handOffNote } from "./Handoff";
 import { CHANGED_FIELD, S } from "./styles";
@@ -107,7 +107,33 @@ function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) 
     }
     mark.undone?.();
     markUndone(host, fieldKey, mark);
-    host.dropMark(fieldKey);
+    if (mark.added) {
+        host.setApplied((current) => current && withoutRow(current, fieldKey));
+    } else {
+        host.dropMark(fieldKey);
+    }
+}
+
+const ROW_KEY = /^(.+)-(\d+)$/;
+
+// A row's mark key once the row `removed` is gone: the rows below it move up one.
+export function renumbered(key: string, removed: string): string {
+    const [, group, index] = key.match(ROW_KEY) ?? [];
+    const [, removedGroup, removedIndex] = removed.match(ROW_KEY) ?? [];
+    return group && group === removedGroup && Number(index) > Number(removedIndex) ? `${group}-${Number(index) - 1}` : key;
+}
+
+// Drops the mark of a row Copilot added and the user removed; Undo All still finds each moved change by its first key.
+export function withoutRow(applied: AppliedChanges, removed: string): AppliedChanges {
+    const marks = Object.entries(applied.marks).filter(([key]) => key !== removed);
+    const firstKeys = Object.fromEntries(marks.map(([key]) => [renumbered(key, removed), key]));
+    return {
+        ...applied,
+        marks: Object.fromEntries(marks.map(([key, mark]) => [renumbered(key, removed), mark])),
+        changes: Object.fromEntries(Object.entries(applied.changes).map(([id, keys]) =>
+            [id, keys.filter((key) => key !== removed).map((key) => renumbered(key, removed))])),
+        revert: (keys, form) => applied.revert(keys.map((key) => firstKeys[key] ?? key), form),
+    };
 }
 
 const FIELD_CONTROLS = "input:not([type='hidden']), textarea, select, vscode-text-field, vscode-text-area, vscode-dropdown";
@@ -306,7 +332,7 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
                     <Icon name="bi-ai-chat" sx={{ width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
                     Revise
                 </S.GhostAction>
-                <S.Secondary type="button" onClick={() => decide(() => revertMark(host, fieldKey, mark), nextChange)}>{mark.added ? "Remove" : "Undo"}</S.Secondary>
+                <S.Secondary type="button" onClick={() => decide(() => revertMark(host, fieldKey, mark), mark.added && nextChange ? renumbered(nextChange, fieldKey) : nextChange)}>{mark.added ? "Remove" : "Undo"}</S.Secondary>
                 <S.Primary ref={buttons.keep} type="button" onClick={() => decide(() => host.dropMark(fieldKey), nextChange)}>Keep</S.Primary>
             </S.ChangeActions>
             {revising && <RevisePrompt host={host} focus={{ key: fieldKey, label: mark.label }} mark={mark} onClose={closePrompt} />}
