@@ -45,7 +45,7 @@ jest.mock("../../../../views/BI/Forms/FlowNodeForm", () => {
 });
 jest.mock("../../../../views/BI/HelperView", () => ({ HelperView: (): null => null }));
 jest.mock("../../../../views/BI/DataBrowser", () => ({
-    takesPrompts: () => false, useValuePicker: () => ({ context: null, picker: null }),
+    takesPrompts: () => false, useValuePicker: (): { context: null; picker: null } => ({ context: null, picker: null }),
 }));
 jest.mock("@wso2/bi-diagram", () => ({ ConnectorIcon: (): null => null, NodeIcon: (): null => null }));
 jest.mock("../../../../utils/bi", () => ({

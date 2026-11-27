@@ -580,7 +580,7 @@ export default function createTests() {
             expect(modalText).toContain('age: 30');
             logStep('Record structure preserved without manual retype');
 
-            await overlay.locator('vscode-button, button').first().click({ force: true });
+            await overlay.locator('vscode-button:has(.fw-bi-minimize-modal)').first().click({ force: true });
             await page.page.waitForTimeout(1000);
             await saveOpenForm(frame);
             await pollGenerated('automation.bal', `${personTypeName} ${recordVarName} = {name: ${configName}, age: 30}`);
@@ -612,7 +612,7 @@ export default function createTests() {
             const declareSave = panel.getByRole('button', { name: 'Save' }).last();
             await expect(declareSave).toBeEnabled({ timeout: 5000 });
 
-            await overlay2.locator('vscode-button, button').first().click({ force: true });
+            await overlay2.locator('vscode-button:has(.fw-bi-minimize-modal)').first().click({ force: true });
             await page.page.waitForTimeout(1000);
             await saveOpenForm(frame);
 
