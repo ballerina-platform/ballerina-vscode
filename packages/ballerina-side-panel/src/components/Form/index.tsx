@@ -1189,6 +1189,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         renameLog,
         assistHost,
         partOfParentForm,
+        assistPrefix: partOfParentForm ? parentContext?.nestedAssistPrefix : undefined,
     };
 
     // Find the first editable identifier field

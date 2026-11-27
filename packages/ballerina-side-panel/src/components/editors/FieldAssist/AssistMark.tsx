@@ -24,7 +24,8 @@ import { ChangeCard, currentReview } from "./ChangeReview";
 import { keysWithin } from "./formFields";
 import { CHANGED_FIELD, S, changedFieldStyles } from "./styles";
 
-export function AssistMark({ fieldKey }: { fieldKey: string }) {
+// `expanded` is the mark in the field's expanded editor, which takes the review card while that editor is open.
+export function AssistMark({ fieldKey, expanded = false }: { fieldKey: string; expanded?: boolean }) {
     const host = useAssistHost();
     const mark = host?.applied?.marks[fieldKey];
     const [field, setField] = useState<HTMLElement | null>(null);
@@ -65,7 +66,7 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
     return (
         <>
             <span ref={markRef} hidden><Global styles={changedFieldStyles} /></span>
-            {field && currentReview(host) === fieldKey && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} />}
+            {field && currentReview(host) === fieldKey && (host.expandedKey === fieldKey) === expanded && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} inline={expanded} />}
         </>
     );
 }

@@ -19,7 +19,7 @@
 import React, { useRef } from "react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import styled from '@emotion/styled';
-import { EditorFactory, FormField, InputMode, useFormContext, Provider as FormContextProvider, FormValues } from "../..";
+import { EditorFactory, FormField, InputMode, useFormContext, useAssistKey, Provider as FormContextProvider, FormValues } from "../..";
 import { Imports, InputType, ExpressionProperty, getPrimaryInputType, carryTextArrayValue } from "@wso2/ballerina-core";
 import { NodeKind, NodeProperties, RecordTypeField, SubPanel, SubPanelView } from "@wso2/ballerina-core";
 import { CompletionItem } from "@wso2/ui-toolkit";
@@ -74,6 +74,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
 
     const formContext = useFormContext();
     const { expressionEditor } = formContext;
+    const markKey = useAssistKey(props.field.key);
 
     const form = formContext?.form;
     const clearFieldDiagnostics = formContext?.clearFieldDiagnostics;
@@ -155,8 +156,9 @@ export const FieldFactory = (props: FieldFactoryProps) => {
 
     const updatedFormContext = useMemo(() => ({
         ...formContext,
-        expressionEditor: updatedExpressionEditor
-    }), [formContext, updatedExpressionEditor]);
+        expressionEditor: updatedExpressionEditor,
+        nestedAssistPrefix: `${formContext?.assistPrefix ?? ""}${props.field.key}/`,
+    }), [formContext, updatedExpressionEditor, props.field.key]);
 
     const getInitialSelectedInputType = (): InputType => {
         if (!props.field.types || props.field.types.length === 0) {
@@ -358,7 +360,7 @@ export const FieldFactory = (props: FieldFactoryProps) => {
             >
                 <Container>
                     {editorElements}
-                    <AssistMark fieldKey={props.field.key} />
+                    <AssistMark fieldKey={markKey} />
                 </Container>
             </ModeSwitcherProvider>
         </FormContextProvider>

@@ -58,10 +58,10 @@ import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionEdito
 const EditorContainer = styled.div<{ readOnly?: boolean }>`
     flex: 1;
     overflow: auto;
-    border: 1px solid ${FIELD_BORDER};
+    border: 1px solid var(--field-changed-border, ${FIELD_BORDER});
     border-radius: 0 0 ${FIELD_RADIUS} ${FIELD_RADIUS};
     border-top: none;
-    background-color: var(--vscode-input-background);
+    background-color: var(--field-changed-background, var(--vscode-input-background));
     position: relative;
 
     .ProseMirror {

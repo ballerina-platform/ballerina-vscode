@@ -19,7 +19,7 @@
 import React, { useEffect, useRef } from "react";
 import { Imports } from "@wso2/ballerina-core";
 import { EditorView } from "@codemirror/view";
-import { useFormContext } from "../../../context";
+import { useAssistKey, useFormContext } from "../../../context";
 import { FormExpressionEditorProps, FormField } from "../../Form/types";
 import { useModeSwitcherContext } from "../ModeSwitcherContext";
 import { tokensChangeEffect } from "../MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
@@ -27,7 +27,7 @@ import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/typ
 import { assistProperty, getPropertyFromFormField } from "../utils";
 import { AssistCard, AssistHostContent, AssistHostProvider, reviseInCard, useAssistHost, withFieldChange } from "./AssistHost";
 import { AssistMark } from "./AssistMark";
-import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, runValueActions, useFieldAssist } from "./FieldAssist";
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, reviewNote, runValueActions, useFieldAssist } from "./FieldAssist";
 import { stringLiteral } from "./fieldKinds";
 import { isSensitiveField } from "./secretGuard";
 
@@ -64,10 +64,41 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
     const { expressionEditor, updateImports } = useFormContext();
     const modeSwitcher = useModeSwitcherContext();
     const key = field.key;
+    const markKey = useAssistKey(key);
     const canExpress = switchesToExpression(modeSwitcher);
     const assistExpression = canExpress && field.editable !== false ? expressionEditor?.assistExpression : undefined;
+    const expressionEditorOf = () => document.querySelector<HTMLElement>(`[data-testid="ex-editor-${key}"] .cm-editor`);
+    // The value goes in through the field's expression mode, so the list or map shows as code from then on.
+    const write = ({ expression, imports }: Proposal, focus = true) => {
+        if (imports) {
+            updateImports?.(key, imports);
+        }
+        const previous = expressionEditorOf();
+        beforeSwitch?.();
+        modeSwitcher?.onModeChange(InputMode.EXP);
+        whenEditorReplaced(key, previous, (editor) => replaceEditorText(editor, expression, focus));
+    };
+    // The suggestion lands at once; the card under the field keeps, undoes or revises it, as for a form change.
+    const writeForReview = async (proposal: Proposal, request: string) => {
+        const before = currentValue();
+        const removeCreated = await runValueActions(expressionEditor?.runAssistActions, proposal.actions, before);
+        write(proposal, false);
+        host?.setApplied((current) => withFieldChange(current, markKey, {
+            before, after: proposal.expression, display: "code", request, label: field.label, note: reviewNote(proposal, before),
+            values: { before, after: proposal.expression },
+            // The field stays in expression mode, so the earlier value goes back into that editor.
+            revert: () => {
+                replaceEditorText(expressionEditorOf(), before, false);
+                if (removeCreated) {
+                    void removeCreated();
+                }
+            },
+        }));
+        host?.setReviewKey(markKey);
+        host?.close();
+    };
     const assist = useFieldAssist({
-        thread: host?.fieldThread(key),
+        thread: host?.fieldThread(markKey),
         assist: assistExpression && ((input) => assistExpression({
             ...input,
             key,
@@ -76,19 +107,15 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
         abort: expressionEditor?.abortExpressionAssist,
         getValue: currentValue,
         sensitive: isSensitiveField(field.label, key),
+        review: host ? writeForReview : undefined,
     });
-    const apply = async ({ expression, imports }: Proposal) => {
-        if (imports) {
-            updateImports?.(key, imports);
-        }
-        const previous = document.querySelector(`[data-testid="ex-editor-${key}"] .cm-editor`);
-        beforeSwitch?.();
-        modeSwitcher?.onModeChange(InputMode.EXP);
-        whenEditorReplaced(key, previous, (editor) => replaceEditorText(editor, expression));
+    const apply = async (proposal: Proposal) => {
+        await runValueActions(expressionEditor?.runAssistActions, proposal.actions, currentValue());
+        write(proposal);
         // The user's edit, as typing is, so a form review of the field ends.
-        host?.dropMark(key);
+        host?.dropMark(markKey);
     };
-    return useHostedFieldAssist(field, assist, { value: currentValue(), onApply: apply });
+    return useHostedFieldAssist(field, markKey, assist, { value: currentValue(), onApply: apply });
 }
 
 const NOT_TEXT = "This field holds plain text, so values from the flow can't go in. Ask for the text itself.";
@@ -108,6 +135,7 @@ export function usePlainTextFieldAssist(field: FormField) {
     const host = useAssistHost();
     const { form, expressionEditor } = useFormContext();
     const key = field.key;
+    const markKey = useAssistKey(key);
     const text = () => String(form.getValues(key) ?? "");
     const asExpression = () => (text() ? JSON.stringify(text()) : "");
     const write = (value: string) => {
@@ -122,16 +150,16 @@ export function usePlainTextFieldAssist(field: FormField) {
         }
         const before = text();
         write(after);
-        host?.setApplied((current) => withFieldChange(current, key, {
+        host?.setApplied((current) => withFieldChange(current, markKey, {
             before, after, display: "text", request, label: field.label, note: proposal.note,
             values: { before, after }, revert: () => write(before),
         }));
-        host?.setReviewKey(key);
+        host?.setReviewKey(markKey);
         host?.close();
     };
     const assistExpression = field.editable !== false ? expressionEditor?.assistExpression : undefined;
     const assist = useFieldAssist({
-        thread: host?.fieldThread(key),
+        thread: host?.fieldThread(markKey),
         assist: assistExpression && ((input) => assistExpression({
             ...input,
             key,
@@ -148,9 +176,9 @@ export function usePlainTextFieldAssist(field: FormField) {
             throw new Error(NOT_TEXT);
         }
         write(after);
-        host?.dropMark(key);
+        host?.dropMark(markKey);
     };
-    return useHostedFieldAssist(field, assist, { value: asExpression(), onApply: apply, display: (expression) => plainText(expression) ?? expression });
+    return useHostedFieldAssist(field, markKey, assist, { value: asExpression(), onApply: apply, display: (expression) => plainText(expression) ?? expression });
 }
 
 interface HostedPanel {
@@ -174,21 +202,46 @@ export function HostedFieldPanel({ scope, assist, ...panel }: HostedPanel & { sc
 }
 
 // Lets Revise on a change this field's Copilot made continue the field's own thread, which holds the requests before it.
-export function useFieldThread(key: string, label: string, assist: ReturnType<typeof useFieldAssist>, hosted: boolean) {
+// The request runs from the change card, which shows it working; only an answer the card can't show, e.g. a question, opens the thread.
+export function useFieldThread(key: string, label: string, assist: ReturnType<typeof useFieldAssist>, hosted: boolean, openThread?: () => void) {
     const host = useAssistHost();
-    const latest = useRef(assist);
-    latest.current = assist;
-    useEffect(() => (hosted && host ? host.registerFieldThread(key, (instruction) => {
-        host.setRevising(undefined);
-        host.open(`field:${key}`, label);
-        return latest.current.submit(instruction);
+    const latest = useRef({ assist, openThread });
+    latest.current = { assist, openThread };
+    const fromCard = useRef(false);
+    const done = () => host?.setFieldRunning((current) => (current === key ? undefined : current));
+    useEffect(() => (hosted && host ? host.registerFieldThread(key, {
+        revise: (instruction) => {
+            fromCard.current = latest.current.assist.submit(instruction);
+            if (fromCard.current) {
+                host.setFieldRunning(key);
+            }
+            return fromCard.current;
+        },
+        stop: () => {
+            fromCard.current = false;
+            done();
+            latest.current.assist.stop();
+        },
     }) : undefined), [hosted, key, host?.registerFieldThread]);
+    useEffect(() => {
+        if (!fromCard.current || assist.state.loading || !host) {
+            return;
+        }
+        fromCard.current = false;
+        done();
+        if (needsThread(assist.state)) {
+            host.setRevising(undefined);
+            (latest.current.openThread ?? (() => host.open(`field:${key}`, label)))();
+        }
+    }, [assist.state.loading]);
 }
 
+const needsThread = ({ proposal, error, reply, handoff, failed, question, declined }: ReturnType<typeof useFieldAssist>["state"]) =>
+    !!(proposal || error || reply || handoff || failed || question || declined);
+
 // A field's Copilot button and its thread in the form's Copilot host; the context also gives an expanded editor the button.
-function useHostedFieldAssist(field: FormField, assist: ReturnType<typeof useFieldAssist>, panel: HostedPanel) {
+function useHostedFieldAssist(field: FormField, key: string, assist: ReturnType<typeof useFieldAssist>, panel: HostedPanel) {
     const host = useAssistHost();
-    const key = field.key;
     const scope = `field:${key}`;
     const hosted = !!host && assist.available;
     const open = host?.scope === scope;
@@ -237,15 +290,22 @@ function DialogFieldAssistBody({ field, value, expressionEditor, errors, onApply
     const latest = useRef(value);
     latest.current = value;
     const write = async (proposal: Proposal) => {
-        await runValueActions(expressionEditor.runAssistActions, proposal.actions, latest.current);
+        const removeCreated = await runValueActions(expressionEditor.runAssistActions, proposal.actions, latest.current);
         onApply(proposal.expression, proposal.imports);
+        return removeCreated;
     };
     const writeForReview = async (proposal: Proposal, request: string) => {
         const before = latest.current;
-        await write(proposal);
+        const removeCreated = await write(proposal);
         host.setApplied((current) => withFieldChange(current, key, {
-            before, after: proposal.expression, display: "code", request, label: field.label, note: proposal.note,
-            values: { before, after: proposal.expression }, revert: () => onApply(before),
+            before, after: proposal.expression, display: "code", request, label: field.label, note: reviewNote(proposal, before),
+            values: { before, after: proposal.expression },
+            revert: () => {
+                onApply(before);
+                if (removeCreated) {
+                    void removeCreated();
+                }
+            },
         }));
         host.setReviewKey(key);
         host.close();
@@ -271,7 +331,7 @@ function DialogFieldAssistBody({ field, value, expressionEditor, errors, onApply
         describe: () => ({ slots: [], groups: [] }),
         apply: () => undefined,
     }), [key]);
-    const { context, panel } = useHostedFieldAssist(field, assist, { value, onApply: write, currentErrors: () => errors });
+    const { context, panel } = useHostedFieldAssist(field, key, assist, { value, onApply: async (proposal) => { await write(proposal); }, currentErrors: () => errors });
     return (
         <FieldAssistContext.Provider value={context}>
             {/* The review marks this element as the field; display: contents keeps the editor's layout. */}

@@ -34,6 +34,8 @@ import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/typ
 import { FieldError } from "react-hook-form";
 import { SimpleStringMode } from "./modes/SimpleStringMode";
 import { FieldAssistContext } from "../FieldAssist/FieldAssist";
+import { useAssistHost } from "../FieldAssist/AssistHost";
+import { AssistMark } from "../FieldAssist/AssistMark";
 
 interface ExpandedPromptEditorProps {
     isOpen: boolean;
@@ -73,6 +75,8 @@ interface ExpandedPromptEditorProps {
     errorAction?: (errorMessages: string[]) => React.ReactNode;
     // A new revision remounts the editor on the current value, for editors that read it only once.
     revision?: number;
+    // The field's key in the Copilot host: its review card and changed styling move here while the editor is open.
+    assistKey?: string;
 }
 
 const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
@@ -140,6 +144,21 @@ const ModalContent = styled.div`
     overflow-y: hidden;
     /* Same inset as the header, so the editor lines up with the title. */
     padding: 8px 16px 16px;
+    display: flex;
+    flex-direction: column;
+`;
+
+// The editor and its review card; the changed-field styling reaches the editor through this box.
+const ReviewedField = styled.div`
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+`;
+
+const EditorSlot = styled.div`
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
 `;
@@ -226,7 +245,8 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     zIndex = 2100,
     assistPanel,
     errorAction,
-    revision
+    revision,
+    assistKey
 }) => {
     const promptFields = ["instructions", "role"];
 
@@ -249,6 +269,15 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     }, [defaultMode]);
 
     const assist = useContext(FieldAssistContext);
+    const host = useAssistHost();
+    const setExpandedKey = host?.setExpandedKey;
+    useEffect(() => {
+        if (!isOpen || !assistKey || !setExpandedKey) {
+            return;
+        }
+        setExpandedKey(assistKey);
+        return () => setExpandedKey((current) => (current === assistKey ? undefined : current));
+    }, [isOpen, assistKey, setExpandedKey]);
     const [closing, setClosing] = useState(false);
     // The exit animation plays first; the modal unmounts when it ends.
     const handleMinimize = () => setClosing(true);
@@ -358,7 +387,12 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                     </HeaderActions>
                 </ModalHeaderSection>
                 <ModalContent>
-                    <ModeComponent key={revision} {...modeProps} />
+                    <ReviewedField>
+                        <EditorSlot>
+                            <ModeComponent key={revision} {...modeProps} />
+                        </EditorSlot>
+                        {assistKey && <AssistMark fieldKey={assistKey} expanded />}
+                    </ReviewedField>
                     {assistPanel}
                 </ModalContent>
             </ModalBox>

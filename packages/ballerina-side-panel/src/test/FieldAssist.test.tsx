@@ -27,9 +27,9 @@ import {
     FieldThread,
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
-import { DialogFieldAssist } from "../components/editors/FieldAssist/StructuredFieldAssist";
+import { DialogFieldAssist, useFieldThread } from "../components/editors/FieldAssist/StructuredFieldAssist";
 import { FormAssistDescription, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
-import { AppliedMark, AssistHostProvider, AssistHostValue, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
+import { AppliedMark, AssistHeaderButton, AssistHostProvider, AssistHostValue, FormController, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 
 interface HarnessProps {
@@ -197,6 +197,32 @@ describe("FieldAssist", () => {
 
         expect(review).toHaveBeenCalledWith(expect.objectContaining({ expression: "booking.lead.email", flowChange }), "email the booking confirmation to the guest");
         expect(screen.queryByText("Changes Required Outside This Form")).toBeNull();
+    });
+
+    it("lands a value that creates a configurable for review, and keeps the thread open with the reason when it can't land", async () => {
+        const review = jest.fn().mockRejectedValueOnce(new Error("This form can't create configurables yet."));
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({
+            expression: "apiKey",
+            actions: [{ kind: "createConfigurable", name: "apiKey", type: "string", documentation: "" }],
+        }));
+        render(<Harness initial='"abc"' assist={assist} review={review} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("move it to a configurable");
+
+        expect(review).toHaveBeenCalledWith(expect.objectContaining({ expression: "apiKey" }), "move it to a configurable");
+        expect(await screen.findByText("This form can't create configurables yet.")).toBeTruthy();
+    });
+
+    it("clears the thread, so the next request goes without the earlier ones", async () => {
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ reply: "It adds tax." }));
+        render(<Harness initial="subtotal" assist={assist} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("what does this do");
+        fireEvent.click(screen.getByRole("button", { name: "Clear chat" }));
+
+        expect(screen.queryByText("what does this do")).toBeNull();
+        await ask("round it");
+        expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ instruction: "round it", earlier: undefined }));
     });
 
     it("shows a decline as its own card", async () => {
@@ -374,5 +400,56 @@ describe("field threads in a host", () => {
         fireEvent.click(screen.getByText("open"));
 
         expect(screen.queryByText("the text hello world")).toBeNull();
+    });
+});
+
+describe("the form's first-use hint", () => {
+    // A form with an empty required value, as the header's hint needs.
+    function EmptyForm() {
+        const host = useAssistHost()!;
+        useEffect(() => host.registerForm({ needsValues: () => true } as unknown as FormController), [host.registerForm]);
+        return <AssistHeaderButton />;
+    }
+    const openForm = () => render(<AssistHostProvider><EmptyForm /></AssistHostProvider>);
+    const hint = () => screen.queryByRole("note");
+
+    beforeEach(() => localStorage.clear());
+
+    it("stays until dismissed, and does not come back on the next form", () => {
+        const first = openForm();
+        expect(hint()?.textContent).toBe("Use Copilot to fill this form");
+
+        fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+        expect(hint()).toBeNull();
+        first.unmount();
+
+        openForm();
+        expect(hint()).toBeNull();
+    });
+});
+
+describe("Revise from a field's change card", () => {
+    let host: AssistHostValue;
+    function RevisedField({ assist }: { assist: AssistExpression }) {
+        host = useAssistHost()!;
+        const fieldAssist = useFieldAssist({ assist, thread: host.fieldThread("expression"), getValue: () => "subtotal", review: () => undefined });
+        useFieldThread("expression", "Expression", fieldAssist, true);
+        return null;
+    }
+    const revise = async (response: ExpressionAssistResponse) => {
+        let answer: (value: ExpressionAssistResponse) => void = () => undefined;
+        render(<AssistHostProvider><RevisedField assist={() => new Promise((resolve) => { answer = resolve; })} /></AssistHostProvider>);
+        act(() => { host.reviseInField("expression", "round it"); });
+        const whileRunning = host.fieldRunning;
+        await act(async () => { answer(response); });
+        return { whileRunning, after: host.fieldRunning, scope: host.scope };
+    };
+
+    it("runs in the card, which shows it working, and leaves the thread closed when a value lands", async () => {
+        expect(await revise({ expression: "subtotal * 2" })).toEqual({ whileRunning: "expression", after: undefined, scope: undefined });
+    });
+
+    it("opens the thread for an answer the card can't show, e.g. a question", async () => {
+        expect((await revise({ question: { text: "Which total?", options: ["a", "b"] } })).scope).toBe("field:expression");
     });
 });

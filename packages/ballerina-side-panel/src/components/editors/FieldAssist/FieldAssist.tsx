@@ -122,7 +122,7 @@ interface UseFieldAssistProps {
     // Takes over a request that also needs other fields: the thread so far, newest last, and the unapplied suggestion.
     handOff?: (messages: string[], pending?: string) => void;
     // Writes a suggestion into the field and opens its review card; without it, a suggestion waits for Replace.
-    review?: (proposal: Proposal, request: string) => void;
+    review?: (proposal: Proposal, request: string) => void | Promise<void>;
     // Hands a request to the main Copilot with notes it reads but the user does not see; without it, a failure stays an error.
     continueInChat?: (request: string, context: string) => void;
 }
@@ -161,14 +161,15 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         return true;
     };
 
-    // A suggestion that creates something outside the field, or might hold a secret, waits for Replace instead of landing at once.
+    // A suggestion that might hold a secret waits for Replace instead of landing at once: the review card would show the old value.
     const sentToReview = (response: ExpressionAssistResponse, unchanged: boolean, withheld: boolean, asked?: string) => {
-        if (!review || !response.expression || unchanged || response.actions?.length || sensitive || withheld) {
+        if (!review || !response.expression || unchanged || sensitive || withheld) {
             return false;
         }
         // The thread stays, so a follow-up or a Revise reads against the requests before it, as in the form.
         setState((prev) => ({ history: prev.history, loading: false }));
-        review(response as Proposal, asked ?? "");
+        // A value that can't land, e.g. a configurable this form can't create, keeps the thread open with the reason.
+        Promise.resolve(review(response as Proposal, asked ?? "")).catch((error: Error) => setState((prev) => ({ ...prev, error: error.message })));
         return true;
     };
 
@@ -260,6 +261,13 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         setState((prev) => ({ history: prev.history, loading: false }));
     };
 
+    // The next request goes without the earlier ones; the value and any change under review stay.
+    const clear = () => {
+        cancel();
+        marks.current.clear();
+        setState({ history: [], loading: false });
+    };
+
     const toChat = () => {
         const { handoff, failed, declined, history } = state;
         if (handoff) {
@@ -277,6 +285,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         state,
         toggle: () => (open ? close() : setOpen(true)),
         close,
+        clear,
         submit,
         fix: (diagnostics: string[]) => {
             setOpen(true);
@@ -345,6 +354,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             onSubmit={assist.submit}
             onStop={assist.stop}
             onClose={assist.close}
+            onClear={assist.clear}
             proposal={proposal ?? state.handoff}
             onAccept={apply}
             embedded={embedded}
@@ -381,6 +391,10 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
         </AssistShell>
     );
 }
+
+/** The review card's note for a landed suggestion: what it created outside the field, then the model's note. */
+export const reviewNote = (proposal: Proposal, value: string) =>
+    [...(proposal.actions ?? []).map((action) => describeAction(action, value)), proposal.note].filter(Boolean).join(" ") || undefined;
 
 function describeAction(action: ExpressionAssistAction, value: string): string {
     const moves = action.useFieldValue && configLiteral(value) ? ", holding the current value" : "";

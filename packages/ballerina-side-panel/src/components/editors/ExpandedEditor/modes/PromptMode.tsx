@@ -58,7 +58,7 @@ type EnhancementState =
 const DOCKED_UNDER_TOOLBAR = {
     "--field-top-radius": "0",
     "--field-top-border-style": "none",
-    "--field-focus-border": FIELD_BORDER
+    "--field-focus-border": `var(--field-changed-border, ${FIELD_BORDER})`
 } as React.CSSProperties;
 
 export const PromptMode: React.FC<EditorModeExpressionProps> = ({

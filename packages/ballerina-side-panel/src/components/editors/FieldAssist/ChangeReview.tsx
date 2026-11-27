@@ -224,11 +224,13 @@ interface ChangeCardProps {
     fieldKey: string;
     mark: AppliedMark;
     field: HTMLElement;
+    // Under the field, never beside the form, e.g. in an expanded editor.
+    inline?: boolean;
 }
 
-export function ChangeCard({ host, fieldKey, mark, field }: ChangeCardProps) {
+export function ChangeCard({ host, fieldKey, mark, field, inline }: ChangeCardProps) {
     const [card, setCard] = useState<HTMLDivElement | null>(null);
-    const side = mark.inField ? undefined : host.reviewSide;
+    const side = mark.inField || inline ? undefined : host.reviewSide;
     const beside = useBeside(field, side, card);
     const changeCard = (
         <S.ChangeCard
@@ -265,7 +267,9 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
     }, [mark]);
     useEffect(() => {
         if (!hidden && focusNext.current) {
-            buttons[focusNext.current].current?.focus({ preventScroll: true });
+            // An arrow at the end of the list is disabled, so the focus goes to Keep.
+            const button = buttons[focusNext.current].current;
+            (button?.disabled ? buttons.keep.current : button)?.focus({ preventScroll: true });
             focusNext.current = undefined;
         }
     }, [mark, hidden]);
@@ -312,10 +316,10 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
                     <>
                         <S.HeadLink type="button" onClick={() => decide(() => undoAll(host))}>Undo All</S.HeadLink>
                         <S.HeadLink type="button" onClick={() => decide(() => host.setApplied(undefined))}>Keep All</S.HeadLink>
-                        <S.HeaderButton ref={buttons.previous} type="button" aria-label="Previous Change" title="Previous Change" onClick={() => moveTo(step(-1), "previous")}>
+                        <S.HeaderButton ref={buttons.previous} type="button" aria-label="Previous Change" title="Previous Change" disabled={index === 0} onClick={() => moveTo(step(-1), "previous")}>
                             <Codicon name="chevron-up" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
                         </S.HeaderButton>
-                        <S.HeaderButton ref={buttons.next} type="button" aria-label="Next Change" title="Next Change" onClick={() => moveTo(nextChange, "next")}>
+                        <S.HeaderButton ref={buttons.next} type="button" aria-label="Next Change" title="Next Change" disabled={index === keys.length - 1} onClick={() => moveTo(nextChange, "next")}>
                             <Codicon name="chevron-down" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
                         </S.HeaderButton>
                     </>
@@ -356,20 +360,22 @@ const dropHandoff = (host: AssistHostValue, key: string) => host.setApplied((cur
 // A change the field's own Copilot made continues that field's thread; a form change goes to the form with the request that made it.
 function RevisePrompt({ host, focus, mark, onClose }: { host: AssistHostValue; focus: AssistFocus; mark: AppliedMark; onClose: () => void }) {
     const [draft, setDraft] = useState("");
-    const running = host.orbState === "running";
+    const fieldRun = host.fieldRunning === focus.key;
+    const running = host.orbState === "running" || fieldRun;
     const send = () => {
         const text = draft.trim();
         if (text && !running) {
             if (!(mark.inField && host.reviseInField(focus.key, text))) {
                 host.liveForm()?.revise(focus, text, mark.request);
             }
+            setDraft("");
         }
     };
     return (
         <>
             {running && <S.Status role="status">Working…</S.Status>}
             <PromptInput draft={draft} setDraft={setDraft} placeholder={`Ask for a change to ${focus.label}`} loading={running} onSend={send}
-                onStop={() => host.liveForm()?.stop()} onClose={onClose} bordered autoFocus readOnly={running} />
+                onStop={() => (fieldRun ? host.stopFieldThread(focus.key) : host.liveForm()?.stop())} onClose={onClose} bordered autoFocus readOnly={running} />
         </>
     );
 }

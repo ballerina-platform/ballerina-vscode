@@ -19,7 +19,7 @@
 import React, { useState } from "react";
 import { FormField } from "../Form/types";
 import { AutoResizeTextArea } from "@wso2/ui-toolkit";
-import { useFormContext } from "../../context";
+import { useAssistKey, useFormContext } from "../../context";
 import { S } from "./ExpressionEditor";
 import { Controller } from "react-hook-form";
 import { EditorMode, ExpandedEditor } from "./ExpandedEditor";
@@ -64,6 +64,7 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
     const { form } = useFormContext();
     const { control, setValue, watch } = form;
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
+    const markKey = useAssistKey(field.key);
     const assist = usePlainTextFieldAssist(field);
 
     const handleOpenExpandedMode = () => {
@@ -137,6 +138,7 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
                                     onChange={onChange}
                                     mode={inputMode}
                                     assistPanel={isExpandedModalOpen ? assist.panel : undefined}
+                                    assistKey={markKey}
                                 />
                             </FieldAssistContext.Provider>
                         </TextAreaContainer>
