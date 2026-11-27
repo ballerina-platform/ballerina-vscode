@@ -151,9 +151,10 @@ export default function createTests() {
             // panel's connection list for the new entry's text.
             // ProjectExplorer.findItem() only waits 5s per tree level, which
             // can be too short on a slower CI runner while the LS re-indexes
-            // after the save — retry instead of a single attempt.
+            // after the save — retry instead of a single attempt. Three attempts
+            // were not enough on the Windows runner: the entry appeared just after.
             let connectionListed = false;
-            for (let attempt = 0; attempt < 3 && !connectionListed; attempt++) {
+            for (let attempt = 0; attempt < 6 && !connectionListed; attempt++) {
                 connectionListed = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Connections', CONNECTION_NAME])
                     .then(() => true).catch(() => false);
                 if (!connectionListed) {
