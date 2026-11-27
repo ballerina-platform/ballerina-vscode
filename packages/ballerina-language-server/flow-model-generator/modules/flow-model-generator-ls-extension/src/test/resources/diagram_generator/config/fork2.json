@@ -515,7 +515,7 @@
                 "selected": true
               }
             ],
-            "value": "string",
+            "value": "string|error",
             "placeholder": "var",
             "optional": false,
             "editable": true,
