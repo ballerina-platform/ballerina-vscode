@@ -97,6 +97,8 @@ import { VisualizerWebview } from "../../views/visualizer/webview";
 import {
     addConfigurable,
     addConnection,
+    addTempConfig,
+    deleteTempConfigs,
     getConfigFileUri,
     hasContextYaml,
     processOpenApiWithApiKeyAuth,
@@ -1664,73 +1666,11 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
     }
 
     async deleteDevantTempConfigs(params: DeleteDevantTempConfigReq): Promise<void> {
-        try {
-            const configBalFileUri = getConfigFileUri();
-
-            const configBalEdits = new WorkspaceEdit();
-            for (const node of params.nodes) {
-                configBalEdits.delete(
-                    configBalFileUri,
-                    new vscode.Range(
-                        new vscode.Position(node.position.startLine, node.position.startColumn),
-                        new vscode.Position(node.position.endLine, node.position.endColumn),
-                    ),
-                );
-            }
-
-            await updateSourceCode({
-                textEdits: { [configBalFileUri.toString()]: configBalEdits.get(configBalFileUri) || [] },
-                skipPayloadCheck: true,
-            });
-        } catch (err) {
-            log(`Failed to invoke deleteDevantTempConfigs: ${err}`);
-        }
+        return deleteTempConfigs(params);
     }
 
     async addDevantTempConfig(params: AddDevantTempConfigReq): Promise<AddDevantTempConfigResp> {
-        try {
-            const configBalFileUri = getConfigFileUri();
-            const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
-                documentIdentifier: { uri: configBalFileUri.toString() },
-            })) as SyntaxTree;
-
-            const newConfigEditLine = (syntaxTree?.syntaxTree?.position?.endLine ?? 0) + 1;
-            const configBalEdits = new WorkspaceEdit();
-
-            if (params.newLine) {
-                configBalEdits.insert(
-                    configBalFileUri,
-                    new vscode.Position(newConfigEditLine, 0),
-                    Templates.emptyLine(),
-                );
-            }
-
-            const newConfigTemplate = Templates.newDefaultEnvConfigurable({ CONFIG_NAME: params.name });
-            configBalEdits.insert(configBalFileUri, new vscode.Position(newConfigEditLine, 0), newConfigTemplate);
-
-            await updateSourceCode({
-                textEdits: { [configBalFileUri.toString()]: configBalEdits.get(configBalFileUri) || [] },
-                skipPayloadCheck: true,
-            });
-
-            const updatedSyntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
-                documentIdentifier: { uri: configBalFileUri.toString() },
-            })) as SyntaxTree;
-
-            const matchingConfig = (updatedSyntaxTree?.syntaxTree as ModulePart)?.members?.find((member) => {
-                return (
-                    (member.typedBindingPattern?.bindingPattern as CaptureBindingPattern)?.variableName?.value ===
-                    params.name
-                );
-            });
-            if (STKindChecker.isModuleVarDecl(matchingConfig)) {
-                return { configNode: matchingConfig };
-            }
-
-            throw new Error("failed to add new temp config");
-        } catch (err) {
-            log(`Failed to invoke addDevantTempConfig: ${err}`);
-        }
+        return addTempConfig(params);
     }
 
     /** Registering a third-party service in a marketplace is a platform dependency. */
