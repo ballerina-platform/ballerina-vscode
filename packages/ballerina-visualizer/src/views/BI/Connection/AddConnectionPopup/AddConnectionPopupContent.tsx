@@ -29,6 +29,7 @@ import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { CloudAccessNotice, isCloudAccessMissing, useCloudAccessRefresh } from "../DevantConnections/CloudAccessNotice";
+import { DevantSignInIntro } from "../DevantLegacyConnections/DevantSignInIntro";
 import { hasDevantProject } from "../DevantLegacyConnections/utils";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 
@@ -271,6 +272,7 @@ export function AddConnectionPopupContent(props: Props) {
 
     return (
         <>
+            {!selectionOnly && platformExtState?.platform === "devant" && <DevantSignInIntro />}
             {!selectionOnly && ((platformExtState?.platform === "devant" ? hasDevantProject(platformExtState) : hasCloudProject(platformExtState)) ? (
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
@@ -362,7 +364,7 @@ export function AddConnectionPopupContent(props: Props) {
                 (DevantServicesSection ? (
                     <DevantServicesSection searchText={searchText} />
                 ) : (
-                    platformExtState?.isExtInstalled && (
+                    platformExtState?.isExtInstalled && platformExtState?.platform !== "devant" && (
                         // Where the cloud resources will be listed, what it takes to list them.
                         <Section>
                             <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
