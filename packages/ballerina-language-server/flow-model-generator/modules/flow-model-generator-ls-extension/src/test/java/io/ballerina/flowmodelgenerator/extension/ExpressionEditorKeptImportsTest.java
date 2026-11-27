@@ -43,6 +43,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -117,13 +118,14 @@ public class ExpressionEditorKeptImportsTest extends AbstractLSTest {
 
     @Test
     public void testTypesAndVisibleTypesAreUnchanged() throws Exception {
-        String types = request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false));
-        String variables = request("visibleVariableTypes", new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION));
+        JsonElement types = unordered("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false));
+        JsonElement variables =
+                unordered("visibleVariableTypes", new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION));
         check("5", CERT, "cert", MODULE_LEVEL);
-        Assert.assertEquals(request("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false)),
+        Assert.assertEquals(unordered("types", new ExpressionEditorTypesRequest(sourcePath, null, IN_FUNCTION, false)),
                 types);
         check("5", CERT, "cert", MODULE_LEVEL);
-        Assert.assertEquals(request("visibleVariableTypes",
+        Assert.assertEquals(unordered("visibleVariableTypes",
                 new VisibleVariableTypeRequest(sourcePath, IN_FUNCTION)), variables);
     }
 
@@ -185,6 +187,29 @@ public class ExpressionEditorKeptImportsTest extends AbstractLSTest {
 
     private String request(String api, Object params) throws Exception {
         return gson.toJson(serviceEndpoint.request(getServiceName() + "/" + api, params).get(20, TimeUnit.SECONDS));
+    }
+
+    // A response's lists in a fixed order: they follow the symbol order of the document read, which an edit reshuffles.
+    private JsonElement unordered(String api, Object params) throws Exception {
+        return unordered(JsonParser.parseString(request(api, params)));
+    }
+
+    private static JsonElement unordered(JsonElement element) {
+        if (element.isJsonArray()) {
+            List<JsonElement> items = new ArrayList<>();
+            element.getAsJsonArray().forEach(item -> items.add(unordered(item)));
+            items.sort(Comparator.comparing(JsonElement::toString));
+            JsonArray sorted = new JsonArray();
+            items.forEach(sorted::add);
+            return sorted;
+        }
+        if (element.isJsonObject()) {
+            JsonObject sorted = new JsonObject();
+            element.getAsJsonObject().entrySet()
+                    .forEach(entry -> sorted.add(entry.getKey(), unordered(entry.getValue())));
+            return sorted;
+        }
+        return element;
     }
 
     private static List<String> messages(JsonObject diagnostics) {
