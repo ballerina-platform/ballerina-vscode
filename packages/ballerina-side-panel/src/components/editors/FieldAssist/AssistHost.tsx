@@ -44,8 +44,6 @@ export interface FormController {
     // Asks for a different value for one changed field, from its change card; false when the request was held back.
     revise: (focus: AssistFocus, instruction: string, earlier?: string) => boolean;
     stop: () => void;
-    // Whether a required value is still empty, which is when the header's hint shows.
-    needsValues: () => boolean;
     describe: () => FormAssistDescription;
     apply: (response: FormAssistResponse) => void;
     // Hands a request to the main Copilot with notes it reads but the user does not see; undefined where the form can't.
@@ -687,14 +685,14 @@ function markHintUsed() {
 }
 
 // Shown until it is dismissed or the form's Copilot is used; either ends it for good.
-function useFormHint(ready: boolean, needsValues: () => boolean, used: boolean) {
+function useFormHint(ready: boolean, used: boolean) {
     const [shown, setShown] = useState(false);
     const dismiss = useCallback(() => {
         markHintUsed();
         setShown(false);
     }, []);
     useEffect(() => {
-        if (ready && !hintUsed() && needsValues()) {
+        if (ready && !hintUsed()) {
             setShown(true);
         }
     }, [ready]);
@@ -708,7 +706,7 @@ function useFormHint(ready: boolean, needsValues: () => boolean, used: boolean) 
 
 export function AssistHeaderButton() {
     const host = useAssistHost();
-    const hint = useFormHint(!!host?.formReady, () => !!host?.liveForm()?.needsValues(), !!host?.formOpen || !!host?.applied);
+    const hint = useFormHint(!!host?.formReady, !!host?.formOpen || !!host?.applied);
     const orbFace = useContext(AssistOrbContext);
     if (!host?.formReady) {
         return null;
@@ -740,7 +738,7 @@ export function AssistHeaderButton() {
                 <S.OrbBubble role="note" onClick={() => host.open(FORM_SCOPE)}>
                     Use Copilot to fill this form
                     <S.HeaderButton type="button" aria-label="Dismiss" title="Dismiss" onClick={(event) => { event.stopPropagation(); hint.dismiss(); }}>
-                        <Codicon name="close" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
+                        <Codicon name="close" sx={{ display: "flex", alignItems: "center", fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
                     </S.HeaderButton>
                 </S.OrbBubble>
             )}

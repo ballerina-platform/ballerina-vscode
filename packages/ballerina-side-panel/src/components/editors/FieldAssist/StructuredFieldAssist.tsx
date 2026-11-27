@@ -327,7 +327,6 @@ function DialogFieldAssistBody({ field, value, expressionEditor, errors, onApply
             return assist.submit(instruction);
         },
         stop: () => assist.close(),
-        needsValues: () => false,
         describe: () => ({ slots: [], groups: [] }),
         apply: () => undefined,
     }), [key]);

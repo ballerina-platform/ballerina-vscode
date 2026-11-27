@@ -214,7 +214,7 @@ describe("FieldAssist", () => {
     });
 
     it("clears the thread, so the next request goes without the earlier ones", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ reply: "It adds tax." }));
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ explanation: "It adds tax." }));
         render(<Harness initial="subtotal" assist={assist} />);
         fireEvent.click(screen.getByText("open"));
         await ask("what does this do");
@@ -404,13 +404,12 @@ describe("field threads in a host", () => {
 });
 
 describe("the form's first-use hint", () => {
-    // A form with an empty required value, as the header's hint needs.
-    function EmptyForm() {
+    function CopilotForm() {
         const host = useAssistHost()!;
-        useEffect(() => host.registerForm({ needsValues: () => true } as unknown as FormController), [host.registerForm]);
+        useEffect(() => host.registerForm({} as FormController), [host.registerForm]);
         return <AssistHeaderButton />;
     }
-    const openForm = () => render(<AssistHostProvider><EmptyForm /></AssistHostProvider>);
+    const openForm = () => render(<AssistHostProvider><CopilotForm /></AssistHostProvider>);
     const hint = () => screen.queryByRole("note");
 
     beforeEach(() => localStorage.clear());

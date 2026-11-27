@@ -312,7 +312,6 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         },
         revise: (focus, instruction, earlier) => submitRef.current(instruction, earlier ? [earlier] : [], focus),
         stop: () => stopRef.current(),
-        needsValues: () => describeRef.current().slots.some((slot) => !slot.optional && !slot.when && !slot.value.trim()),
         describe: () => describeRef.current(),
         apply: (response) => onApplyRef.current(response),
         continueInChat: onContinueInChat && ((request, context) => handToChatRef.current?.(request, context)),
