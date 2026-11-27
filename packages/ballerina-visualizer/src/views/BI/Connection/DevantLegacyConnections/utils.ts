@@ -37,7 +37,7 @@ export const KB_SERVICE_TAG = "knowledge-base-as-service";
 export const INTERNAL_SERVICES = "internal-services";
 export const isKnowledgeBaseService = (item: MarketplaceItem) => item.tags?.includes(KB_SERVICE_TAG) ?? false;
 
-// The filter tabs on the Devant connections list.
+// The filter tabs on the WSO2 Cloud connections list.
 export type ConnectionFilterType = "all" | "internal-services" | "third-party-services" | "databases";
 
 /**
@@ -92,21 +92,21 @@ export enum DevantConnectionFlow {
 
 export const DevantConnectionFlowTitles: Partial<Record<DevantConnectionFlow, string>> = {
     // Create related flow titles
-    [DevantConnectionFlow.CREATE_INTERNAL_OAS]: "Connect to Devant service",
-    [DevantConnectionFlow.CREATE_INTERNAL_OTHER]: "Connect to Devant service",
-    [DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR]: "Connect to Devant service",
+    [DevantConnectionFlow.CREATE_INTERNAL_OAS]: "Connect to WSO2 Cloud service",
+    [DevantConnectionFlow.CREATE_INTERNAL_OTHER]: "Connect to WSO2 Cloud service",
+    [DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR]: "Connect to WSO2 Cloud service",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_OAS]: "Connect via API Specification",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_OTHER]: "Connect to Third-Party service",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_OTHER_SELECT_BI_CONNECTOR]: "Connect to Third-Party service",
     [DevantConnectionFlow.REGISTER_CREATE_THIRD_PARTY_FROM_BI_CONNECTOR]: "Connect to Third-Party service",
     [DevantConnectionFlow.REGISTER_CREATE_THIRD_PARTY_FROM_OAS]: "Connect to Third-Party service",
-    [DevantConnectionFlow.CREATE_DATABASE_PERSIST]: "Connect with Devant database",
-    [DevantConnectionFlow.CREATE_DATABASE_PERSIST_DB_SELECTED]: "Connect with Devant database",
+    [DevantConnectionFlow.CREATE_DATABASE_PERSIST]: "Connect with WSO2 Cloud database",
+    [DevantConnectionFlow.CREATE_DATABASE_PERSIST_DB_SELECTED]: "Connect with WSO2 Cloud database",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_PERSIST]: "Connect to external database",
     // Import related flow titles
-    [DevantConnectionFlow.IMPORT_INTERNAL_OAS]: "Connect to Devant service",
-    [DevantConnectionFlow.IMPORT_INTERNAL_OTHER]: "Connect to Devant service",
-    [DevantConnectionFlow.IMPORT_INTERNAL_OTHER_SELECT_BI_CONNECTOR]: "Connect to Devant service",
+    [DevantConnectionFlow.IMPORT_INTERNAL_OAS]: "Connect to WSO2 Cloud service",
+    [DevantConnectionFlow.IMPORT_INTERNAL_OTHER]: "Connect to WSO2 Cloud service",
+    [DevantConnectionFlow.IMPORT_INTERNAL_OTHER_SELECT_BI_CONNECTOR]: "Connect to WSO2 Cloud service",
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_OAS]: "Use registered third party connection via API Specification",
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_OTHER]: "Use registered third party connection",
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_OTHER_SELECT_BI_CONNECTOR]: "Use registered third party connection",
@@ -116,10 +116,10 @@ export const DevantConnectionFlowTitles: Partial<Record<DevantConnectionFlow, st
 
 export const DevantConnectionFlowSubTitles: Partial<Record<DevantConnectionFlow, string>> = {
     // Create related flow subtitles
-    [DevantConnectionFlow.CREATE_INTERNAL_OAS]: "Connect to REST API service running in Devant",
-    [DevantConnectionFlow.CREATE_INTERNAL_OTHER]: "Connect to service running in Devant by configuring your connector",
+    [DevantConnectionFlow.CREATE_INTERNAL_OAS]: "Connect to REST API service running in WSO2 Cloud",
+    [DevantConnectionFlow.CREATE_INTERNAL_OTHER]: "Connect to service running in WSO2 Cloud by configuring your connector",
     [DevantConnectionFlow.CREATE_INTERNAL_OTHER_SELECT_BI_CONNECTOR]:
-        "Connect to service running in Devant by configuring your connector",
+        "Connect to service running in WSO2 Cloud by configuring your connector",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_OAS]:
         "Connect to Third-Party REST API service by creating and mapping configurations",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_OTHER]:
@@ -130,14 +130,14 @@ export const DevantConnectionFlowSubTitles: Partial<Record<DevantConnectionFlow,
         "Connect to Third-Party service by configuring your Ballerina connector",
     [DevantConnectionFlow.REGISTER_CREATE_THIRD_PARTY_FROM_OAS]:
         "Connect to Third-Party service from API Specification",
-    [DevantConnectionFlow.CREATE_DATABASE_PERSIST]: "Connect with a database provisioned in Devant",
-    [DevantConnectionFlow.CREATE_DATABASE_PERSIST_DB_SELECTED]: "Connect with a database provisioned in Devant",
+    [DevantConnectionFlow.CREATE_DATABASE_PERSIST]: "Connect with a database provisioned in WSO2 Cloud",
+    [DevantConnectionFlow.CREATE_DATABASE_PERSIST_DB_SELECTED]: "Connect with a database provisioned in WSO2 Cloud",
     [DevantConnectionFlow.CREATE_THIRD_PARTY_PERSIST]: "Connect with a external database by providing configurations",
     // Import related flow subtitles
-    [DevantConnectionFlow.IMPORT_INTERNAL_OAS]: "Connect to REST API service running in Devant",
-    [DevantConnectionFlow.IMPORT_INTERNAL_OTHER]: "Connect to service running in Devant by configuring your connector",
+    [DevantConnectionFlow.IMPORT_INTERNAL_OAS]: "Connect to REST API service running in WSO2 Cloud",
+    [DevantConnectionFlow.IMPORT_INTERNAL_OTHER]: "Connect to service running in WSO2 Cloud by configuring your connector",
     [DevantConnectionFlow.IMPORT_INTERNAL_OTHER_SELECT_BI_CONNECTOR]:
-        "Connect to service running in Devant by configuring your connector",
+        "Connect to service running in WSO2 Cloud by configuring your connector",
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_OAS]:
         "Connect to Third-Party REST API service by creating and mapping configurations",
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_OTHER]:
@@ -145,7 +145,7 @@ export const DevantConnectionFlowSubTitles: Partial<Record<DevantConnectionFlow,
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_OTHER_SELECT_BI_CONNECTOR]:
         "Connect to Third-Party service by configuring your connector",
     [DevantConnectionFlow.IMPORT_DATABASE_PERSIST]:
-        "Connect with a database provisioned in Devant using existing connection",
+        "Connect with a database provisioned in WSO2 Cloud using existing connection",
     [DevantConnectionFlow.IMPORT_THIRD_PARTY_PERSIST]: "Connect with a external database using existing connection",
 };
 
@@ -290,7 +290,7 @@ export const isValidDevantConnName = (value: string, devantConnNames: string[], 
 
     // Check for duplicates in Devant connections
     if (!isImporting && devantConnNames?.some((conn) => conn === value)) {
-        return "A Devant connection with this name already exists";
+        return "A WSO2 Cloud connection with this name already exists";
     }
 
     // Check for duplicates in BI connections

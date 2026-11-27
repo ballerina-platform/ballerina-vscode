@@ -41,7 +41,6 @@ import {
 } from "../styles";
 import { ConnectionListItem, DatabaseRequestStatusEnum } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
-import { cloudLabelOf } from "../../../../utils/cloud-label";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { hasDevantProject } from "../DevantLegacyConnections/utils";
 import { dbCredentialsToFieldValues, buildDbPropertiesFromFieldValues, fieldValuesToDbConfig } from "../DevantConnections/utils";
@@ -242,7 +241,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 })
 
                 if(marketplaceItem?.resourceDetails?.status !== DatabaseRequestStatusEnum.Active) {
-                    throw new Error(`Selected ${cloudLabelOf(platformExtState)} database is not active. Please select an active database to proceed.`);
+                    throw new Error("Selected WSO2 Cloud database is not active. Please select an active database to proceed.");
                 }
 
                 const serverId = marketplaceItem?.resourceDetails?.databaseServerId;
@@ -316,14 +315,14 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     // WSO2 Cloud does not hand secret values back; connecting with them blank would only fail.
                     // The credentials step and its connect action are shown instead, prefilled with the rest.
                     setIsDevantDb(false);
-                    setConnectionError(`${cloudLabelOf(platformExtState)} does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
+                    setConnectionError(`WSO2 Cloud does not return secret values. Enter ${unresolvedSecrets.join(", ")} here to connect.`);
                     return;
                 }
                 handleConnectAndIntrospect(dbProperties);
             }
         } catch (error) {
             console.error(">>> Error fetching WSO2 Cloud database credentials", error);
-            setConnectionError(`Unable to fetch database credentials from ${cloudLabelOf(platformExtState)} connection. Please try again.`);
+            setConnectionError("Unable to fetch database credentials from WSO2 Cloud connection. Please try again.");
             setLsErrorDetails({ errorMessage: error instanceof Error ? error.message : String(error) });
         } finally {
             setIsFetchingDevantCreds(false)
@@ -639,7 +638,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
         return (
             <>
                 <ContentContainer hasFooterButton={true}>
-                    {isFetchingDevantCreds ? <LoadingRing message={`Loading ${cloudLabelOf(platformExtState)} Database Credentials...`} />: renderStepContent(1)}
+                    {isFetchingDevantCreds ? <LoadingRing message="Loading WSO2 Cloud Database Credentials..." />: renderStepContent(1)}
                 </ContentContainer>
                 <FooterContainer>
                     <ActionButton

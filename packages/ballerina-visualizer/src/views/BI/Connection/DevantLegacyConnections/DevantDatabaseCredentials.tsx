@@ -60,7 +60,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ConnectorContentContainer, FormField, FormSection } from "../styles";
 
 const TAB_VIEWS = [
-    { id: "devantDatabases", name: "Devant Databases" },
+    { id: "devantDatabases", name: "WSO2 Cloud Databases" },
     { id: "manual", name: "Other Database Credentials" },
 ];
 
@@ -161,7 +161,7 @@ export function getDbServerTypeDisplayName(type: string): string {
         case "mysql":
             return "MySQL";
         case "redis":
-            return "Devant Managed Cache";
+            return "WSO2 Cloud Managed Cache";
         default:
             return type;
     }
@@ -236,14 +236,14 @@ const DatabaseCredentialsTabs: FC<DatabaseCredentialsTabsProps> = ({
                 <>
                     {isLoadingDatabases ? (
                         <ProgressWrap>
-                            <LoadingRing message="Loading Devant Databases..." />
+                            <LoadingRing message="Loading WSO2 Cloud Databases..." />
                         </ProgressWrap>
                     ) : (
                         <>
                             {devantDatabases?.count === 0 ? (
                                 <>
                                     <Typography variant="body2" sx={{ fontSize: "12px", margin: "10px 0" }}>
-                                        You don't have any databases created in Devant yet. Head over to Devant to
+                                        You don't have any databases created in WSO2 Cloud yet. Head over to WSO2 Cloud to
                                         create a new database or{" "}
                                         <VSCodeLink onClick={() => handleTabChange("manual")}>
                                             provide credentials
@@ -283,7 +283,7 @@ const DatabaseCredentialsTabs: FC<DatabaseCredentialsTabsProps> = ({
                                                             <DisabledHint variant="body2">
                                                                 Database must be Active to proceed.{" "}
                                                                 <VSCodeLink onClick={onClickCreateDb}>
-                                                                    Manage in Devant
+                                                                    Manage in WSO2 Cloud
                                                                 </VSCodeLink>
                                                             </DisabledHint>
                                                         )}
@@ -301,7 +301,7 @@ const DatabaseCredentialsTabs: FC<DatabaseCredentialsTabsProps> = ({
                                             sx={{ color: ThemeColors.ON_SURFACE_VARIANT, fontSize: "12px" }}
                                         >
                                             Don't see your database?{" "}
-                                            <VSCodeLink onClick={onClickCreateDb}>Create one in Devant</VSCodeLink> or{" "}
+                                            <VSCodeLink onClick={onClickCreateDb}>Create one in WSO2 Cloud</VSCodeLink> or{" "}
                                             <VSCodeLink onClick={() => handleTabChange("manual")}>
                                                 provide database credentials
                                             </VSCodeLink>
@@ -423,7 +423,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
         databaseType: string;
     } | null> => {
         if (!db) {
-            throw new Error("No Devant database selected to fetch credentials for introspection");
+            throw new Error("No WSO2 Cloud database selected to fetch credentials for introspection");
         }
         const orgId = platformExtState?.devant?.selectedContext?.org.id?.toString() || "";
         const serverId = db.resourceDetails?.databaseServerId;
@@ -454,10 +454,10 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
             let credsToUse: Record<string, string>;
             if (params.mode === "devantDb") {
                 if(selectedMarketplaceItem?.resourceDetails?.status !== DatabaseRequestStatusEnum.Active) {
-                    throw new Error("Selected Devant database is not active. Please select an active database to proceed.");
+                    throw new Error("Selected WSO2 Cloud database is not active. Please select an active database to proceed.");
                 }
                 const creds = await getCredentialsFromSelectedDb(selectedMarketplaceItem);
-                if (!creds) throw new Error("No Devant database selected");
+                if (!creds) throw new Error("No WSO2 Cloud database selected");
                 credsToUse = dbCredentialsToFieldValues(connectorCredentials, creds);
                 setDevantFieldValues(credsToUse);
             } else {
@@ -870,7 +870,7 @@ export const DevantDatabaseCredentials: FC<Props> = (props) => {
                                             />
                                         </FormField>
                                         <Typography variant="body2" sx={{ fontSize: "13px" }}>
-                                            Don't see your database credentials? Visit Devant to{" "}
+                                            Don't see your database credentials? Visit WSO2 Cloud to{" "}
                                             <VSCodeLink onClick={onClickCreateDb}>
                                                 manage your database credentials
                                             </VSCodeLink>

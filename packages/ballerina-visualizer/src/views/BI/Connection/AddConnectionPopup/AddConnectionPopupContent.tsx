@@ -27,7 +27,6 @@ import { BodyTinyInfo } from "../../../styles";
 import { ArrowIcon, ConnectorOptionButtons, ConnectorOptionCard, ConnectorOptionContent, ConnectorOptionDescription, ConnectorOptionIcon, ConnectorOptionTitle, ConnectorOptionTitleContainer, ConnectorsGrid, ConnectorTypeLabel, CreateConnectorOptions, FilterButton, FilterButtons, IntroText, SearchContainer, Section, SectionHeader, SectionTitle, StyledSearchBox } from "./styles";
 import { AddConnectionPopupProps } from "./index";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
-import { cloudLabelOf } from "../../../../utils/cloud-label";
 import { hasCloudProject } from "../../../../providers/cloud-project";
 import { CloudAccessNotice, isCloudAccessMissing, useCloudAccessRefresh } from "../DevantConnections/CloudAccessNotice";
 import { hasDevantProject } from "../DevantLegacyConnections/utils";
@@ -276,7 +275,7 @@ export function AddConnectionPopupContent(props: Props) {
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
                     API specification. Alternatively, you can select one of the pre-built
-                    connectors below or connect to services running in {cloudLabelOf(platformExtState)} or services configured in {cloudLabelOf(platformExtState)}. You will
+                    connectors below or connect to services running in WSO2 Cloud or services configured in WSO2 Cloud. You will
                     then be guided to provide the required details to complete the connection setup.
                 </IntroText>
             ) : (
@@ -366,17 +365,17 @@ export function AddConnectionPopupContent(props: Props) {
                     platformExtState?.isExtInstalled && (
                         // Where the cloud resources will be listed, what it takes to list them.
                         <Section>
-                            <SectionTitle variant="h4">{cloudLabelOf(platformExtState)} Resources</SectionTitle>
+                            <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
                             {isCloudAccessMissing(platformExtState?.cloudAccess) ? (
                                 <CloudAccessNotice purpose="to connect with cloud dependencies" />
                             ) : !platformExtState?.isLoggedIn && platformExtState?.hasPossibleComponent ? (
                                 <IntroText>
-                                    <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to {cloudLabelOf(platformExtState)} to connect
+                                    <VSCodeLink onClick={loginToDevant}>Sign in</VSCodeLink> to WSO2 Cloud to connect
                                     to services and databases running there.
                                 </IntroText>
                             ) : platformExtState?.selectedContext?.foreignOrg ? (
                                 <IntroText>
-                                    This workspace is linked to the {cloudLabelOf(platformExtState)} organization{" "}
+                                    This workspace is linked to the WSO2 Cloud organization{" "}
                                     {platformExtState.selectedContext.orgHandle}. Sign in to that organization, or{" "}
                                     <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink> with a
                                     project of yours, to connect to services and databases running there.
@@ -384,10 +383,10 @@ export function AddConnectionPopupContent(props: Props) {
                             ) : (
                                 <IntroText>
                                     <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
-                                        Create the integration in {cloudLabelOf(platformExtState)}
+                                        Create the integration in WSO2 Cloud
                                     </VSCodeLink>{" "}
                                     or <VSCodeLink onClick={handleLinkWorkspace}>associate the workspace</VSCodeLink>{" "}
-                                    with a {cloudLabelOf(platformExtState)} project to connect to services and databases running there.
+                                    with a WSO2 Cloud project to connect to services and databases running there.
                                 </IntroText>
                             )}
                         </Section>

@@ -16,8 +16,6 @@
  * under the License.
  */
 
-import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
-import { cloudLabelOf } from "../../../../utils/cloud-label";
 import { ConfigVariable } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useState } from "react";
@@ -25,6 +23,7 @@ import { Button, CheckBox, TextField, Typography } from "@wso2/ui-toolkit";
 import { POPUP_IDS, useModalStack } from "../../../../Context";
 import { ExpressionEditorDevantProps } from "@wso2/ballerina-side-panel";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { FooterContainer } from "../../Connection/styles";
 import { FormStyles } from "../../Forms/styles";
 import { Configurables, ConfigurablesPageProps } from "./Configurables";
@@ -34,7 +33,6 @@ interface DevantConfigurablesProps extends Omit<ConfigurablesPageProps, "exclude
 }
 
 export const DevantConfigurables = (props: DevantConfigurablesProps) => {
-    const cloudLabel = cloudLabelOf(usePlatformExtContext().platformExtState);
     const { devantExpressionEditor, onClose } = props;
     const { rpcClient } = useRpcContext();
     const { addModal, closeModal } = useModalStack();
@@ -71,7 +69,7 @@ export const DevantConfigurables = (props: DevantConfigurablesProps) => {
                 existingNames={[...existingConfigVariables, ...(devantExpressionEditor?.devantConfigs || [])]}
             />,
             POPUP_IDS.CONFIGURABLES,
-            `New ${cloudLabel} Configurable`,
+            "New WSO2 Cloud Configurable",
             400,
         );
 
@@ -109,7 +107,6 @@ const DevantNewConfigurableForm: React.FC<DevantNewConfigurableFormProps> = ({
     onSuccess,
     existingNames = [],
 }) => {
-    const cloudLabel = cloudLabelOf(usePlatformExtContext().platformExtState);
     const [name, setName] = useState("");
     const [value, setValue] = useState("");
     const [isSecret, setIsSecret] = useState(false);
@@ -183,7 +180,7 @@ const DevantNewConfigurableForm: React.FC<DevantNewConfigurableFormProps> = ({
     return (
         <FormStyles.Container style={{ padding: 16, height: "100%" }}>
             <Typography variant="body3">
-                Create a new configurable that will be used when your integration is running in {cloudLabel}
+                Create a new configurable that will be used when your integration is running in WSO2 Cloud
             </Typography>
             <FormStyles.Row>
                 <TextField
