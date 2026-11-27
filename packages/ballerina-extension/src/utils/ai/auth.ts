@@ -437,10 +437,10 @@ export const refreshBiIntelSecrets = async (): Promise<BIIntelSecrets> => {
     try {
         console.log('Refreshing the Copilot token through WSO2 Integrator...');
         let newSecrets = await refreshCopilotToken();
-        // A region switch while the exchange ran makes its token the region left's: it is exchanged again.
+        // A region or platform switch while the exchange ran makes its token the one left's: it is exchanged again.
         for (let attempt = 1; !isForCloudInUse(newSecrets); attempt++) {
             if (attempt >= MAX_COPILOT_EXCHANGE_ATTEMPTS) {
-                throw new Error("The WSO2 Cloud region kept changing while the Copilot token was exchanged.");
+                throw new Error("The WSO2 Cloud region or platform kept changing while the Copilot token was exchanged.");
             }
             newSecrets = await refreshCopilotToken();
         }

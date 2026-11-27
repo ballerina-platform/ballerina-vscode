@@ -294,13 +294,13 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
             if (connections && connections.length > 0) {
                 connections.forEach((conn) => allConnNamesSet.add(conn.name));
             }
-            // On Devant this answers with the legacy component shape.
-            const components = (await platformRpcClient?.getIntegrationList({
+            // On Devant this answers with the legacy component shape, or nothing when the read failed.
+            const components = ((await platformRpcClient?.getIntegrationList({
                 projectId: platformExtState?.devant?.selectedContext?.project.id,
                 orgId: platformExtState?.devant?.selectedContext?.org.id?.toString(),
                 orgHandle: platformExtState?.devant?.selectedContext?.org.handle || "",
                 projectHandle: platformExtState?.devant?.selectedContext?.project.handler || "",
-            })) as unknown as ComponentKind[];
+            })) ?? []) as unknown as ComponentKind[];
             const allConns = await Promise.all(
                 components.map((comp) =>
                     platformRpcClient.getConnections({

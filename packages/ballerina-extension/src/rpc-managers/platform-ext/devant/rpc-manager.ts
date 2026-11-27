@@ -112,7 +112,7 @@ import {
 import type { PlatformExtManager } from "../router";
 import { noticeMissingCloudAccess } from "../rpc-manager";
 import type { DeleteBiDevantConnectionReq } from "../types";
-import { platformExtStore } from "../platform-store";
+import { hydratePlatformExtStore, platformExtStore } from "../platform-store";
 import {
     addConfigurable,
     addConnection,
@@ -260,9 +260,7 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
         if (!(await this.getGate())) {
             return;
         }
-        if (!platformExtStore.persist.hasHydrated()) {
-            await platformExtStore.persist.rehydrate();
-        }
+        await hydratePlatformExtStore();
         let projectPath = StateMachine.context()?.projectPath;
         await this.initSessionState(projectPath);
         if (projectPath && isDevant()) {
@@ -814,6 +812,11 @@ export class DevantPlatformExtRpcManager implements PlatformExtManager {
 
     /** Starts Devant's proxy for a run or debug session that connects to Devant, and stops it when the session ends. */
     async setupDevantProxyForDebugging(debugConfig: vscode.DebugConfiguration): Promise<void> {
+        // A fast run starts the program through the language server, which passes it no variables.
+        if (debugConfig.noDebug && vscode.workspace.getConfiguration().get<boolean>("ballerina.enableRunFast")) {
+            log("Local run: fast run, which passes no variables, so Devant's proxy is not started");
+            return;
+        }
         const devantProxyResp = await this.startProxyServer(debugConfig);
 
         if (devantProxyResp?.proxyServerPort) {

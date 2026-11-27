@@ -20,6 +20,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { ThemeColors, Typography, Button, TextField, Stepper, Icon, Codicon, SearchBox, ProgressIndicator } from "@wso2/ui-toolkit";
 import { IntrospectDatabaseResponse, TableInfo, PropertyModel } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { fetchConnectorCredentials, LSErrorDetails } from "../DatabaseConnectionPopup";
 import { isDatabaseSystemProperty, isPasswordProperty, formatDatabaseTypeDisplay } from "../utils";
@@ -231,7 +232,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 projectPath: visualizerLocation?.projectPath,
             });
             // On Devant the ids are the legacy ones: the numeric org id, the project's uuid, the environment's template.
-            const devant = platformExtState?.platform === "devant" ? platformExtState.devant : undefined;
+            const devant = platformExtState?.platform === DEVANT_PLATFORM ? platformExtState.devant : undefined;
             const orgId = (devant ? devant.selectedContext?.org?.id?.toString() : platformExtState?.session?.org.handle) || "";
             let credsToUse: Record<string, string> = {}
             if (devantConnection?.resourceType === "DATABASE") {
@@ -331,7 +332,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
 
     useEffect(() => {
         const matchingDevantConnection = platformExtState?.devantConns?.list?.find(item=>item.name?.replaceAll("-", "_").replaceAll(" ", "_") === connectionName);
-        const hasProject = platformExtState?.platform === "devant" ? hasDevantProject(platformExtState) : hasCloudProject(platformExtState);
+        const hasProject = platformExtState?.platform === DEVANT_PLATFORM ? hasDevantProject(platformExtState) : hasCloudProject(platformExtState);
         if (hasProject && matchingDevantConnection){
             setIsDevantDb(true);
             getDevantDbCredentials(matchingDevantConnection);

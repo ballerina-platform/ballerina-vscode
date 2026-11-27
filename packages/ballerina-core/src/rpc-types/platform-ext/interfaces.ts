@@ -129,6 +129,9 @@ export interface PlatformExtConnectionState {
 export type CloudAccess = "signed-out" | "no-access" | "declined" | "connected";
 
 /** What the visualizer sees of WSO2 Integrator's cloud state. */
+/** `PlatformExtState.platform` while WSO2 Integrator works against Devant. */
+export const DEVANT_PLATFORM = "devant";
+
 export interface PlatformExtState {
     isExtInstalled?: boolean;
     /** The `apiVersion` WSO2 Integrator exports; cloud features are on only when it is the supported one. */

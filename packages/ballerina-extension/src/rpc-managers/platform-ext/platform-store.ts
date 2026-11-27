@@ -39,6 +39,14 @@ const initialPlatformExtState: PlatformExtState = {
     devantConns: { list: [], loading: false, connectedToDevant: true },
 };
 
+let hydration: Promise<void> | undefined;
+
+/** Reads the stored state once. Each platform's manager waits for the same read, so a late one cannot undo a write. */
+export function hydratePlatformExtStore(): Promise<void> {
+    hydration ??= Promise.resolve(platformExtStore.persist.rehydrate());
+    return hydration;
+}
+
 export const platformExtStore = createStore(
     persist<PlatformExtStore>(
         (set, get) => ({

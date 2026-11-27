@@ -17,8 +17,8 @@
  */
 
 import type { PlatformExtAPI } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { getCloudPlatform } from "../../utils/cloud-auth";
-import { DEVANT_PLATFORM } from "./devant/platform-utils";
 import { DevantPlatformExtRpcManager } from "./devant/rpc-manager";
 import { PlatformExtRpcManager } from "./rpc-manager";
 
@@ -41,7 +41,10 @@ export function platformExtManager(): PlatformExtManager {
     return choreoCloud;
 }
 
-/** Both managers, for what each follows on its own: each acts only while its platform is the one in use. */
+/**
+ * Both managers, for what each follows on its own: each acts only while its platform is the one in use. The
+ * exception is the WSO2 Cloud manager's file watcher, which keeps `hasLocalChanges` for both.
+ */
 export function allPlatformExtManagers(): PlatformExtManager[] {
     choreoCloud ??= new PlatformExtRpcManager();
     devant ??= new DevantPlatformExtRpcManager();

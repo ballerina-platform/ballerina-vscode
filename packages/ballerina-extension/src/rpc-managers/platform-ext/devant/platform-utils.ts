@@ -26,7 +26,7 @@ import { StateMachine } from "../../../stateMachine";
 import { getRepoRoot, ProxyConfigEnvVars } from "../platform-utils";
 
 /** Devant's name, as WSO2 Integrator reports the platform in its configuration. */
-export const DEVANT_PLATFORM = "devant";
+export { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 
 /** The header Devant's gateway takes an API key in. */
 export const DEVANT_API_KEY_HEADER = "Choreo-API-Key";

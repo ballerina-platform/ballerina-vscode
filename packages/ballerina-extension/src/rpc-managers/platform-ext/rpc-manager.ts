@@ -90,7 +90,7 @@ import {
 import { StateMachine } from "../../stateMachine";
 import { CaptureBindingPattern, ModulePart, ModuleVarDecl, STKindChecker } from "@wso2/syntax-tree";
 import { DeleteBiDevantConnectionReq } from "./types";
-import { platformExtStore } from "./platform-store";
+import { hydratePlatformExtStore, platformExtStore } from "./platform-store";
 import { Messenger } from "vscode-messenger";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import {
@@ -346,7 +346,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         if (!(await this.getPlatformGate())) {
             return;
         }
-        await platformExtStore.persist.rehydrate();
+        await hydratePlatformExtStore();
         let projectPath = StateMachine.context()?.projectPath;
         await this.initSessionState(projectPath);
         if (projectPath) {
@@ -472,6 +472,7 @@ export class PlatformExtRpcManager implements PlatformExtAPI {
         }
     }
 
+    /** Keeps `hasLocalChanges` on every platform: Devant's manager has no watcher of its own. */
     private async initFileWatcher() {
         const debouncedOnFilChange = debounce(async () => {
             const projectPath = StateMachine.context().projectPath;

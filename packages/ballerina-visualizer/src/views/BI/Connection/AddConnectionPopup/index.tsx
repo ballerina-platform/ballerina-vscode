@@ -18,6 +18,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AvailableNode, Category, LinePosition, MACHINE_VIEW, ParentPopupData } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Icon, SearchBox, ThemeColors, Typography, ProgressRing } from "@wso2/ui-toolkit";
 import { cloneDeep, debounce } from "lodash";
@@ -50,7 +51,7 @@ export function AddConnectionPopup(props: AddConnectionPopupProps) {
     const { platformExtState } = usePlatformExtContext();
 
     // Devant has its own connection screens.
-    if (platformExtState?.platform === "devant") {
+    if (platformExtState?.platform === DEVANT_PLATFORM) {
         return hasDevantProject(platformExtState) ? <DevantLegacyConnectorPopup {...props} /> : <AddBIConnectionPopup {...props} />;
     }
     if (hasCloudProject(platformExtState)) {

@@ -26,6 +26,7 @@ import {
     BuildMode,
     WorkspaceDevantMetadata
 } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { useQuery } from "@tanstack/react-query";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
@@ -534,7 +535,7 @@ function DeploymentOptions({
     }
 
     // Devant's words: creating an integration there deploys it.
-    const isDevant = platformExtState?.platform === "devant";
+    const isDevant = platformExtState?.platform === DEVANT_PLATFORM;
     if (isDevant) {
         const devantRefresh = isRefreshing ? refreshButton : (
             <Button appearance="icon" tooltip={DEVANT_DEPLOY_WORDS.refreshTooltip} onClick={handleRefreshDeploymentStatus}>

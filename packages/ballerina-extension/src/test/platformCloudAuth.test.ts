@@ -29,6 +29,7 @@ import {
     describeCloudAccess,
     getCloudApiKey,
     getCloudEnvName,
+    getCloudPlatform,
     getCopilotUrl,
     isApiKeyInvalid,
     isCompatiblePlatformGate,
@@ -109,6 +110,31 @@ describe("cloud-auth", () => {
         expect(cloudSessionScopes("prod")).toEqual(["env:prod"]);
         expect(cloudSessionScopes("prod-eu")).toEqual(["env:prod-eu"]);
         expect(cloudSessionScopes("prod", "devant")).toEqual(["env:prod", "platform:devant"]);
+    });
+
+    it("asks for the session of the platform WSO2 Integrator reports, and names none for WSO2 Cloud", async () => {
+        const key = { value: "k" };
+        const config: { name: string; platform?: unknown } = { name: "prod" };
+        const gate = { ...fakeGate(key).gate, getPlatformConfig: () => config };
+        install(gate);
+        const asked: unknown[] = [];
+        authentication.getSession = async (_provider, scopes) => {
+            asked.push(scopes);
+            return { accessToken: key.value };
+        };
+
+        expect(getCloudPlatform(gate as never)).toBeUndefined();
+        await getCloudApiKey();
+        config.platform = "devant";
+        expect(getCloudPlatform(gate as never)).toBe("devant");
+        await getCloudApiKey();
+        // Anything but a name is WSO2 Cloud.
+        config.platform = "";
+        await getCloudApiKey();
+        config.platform = 7;
+        await getCloudApiKey();
+
+        expect(asked).toEqual([["env:prod"], ["env:prod", "platform:devant"], ["env:prod"], ["env:prod"]]);
     });
 
     it("follows the environment WSO2 Integrator works in, which a production region switch changes", () => {

@@ -19,6 +19,7 @@
 import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import { goToAgent, startAgentChat } from "../AIChatAgent/utils";
@@ -367,7 +368,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
     const { platformExtState, platformRpcClient, onLinkDevantProject, importConnection: importDevantConn } = usePlatformExtContext()
     // Devant has its own connection screens.
-    const isDevant = platformExtState?.platform === "devant";
+    const isDevant = platformExtState?.platform === DEVANT_PLATFORM;
     const KnowledgeBasePage = isDevant ? DevantLegacyKnowledgeBasePage : CloudKnowledgeBasePage;
 
     const enrichedCategories = useMemo(() => {

@@ -32,6 +32,7 @@ import {
     isSamePath,
     WorkflowRuntimeStatusResponse,
 } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Icon, Divider, CheckBox, ProgressIndicator, Overlay, Dropdown, Tooltip } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -634,7 +635,7 @@ function DeploymentOptions({
         // null, not undefined: an absent status is kept as such and clears what was read before.
         queryFn: async () => (await rpcClient.getPlatformRpcClient().getCloudIntegrationStatus({ projectPath })) ?? null,
         // Devant's card shows no build or rollout.
-        enabled: platformExtState.isExtInstalled && isDeployed && platformExtState.platform !== "devant",
+        enabled: platformExtState.isExtInstalled && isDeployed && platformExtState.platform !== DEVANT_PLATFORM,
         refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
     });
     const headline = cloudHeadline(cloudStatus);
@@ -680,7 +681,7 @@ function DeploymentOptions({
                 <Title variant="h3">Deployment Options</Title>
 
                 {/* Devant's card: creating an integration there deploys it. */}
-                {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform === "devant" && (
+                {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform === DEVANT_PLATFORM && (
                     <DeploymentOption
                         title={
                             isDeployed ? (
@@ -717,7 +718,7 @@ function DeploymentOptions({
                     />
                 )}
 
-                {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform !== "devant" && (
+                {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform !== DEVANT_PLATFORM && (
                     <DeploymentOption
                         title={
                             isDeployed ? (
