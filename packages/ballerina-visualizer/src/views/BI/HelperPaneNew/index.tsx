@@ -16,6 +16,8 @@
  * under the License.
  */
 
+import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { cloudLabelOf } from "../../../utils/cloud-label";
 import { RefObject, useEffect, useRef, useState } from 'react';
 
 import { ExpandableList } from './Components/ExpandableList';
@@ -93,6 +95,7 @@ const HelperPaneNewEl = ({
     inputMode,
     devantExpressionEditor,
 }: HelperPaneNewProps) => {
+    const cloudLabel = cloudLabelOf(usePlatformExtContext().platformExtState);
     const [selectedItem, setSelectedItem] = useState<number>();
     const hiddenMenuItems = getEditorConfiguration(inputMode).getHelperPaneHiddenItems();
     const currentMenuItemCount = getPrimaryInputType(types)?.ballerinaType === AI_PROMPT_TYPE ? 5 : 4; 
@@ -198,7 +201,7 @@ const HelperPaneNewEl = ({
                                         <ExpandableList.Item>
                                             {getHelperPaneIcon(HelperPaneIconType.CONFIGURABLE)}
                                             <Typography variant="body3" sx={{ fontWeight: 600 }}>
-                                                WSO2 Cloud Configs
+                                                {cloudLabel} Configs
                                             </Typography>
                                         </ExpandableList.Item>
                                     </SlidingPaneNavContainer>
@@ -316,7 +319,7 @@ const HelperPaneNewEl = ({
 
                     {devantExpressionEditor && (
                         <SlidingPane name="DEVANT_CONFIGS" paneWidth={300}>
-                            <SlidingPaneHeader> WSO2 Cloud Configs</SlidingPaneHeader>
+                            <SlidingPaneHeader> {cloudLabel} Configs</SlidingPaneHeader>
                             <DevantConfigurables
                                 anchorRef={anchorRef}
                                 fileName={fileName}

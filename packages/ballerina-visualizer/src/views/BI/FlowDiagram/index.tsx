@@ -99,6 +99,7 @@ import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
 import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { cloudLabelOf } from "../../../utils/cloud-label";
 import { hasCloudProject } from "../../../providers/cloud-project";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
@@ -371,7 +372,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const KnowledgeBasePage = isDevant ? DevantLegacyKnowledgeBasePage : CloudKnowledgeBasePage;
 
     const enrichedCategories = useMemo(() => {
-        return enrichCategoryWithDevant(platformExtState?.devantConns?.list, categories, importingConn)
+        return enrichCategoryWithDevant(platformExtState?.devantConns?.list, categories, importingConn, cloudLabelOf(platformExtState))
     }, [platformExtState, categories, importingConn])
 
     const handleClickImportDevantConn = (data: ConnectionListItem) => {

@@ -213,7 +213,8 @@ function convertDiagramCategoryToSidePanelCategory(category: Category, functionT
 export function enrichCategoryWithDevant(
     connections: ConnectionListItem[] = [],
     panelCategories: PanelCategory[] = [],
-    importingConn?: ConnectionListItem
+    importingConn?: ConnectionListItem,
+    cloudLabel = "WSO2 Cloud"
 ): PanelCategory[] {
     const updated = panelCategories?.map((category) => {
         if (category.title === "Connections") {
@@ -231,7 +232,7 @@ export function enrichCategoryWithDevant(
                 .map((conn) => ({
                     title: conn.name?.replaceAll("-","_").replaceAll(" ","_"),
                     items: [] as PanelItem[],
-                    description: "Unused WSO2 Cloud Connection",
+                    description: `Unused ${cloudLabel} Connection`,
                     devant: conn,
                     unusedDevantConn: true,
                     isLoading: importingConn?.name === conn.name,

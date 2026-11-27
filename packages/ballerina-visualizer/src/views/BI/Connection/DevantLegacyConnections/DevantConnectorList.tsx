@@ -215,7 +215,7 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         items.push(...(marketplaceServices?.data || []));
     }
 
-    let emptyText = "No resources in WSO2 Cloud";
+    let emptyText = "No resources in Devant";
     if (filterType === INTERNAL_SERVICES) {
         emptyText = "No services running";
     } else if (filterType === "third-party-services") {
@@ -228,31 +228,31 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         <>
             <Section>
                 <SectionHeader>
-                    <SectionTitle variant="h4">WSO2 Cloud Resources</SectionTitle>
+                    <SectionTitle variant="h4">Devant Resources</SectionTitle>
                     <FilterButtons onClick={(e) => e.stopPropagation()}>
                         <FilterButton
-                            title="All Services running or configured in WSO2 Cloud"
+                            title="All Services running or configured in Devant"
                             active={filterType === "all"}
                             onClick={() => setFilterType("all")}
                         >
                             All
                         </FilterButton>
                         <FilterButton
-                            title="Services running in WSO2 Cloud"
+                            title="Services running in Devant"
                             active={filterType === INTERNAL_SERVICES}
                             onClick={() => setFilterType(INTERNAL_SERVICES)}
                         >
                             Internal Services
                         </FilterButton>
                         <FilterButton
-                            title="Services configured in WSO2 Cloud"
+                            title="Services configured in Devant"
                             active={filterType === "third-party-services"}
                             onClick={() => setFilterType("third-party-services")}
                         >
                             Third Party Services
                         </FilterButton>
                         <FilterButton
-                            title="Databases in WSO2 Cloud"
+                            title="Databases in Devant"
                             active={filterType === "databases"}
                             onClick={() => setFilterType("databases")}
                         >
@@ -302,11 +302,11 @@ const ConnectionSection = <T,>({ emptyText, loading, data, searchText, renderIte
                         <>
                             {searchText ? (
                                 <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                                    {emptyText} in your WSO2 Cloud organization matching with "{searchText}"
+                                    {emptyText} in your Devant organization matching with "{searchText}"
                                 </BodyTinyInfo>
                             ) : (
                                 <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                                    {emptyText} in your WSO2 Cloud organization
+                                    {emptyText} in your Devant organization
                                 </BodyTinyInfo>
                             )}
                         </>

@@ -241,7 +241,7 @@ export const DevantBIConnectorCreateForm: FC<Props> = (props) => {
             }
         },
         onError: (error) => {
-            console.error(">>> Error creating WSO2 Cloud connection", error);
+            console.error(">>> Error creating Devant connection", error);
         },
         onSuccess: (_, { recentIdentifier }) => {
             platformRpcClient.refreshConnectionList();

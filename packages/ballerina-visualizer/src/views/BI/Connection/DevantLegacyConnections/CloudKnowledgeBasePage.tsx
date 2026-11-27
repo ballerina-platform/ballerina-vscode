@@ -34,8 +34,8 @@ interface CloudKnowledgeBasePageProps {
 }
 
 /**
- * Intermediate page shown when the "WSO2 Cloud Knowledge Base" box is selected. Offers creating a
- * new knowledge base manually, and lists the existing WSO2 Cloud knowledge bases to connect to.
+ * Intermediate page shown when the "Devant Knowledge Base" box is selected. Offers creating a
+ * new knowledge base manually, and lists the existing Devant knowledge bases to connect to.
  */
 export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
     const { onCreateNew, onSelectExisting } = props;
@@ -75,7 +75,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                 <ConnectorsGrid>
                     <ButtonCard
                         id="create-new-cloud-kb"
-                        title="Manually Config WSO2 Cloud Knowledge Base"
+                        title="Manually Config Devant Knowledge Base"
                         description="Add configurations for the Knowledge Base connection."
                         icon={<Codicon name="add" />}
                         onClick={onCreateNew}
@@ -88,7 +88,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
             {isSignedIn && (
                 <Section>
                     <SectionHeader>
-                        <SectionTitle variant="h4">Existing WSO2 Cloud Knowledge Bases</SectionTitle>
+                        <SectionTitle variant="h4">Existing Devant Knowledge Bases</SectionTitle>
                     </SectionHeader>
                     {isLoading ? (
                         <ProgressWrap>
@@ -96,7 +96,7 @@ export function CloudKnowledgeBasePage(props: CloudKnowledgeBasePageProps) {
                         </ProgressWrap>
                     ) : items.length === 0 ? (
                         <BodyTinyInfo style={{ paddingBottom: "10px" }}>
-                            No knowledge bases found in your WSO2 Cloud organization
+                            No knowledge bases found in your Devant organization
                         </BodyTinyInfo>
                     ) : (
                         <ConnectorsGrid>

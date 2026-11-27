@@ -250,7 +250,7 @@ export const DevantConnectorCreateForm: FC<DevantConnectorCreateFormProps> = ({
         advancedConfigItems.push(
             <FormStyles.Row>
                 <CheckBox
-                    label="Connection available to all integrations within your WSO2 Cloud project"
+                    label="Connection available to all integrations within your Devant project"
                     checked={isProjectLevel}
                     onChange={(checked: boolean) => {
                         form.setValue("isProjectLevel", checked);

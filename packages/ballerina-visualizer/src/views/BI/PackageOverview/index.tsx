@@ -638,7 +638,11 @@ function DeploymentOptions({
         refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
     });
     const cloudHeadlineOf = cloudHeadline(cloudStatus);
-    const headline = { ...cloudHeadlineOf, title: cloudHeadlineOf.title.replace("WSO2 Cloud", cloudName) };
+    const headline = {
+        ...cloudHeadlineOf,
+        title: cloudHeadlineOf.title.replace("WSO2 Cloud", cloudName),
+        description: cloudHeadlineOf.description.replace("WSO2 Cloud", cloudName),
+    };
     const statusRows = cloudStatusRows(cloudStatus);
     const statusNote = cloudStatusNote(cloudStatus);
 
