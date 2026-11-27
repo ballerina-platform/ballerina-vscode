@@ -264,10 +264,16 @@ export namespace S {
         align-items: center;
         gap: 6px;
         padding: 6px 6px 6px 12px;
-        border: 1px solid var(--vscode-editorHoverWidget-border, ${FIELD_BORDER});
+        border: 1px solid ${COPILOT_ACCENT};
         border-radius: 12px;
         background-color: var(--vscode-editorHoverWidget-background, ${ThemeColors.SURFACE_DIM});
         box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+        /* The orb's accent glow; a glow only tints a light ground, so light themes keep the plain shadow. */
+        body.vscode-dark &,
+        body.vscode-high-contrast & {
+            box-shadow: 0 0 18px color-mix(in srgb, ${COPILOT_ACCENT} 32%, transparent),
+                0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+        }
         color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
         font-family: var(--vscode-font-family);
         font-size: 13px;
