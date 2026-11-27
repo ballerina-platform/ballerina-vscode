@@ -18,7 +18,11 @@
 
 // L3: completion in Config.toml against the real LS. The completion lists each required configurable
 // that the file does not set yet, with a value to insert; the config schema comes from the real LS.
-// The editor is mocked. Replaces ui-test/configGeneratorSuggestion.test.ts.
+// The editor is mocked.
+//
+// The fixture has no dependencies. A dependency with its own configurables, such as ballerina/http,
+// makes the completion fail when the LS lists that org first. Add one back once that is fixed:
+// https://github.com/wso2/product-integrator/issues/3080
 
 import * as fs from "fs";
 import * as path from "path";
@@ -60,8 +64,8 @@ describe("Config.toml completion (real LS)", () => {
         ls = new LsHarness(launch);
         ls.start();
         await ls.initialize(PROJECT);
-        const service = path.join(PROJECT, "service.bal");
-        ls.didOpen(service, fs.readFileSync(service, "utf8"));
+        const main = path.join(PROJECT, "main.bal");
+        ls.didOpen(main, fs.readFileSync(main, "utf8"));
     }, 120_000);
 
     afterAll(async () => {
@@ -82,18 +86,30 @@ describe("Config.toml completion (real LS)", () => {
             },
         } as unknown as BallerinaExtension;
         const position = { line: lines.length - 1, character: 0 } as Position;
-        return getConfigCompletions(extension, path.join(PROJECT, "service.bal"), document, position);
+        // The extension passes the project root when a project is open (configRun.ts). With the
+        // Config.toml path instead, the LS returns no schema:
+        // https://github.com/wso2/product-integrator/issues/3080
+        return getConfigCompletions(extension, PROJECT, document, position);
     }
 
-    it("offers every required configurable for an empty Config.toml, including a module's", async () => {
+    it("offers every required configurable for an empty Config.toml, and none with a default", async () => {
         const suggestions = await complete("");
-        expect(suggestions.map((s) => s.label).sort()).toEqual(["authConfig", "bar", "isAdmin", "url"]);
+        // foo has a default value, so it is not offered.
+        expect(suggestions.map((s) => s.label).sort()).toEqual(["authConfig", "isAdmin", "url"]);
     }, 60_000);
 
     it("offers only the required configurables that Config.toml does not set yet", async () => {
-        const suggestions = await complete(["bar = 0.0", 'url = ""', "[authConfig]", ""].join("\n"));
+        const suggestions = await complete(['url = ""', "[authConfig]", 'token = "x"', ""].join("\n"));
         expect(suggestions).toEqual([
             { label: "isAdmin", insertText: "isAdmin = false\t# Type of BOOLEAN", kind: 4 },
+        ]);
+    }, 60_000);
+
+    it("offers the members of a union configurable on the line after its table header", async () => {
+        const suggestions = await complete(['url = ""', "isAdmin = true", "[authConfig]", ""].join("\n"));
+        expect(suggestions.map((s) => s.label)).toEqual([
+            "wso2/configServiceProject:0.0.1:Credentials",
+            "wso2/configServiceProject:0.0.1:Token",
         ]);
     }, 60_000);
 });

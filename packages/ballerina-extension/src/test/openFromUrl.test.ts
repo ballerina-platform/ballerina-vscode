@@ -18,8 +18,7 @@
 
 // Opening a sample from a vscode://wso2.ballerina/open-file or /open-repo link: the URI routing, and
 // the checks on where a file or repository may come from. Network and editor calls are mocked; the
-// download is written to a temp directory. Replaces ui-test/byExampleFileOpen.test.ts, which
-// downloaded real gists and cloned GitHub repositories.
+// download is written to a temp directory.
 
 import * as fs from "fs";
 import * as os from "os";
@@ -40,15 +39,17 @@ jest.mock("vscode", () => {
             withProgress: (_options: unknown, task: (progress: unknown, token: unknown) => unknown) =>
                 task({ report() {} }, { onCancellationRequested() {} }),
             registerUriHandler: jest.fn(),
+            showOpenDialog: jest.fn(),
             showErrorMessage: jest.fn(),
             showInformationMessage: jest.fn(),
         },
-        workspace: { ...actual.workspace, openTextDocument: jest.fn(() => Promise.resolve({})) },
+        workspace: { ...actual.workspace, openTextDocument: jest.fn(() => Promise.resolve({})), getConfiguration: jest.fn() },
         commands: { ...actual.commands, executeCommand: jest.fn(() => Promise.resolve(undefined)) },
     };
 });
 jest.mock("axios");
-jest.mock("../core", () => ({ FILE_DOWNLOAD_PATH: "ballerina.fileDownloadPath", BallerinaExtension: class {} }));
+// preferences.ts has no imports, so the real settings key loads without the rest of core.
+jest.mock("../core", () => ({ FILE_DOWNLOAD_PATH: jest.requireActual("../core/preferences").FILE_DOWNLOAD_PATH, BallerinaExtension: class {} }));
 jest.mock("../features/telemetry", () => ({ sendTelemetryEvent: jest.fn() }));
 jest.mock("../utils/config", () => ({ checkIsBallerinaPackage: jest.fn() }));
 // uri-handlers.ts imports the handlers through the utils index; the routing tests check the calls.
@@ -57,7 +58,7 @@ jest.mock("../utils", () => ({ handleOpenFile: jest.fn(), handleOpenRepo: jest.f
 jest.mock("@wso2/wso2-platform-core", () => ({ WICommandIds: {} }));
 
 import axios from "axios";
-import { commands, window } from "vscode";
+import { commands, ConfigurationTarget, window, workspace } from "vscode";
 import type { BallerinaExtension } from "../core";
 import { handleOpenFile as routedOpenFile, handleOpenRepo as routedOpenRepo } from "../utils";
 import { activateUriHandlers } from "../utils/uri-handlers";
@@ -67,6 +68,17 @@ const mockedAxiosGet = axios.get as jest.Mock;
 const showError = window.showErrorMessage as jest.Mock;
 const showInfo = window.showInformationMessage as jest.Mock;
 const executeCommand = commands.executeCommand as jest.Mock;
+const showOpenDialog = window.showOpenDialog as jest.Mock;
+const getConfiguration = workspace.getConfiguration as jest.Mock;
+const configUpdate = jest.fn(() => Promise.resolve());
+
+// handleOpenRepo starts cloneRepo and openRepoInVSCode without awaiting them. Let them finish
+// before asserting on what they do.
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+// Picks the button with this title from a showInformationMessage call.
+const pick = (title: string) => (_message: string, ...rest: unknown[]) =>
+    Promise.resolve(rest.find((item) => (item as { title?: string })?.title === title));
 
 // The parts of BallerinaExtension the handlers use.
 type FakeExtension = {
@@ -87,6 +99,9 @@ const asExtension = (fake: FakeExtension) => fake as unknown as BallerinaExtensi
 let tmp: string;
 beforeEach(() => {
     jest.clearAllMocks();
+    mockedAxiosGet.mockReset();
+    showInfo.mockReset();
+    getConfiguration.mockReturnValue({ update: configUpdate });
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "open-from-url-"));
 });
 afterEach(() => {
@@ -149,6 +164,18 @@ describe("open-file", () => {
         expect(showError).not.toHaveBeenCalled();
     });
 
+    it("saves the folder picked with Change Directory as the download folder", async () => {
+        mockedAxiosGet.mockResolvedValue(serveFile("service / on new http:Listener(9090) {}\n"));
+        showInfo.mockImplementation((message: string, ...rest: unknown[]) =>
+            message.startsWith("The Ballerina sample file has been downloaded") ? pick("Change Directory")(message, ...rest) : Promise.resolve(undefined));
+        const picked = path.join(tmp, "picked");
+        showOpenDialog.mockResolvedValue([{ fsPath: picked }]);
+
+        await handleOpenFile(asExtension(makeExtension(tmp)), null, null, "https://github.com/wso2/samples/blob/main/greeter/service.bal");
+
+        expect(configUpdate).toHaveBeenCalledWith("ballerina.samplesDownloadDirectory", picked, ConfigurationTarget.Global);
+    });
+
     it("refuses a gist from any other owner", async () => {
         mockedAxiosGet.mockResolvedValue({ data: { owner: { login: "someone-else" }, files: { "hello.bal": { raw_url: "https://raw/hello.bal" } } } });
 
@@ -191,29 +218,61 @@ describe("open-repo", () => {
     const repoUrl = "https://github.com/wso2/choreo-sample-apps";
 
     it("clones a repository from an allowed org when the user picks Clone Now", async () => {
-        showInfo.mockImplementation((_message: string, _options: unknown, cloneNow: unknown) => Promise.resolve(cloneNow));
+        showInfo.mockImplementation(pick("Clone Now"));
         const ext = makeExtension(tmp);
 
         await handleOpenRepo(asExtension(ext), repoUrl, "ballerina/greeter/service.bal");
+        await flush();
 
         expect(executeCommand).toHaveBeenCalledWith("git.clone", repoUrl, tmp);
         expect(ext.context.globalState.get("next-starting-up-file"))
             .toBe(path.join(tmp, "choreo-sample-apps", "ballerina/greeter/service.bal"));
     });
 
-    it("opens an already cloned repository instead of cloning it again", async () => {
-        showInfo.mockImplementation((_message: string, _options: unknown, cloneNow: unknown) => Promise.resolve(cloneNow));
-        const ext = makeExtension(tmp);
+    it("clones into the folder picked with Change Directory, and saves it as the download folder", async () => {
+        showInfo.mockImplementation(pick("Change Directory"));
+        const picked = path.join(tmp, "picked");
+        showOpenDialog.mockResolvedValue([{ fsPath: picked }]);
+
+        await handleOpenRepo(asExtension(makeExtension(tmp)), repoUrl);
+        await flush();
+
+        expect(configUpdate).toHaveBeenCalledWith("ballerina.samplesDownloadDirectory", picked, ConfigurationTarget.Global);
+        expect(executeCommand).toHaveBeenCalledWith("git.clone", repoUrl, picked);
+    });
+
+    // Clones once, so the repository location is recorded, then creates the clone's folder.
+    async function cloneOnce(ext: FakeExtension) {
+        showInfo.mockImplementation(pick("Clone Now"));
         await handleOpenRepo(asExtension(ext), repoUrl);
+        await flush();
         fs.mkdirSync(path.join(tmp, "choreo-sample-apps"));
         executeCommand.mockClear();
         showInfo.mockReset().mockImplementation((_message: string, _options: unknown, open: unknown) => Promise.resolve(open));
+    }
+
+    it("opens an already cloned repository instead of cloning it again", async () => {
+        const ext = makeExtension(tmp);
+        await cloneOnce(ext);
 
         await handleOpenRepo(asExtension(ext), repoUrl);
+        await flush();
 
         expect(showInfo).toHaveBeenCalledWith(
             "Repository already exists. Would you like to open the existing repository folder?", { modal: true }, expect.anything(), expect.anything());
         expect(executeCommand).not.toHaveBeenCalledWith("git.clone", expect.anything(), expect.anything());
+        expect(executeCommand).toHaveBeenCalledWith("vscode.openFolder", expect.objectContaining({ fsPath: path.join(tmp, "choreo-sample-apps") }));
+    });
+
+    it("opens the requested file in an already cloned repository", async () => {
+        const ext = makeExtension(tmp);
+        await cloneOnce(ext);
+
+        await handleOpenRepo(asExtension(ext), repoUrl, "ballerina/greeter/service.bal");
+        await flush();
+
+        expect(ext.context.globalState.get("next-starting-up-file"))
+            .toBe(path.join(tmp, "choreo-sample-apps", "ballerina/greeter/service.bal"));
         expect(executeCommand).toHaveBeenCalledWith("vscode.openFolder", expect.objectContaining({ fsPath: path.join(tmp, "choreo-sample-apps") }));
     });
 
