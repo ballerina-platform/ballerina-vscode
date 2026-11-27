@@ -19,9 +19,10 @@
 import React, { createContext, Dispatch, ReactNode, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { getFieldTypeLabel, Imports } from "@wso2/ballerina-core";
 import { useOptionalFieldContext } from "../components/editors/FieldContext";
-import { useFormContext } from "./form";
+import { useAssistKey, useFormContext } from "./form";
 import { FormField } from "../components/Form/types";
 import { FieldAssistContext } from "../components/editors/FieldAssist/FieldAssist";
+import { useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 
 export interface InsertTarget {
     id: symbol;
@@ -209,6 +210,8 @@ export function useInsertTarget(
     const label = field?.label ?? "";
     const { updateImports, form, nodeInfo } = useFormContext();
     const assist = useContext(FieldAssistContext);
+    const host = useAssistHost();
+    const markKey = useAssistKey(field?.key ?? "");
     const assistRef = useRef(assist);
     assistRef.current = assist;
     const idRef = useRef(Symbol());
@@ -224,7 +227,11 @@ export function useInsertTarget(
         // A variable's value takes its type and purpose from the form's Type and Name fields.
         expectedType: (isVariableValue && form?.getValues("type")) || (isTemplate ? "string" : getFieldTypeLabel(field?.types)),
         nameHint: isVariableValue ? form?.getValues("variable") : undefined,
-        insert: (value) => insertRef.current(value),
+        insert: (value) => {
+            // A picked value is the user's edit, as typing is, so Copilot's change to the field leaves review.
+            host?.dropMark(markKey);
+            insertRef.current(value);
+        },
         addImports: (imports) => field && updateImports?.(field.key, imports),
         askCopilot: assist ? (draft) => assistRef.current?.open(undefined, draft) : undefined,
     });
