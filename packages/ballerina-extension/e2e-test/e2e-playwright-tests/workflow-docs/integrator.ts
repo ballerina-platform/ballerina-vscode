@@ -260,11 +260,18 @@ export class Integrator {
             const row = await this.j.resolve(asNames(part), (name) => frame.locator(i === 0
                 ? `[role="treeitem"][title^="${name}:"]`
                 : `[role="treeitem"][aria-level="${i + 1}"][title*=".${name}:"]`).last());
-            if (i === rest.length - 1) {
+            const expanded = await row.getAttribute('aria-expanded');
+            if (i < rest.length - 1) {
+                if (expanded !== 'true') {
+                    await this.j.click(row);
+                    await this.page.waitForTimeout(500);
+                }
+            } else if (expanded === null) {
                 await this.j.click(row);
-            } else if (await row.getAttribute('aria-expanded') !== 'true') {
-                await this.j.click(row.locator('span').first());
-                await this.page.waitForTimeout(500);
+            } else {
+                // A record row opens on click; its Insert button shows on hover.
+                await this.j.hover(row);
+                await this.j.click(row.getByRole('button', { name: 'Insert' }));
             }
         }
         await this.page.waitForTimeout(400);

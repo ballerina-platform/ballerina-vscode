@@ -199,6 +199,14 @@ export namespace S {
         }
     `;
 
+    export const InsertButton = styled(StepperButton)`
+        display: none;
+        flex-shrink: 0;
+        [role="treeitem"]:hover > &, [role="treeitem"]:focus-visible > & {
+            display: inline-flex;
+        }
+    `;
+
     // The name sizes to its text and the type pill gives way first.
     export const Name = styled.span`
         flex: 1 1 auto;

@@ -51,9 +51,19 @@ export async function pickFromDataBrowser(scope: Scope, group: string, path: str
             .last();
         await row.waitFor({ state: "visible", timeout: 15000 });
         if (index === path.length - 1) {
-            await row.click({ force: true });
+            await insertRow(row);
         } else if (await row.getAttribute("aria-expanded") !== "true") {
-            await row.locator("span").first().click({ force: true });
+            await row.click({ force: true });
         }
     }
+}
+
+// A record row opens on click; its Insert button shows on hover.
+async function insertRow(row: Locator): Promise<void> {
+    if (await row.getAttribute("aria-expanded") === null) {
+        await row.click({ force: true });
+        return;
+    }
+    await row.hover({ force: true });
+    await row.getByRole("button", { name: "Insert" }).click();
 }
