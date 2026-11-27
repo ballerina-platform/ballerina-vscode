@@ -20,6 +20,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "@emotion/styled";
 import { ThemeColors, Typography, Button, TextField, Stepper, Icon, Codicon, SearchBox, ProgressIndicator } from "@wso2/ui-toolkit";
 import { IntrospectDatabaseResponse, TableInfo, PropertyModel } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { fetchConnectorCredentials, LSErrorDetails } from "../DatabaseConnectionPopup";
 import { isDatabaseSystemProperty, isPasswordProperty, formatDatabaseTypeDisplay } from "../utils";
@@ -42,6 +43,7 @@ import {
 import { ConnectionListItem, DatabaseRequestStatusEnum } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
 import { hasCloudProject } from "../../../../providers/cloud-project";
+import { devantIdsOf, hasDevantProject } from "../DevantLegacyConnections/utils";
 import { dbCredentialsToFieldValues, buildDbPropertiesFromFieldValues, fieldValuesToDbConfig } from "../DevantConnections/utils";
 import { LoadingRing } from "../../../../components/Loader";
 
@@ -229,7 +231,16 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                 connectorWizardRpcClient: rpcClient.getConnectorWizardRpcClient(),
                 projectPath: visualizerLocation?.projectPath,
             });
-            const orgId = platformExtState?.session?.org.handle || "";
+            // The ids a cloud call takes; on Devant the legacy ones.
+            const { orgId, componentId, projectId, envKey } =
+                platformExtState?.platform === DEVANT_PLATFORM
+                    ? devantIdsOf(platformExtState)
+                    : {
+                          orgId: platformExtState?.session?.org.handle || "",
+                          componentId: platformExtState?.selectedIntegration?.integration.id || "",
+                          projectId: platformExtState?.selectedContext?.projectName || "",
+                          envKey: platformExtState?.selectedEnv?.id,
+                      };
             let credsToUse: Record<string, string> = {}
             if (devantConnection?.resourceType === "DATABASE") {
                  const marketplaceItem = await platformRpcClient.getMarketplaceDatabaseItem({
@@ -261,7 +272,7 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
             } else {
                 let unresolvedSecrets: string[] = [];
                 const connectionItem = await platformRpcClient.getConnection({ connectionGroupId: devantConnection.groupUuid, orgId });
-                const matchingConfig = connectionItem.configurations[platformExtState?.selectedEnv?.id]
+                const matchingConfig = connectionItem.configurations[envKey]
                 if(matchingConfig){
                     const kv: Record<string, string> = {};
                     const secretValuesRefs: {key: string; valueRef: string}[] = []
@@ -276,10 +287,10 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
                     if(secretValuesRefs.length > 0){
                         const secretsResp = await platformRpcClient.resolveConnectionSecrets({
                             orgId,
-                            componentId: platformExtState?.selectedIntegration?.integration.id || "",
-                            projectId: platformExtState?.selectedContext?.projectName || "",
+                            componentId,
+                            projectId,
                             groupId: devantConnection.groupUuid,
-                            envTemplateId: platformExtState?.selectedEnv?.id || "",
+                            envTemplateId: envKey || "",
                             secrets: secretValuesRefs
                         })
                         for(const secret of secretsResp.secrets){
@@ -328,7 +339,8 @@ export function EditConnectorForm(props: EditConnectorFormProps) {
 
     useEffect(() => {
         const matchingDevantConnection = platformExtState?.devantConns?.list?.find(item=>item.name?.replaceAll("-", "_").replaceAll(" ", "_") === connectionName);
-        if (hasCloudProject(platformExtState) && matchingDevantConnection){
+        const hasProject = platformExtState?.platform === DEVANT_PLATFORM ? hasDevantProject(platformExtState) : hasCloudProject(platformExtState);
+        if (hasProject && matchingDevantConnection){
             setIsDevantDb(true);
             getDevantDbCredentials(matchingDevantConnection);
         }

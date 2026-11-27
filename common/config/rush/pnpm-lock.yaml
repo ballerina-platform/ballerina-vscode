@@ -2927,6 +2927,9 @@ importers:
       '@types/vscode':
         specifier: 1.100.0
         version: 1.100.0
+      '@wso2/wso2-platform-core':
+        specifier: workspace:*
+        version: link:../wso2-platform-core
       mocha:
         specifier: 11.5.0
         version: 11.5.0

@@ -71,7 +71,8 @@ export const PlatformExtContextProvider: FC<{ children: ReactNode }> = ({ childr
     }, []);
 
     const { data: devantConsoleUrl = "" } = useQuery({
-        queryKey: ["console-url"],
+        // The console is the platform's own.
+        queryKey: ["console-url", platformExtState?.platform],
         queryFn: () => platformRpcClient.getDevantConsoleUrl(),
     });
 

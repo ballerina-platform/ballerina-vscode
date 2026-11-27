@@ -39,6 +39,22 @@ const initialPlatformExtState: PlatformExtState = {
     devantConns: { list: [], loading: false, connectedToDevant: true },
 };
 
+let hydration: Promise<void> | undefined;
+
+/**
+ * Reads the stored state once. Each platform's manager waits for the same read, so a late one cannot undo a write.
+ * A read that fails is forgotten, so the next caller tries again.
+ */
+export function hydratePlatformExtStore(): Promise<void> {
+    hydration ??= Promise.resolve(platformExtStore.persist.rehydrate()).then(() => {
+        // rehydrate() resolves on a failed read too; the store says whether it took.
+        if (!platformExtStore.persist.hasHydrated()) {
+            hydration = undefined;
+        }
+    });
+    return hydration;
+}
+
 export const platformExtStore = createStore(
     persist<PlatformExtStore>(
         (set, get) => ({

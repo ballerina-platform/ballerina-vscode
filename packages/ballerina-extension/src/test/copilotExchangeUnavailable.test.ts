@@ -23,6 +23,7 @@
 let refusal: unknown;
 jest.mock("../utils/cloud-auth", () => ({
     getCloudEnvName: () => "prod-eu",
+    getCloudPlatform: () => undefined,
     withPlatformAPI: async () => {
         throw refusal;
     },

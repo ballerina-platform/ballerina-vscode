@@ -17,7 +17,8 @@
  */
 
 import { isSamePath, SyntaxTree } from "@wso2/ballerina-core";
-import { ModulePart, CaptureBindingPattern } from "@wso2/syntax-tree";
+import { ModulePart, CaptureBindingPattern, STKindChecker } from "@wso2/syntax-tree";
+import type { AddDevantTempConfigReq, AddDevantTempConfigResp, DeleteDevantTempConfigReq } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
@@ -30,6 +31,7 @@ import { extension } from "../../BalExtensionContext";
 import { PersistOptions, createJSONStorage } from "zustand/middleware";
 import Handlebars from "handlebars";
 import { updateSourceCode } from "../../utils";
+import { log } from "../../utils/logger";
 
 export const getConfigFileUri = () => {
     const configBalFile = path.join(StateMachine.context().projectPath, "config.bal");
@@ -273,6 +275,90 @@ export const processOpenApiWithApiKeyAuth = (yamlString: string, securityType: "
 /** Persisted-store version; bumped from v1 to v2 when the state moved to the platform's shapes (session, integrations, environments). */
 const PLATFORM_STORE_VERSION = "v2";
 
+/** Removes configurables from config.bal, such as the placeholders of a connection that was not created. */
+export async function deleteTempConfigs(params: DeleteDevantTempConfigReq): Promise<void> {
+    try {
+        const configBalFileUri = getConfigFileUri();
+
+        const configBalEdits = new WorkspaceEdit();
+        for (const node of params.nodes) {
+            configBalEdits.delete(
+                configBalFileUri,
+                new vscode.Range(
+                    new vscode.Position(node.position.startLine, node.position.startColumn),
+                    new vscode.Position(node.position.endLine, node.position.endColumn),
+                ),
+            );
+        }
+
+        await updateSourceCode({
+            textEdits: { [configBalFileUri.toString()]: configBalEdits.get(configBalFileUri) || [] },
+            skipPayloadCheck: true,
+        });
+    } catch (err) {
+        log(`Failed to invoke deleteDevantTempConfigs: ${err}`);
+    }
+}
+
+/** Adds a configurable to config.bal as a placeholder for a connection's value, and answers its node. */
+export async function addTempConfig(params: AddDevantTempConfigReq): Promise<AddDevantTempConfigResp> {
+    try {
+        const configBalFileUri = getConfigFileUri();
+        const syntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
+            documentIdentifier: { uri: configBalFileUri.toString() },
+        })) as SyntaxTree;
+
+        const newConfigEditLine = (syntaxTree?.syntaxTree?.position?.endLine ?? 0) + 1;
+        const configBalEdits = new WorkspaceEdit();
+
+        if (params.newLine) {
+            configBalEdits.insert(
+                configBalFileUri,
+                new vscode.Position(newConfigEditLine, 0),
+                Templates.emptyLine(),
+            );
+        }
+
+        const newConfigTemplate = Templates.newDefaultEnvConfigurable({ CONFIG_NAME: params.name });
+        configBalEdits.insert(configBalFileUri, new vscode.Position(newConfigEditLine, 0), newConfigTemplate);
+
+        await updateSourceCode({
+            textEdits: { [configBalFileUri.toString()]: configBalEdits.get(configBalFileUri) || [] },
+            skipPayloadCheck: true,
+        });
+
+        const updatedSyntaxTree = (await StateMachine.context().langClient.getSyntaxTree({
+            documentIdentifier: { uri: configBalFileUri.toString() },
+        })) as SyntaxTree;
+
+        const matchingConfig = (updatedSyntaxTree?.syntaxTree as ModulePart)?.members?.find((member) => {
+            return (
+                (member.typedBindingPattern?.bindingPattern as CaptureBindingPattern)?.variableName?.value ===
+                params.name
+            );
+        });
+        if (STKindChecker.isModuleVarDecl(matchingConfig)) {
+            return { configNode: matchingConfig };
+        }
+
+        throw new Error("failed to add new temp config");
+    } catch (err) {
+        log(`Failed to invoke addDevantTempConfig: ${err}`);
+    }
+}
+
+/**
+ * Where a connection's API definition is kept under `dir`. A name that would put the file anywhere else, such as
+ * one holding `..` or a path separator, is refused.
+ */
+export function specFileIn(dir: string, moduleName: string): string {
+    const file = path.join(dir, `${moduleName}-spec.yaml`);
+    if (path.dirname(file) !== path.normalize(dir)) {
+        throw new Error(`${moduleName} is not a name a connection's files can take.`);
+    }
+    return file;
+}
+
 export const getWorkspaceStateStore = (storeName: string): PersistOptions<any, any> => {
     const version = PLATFORM_STORE_VERSION;
     return {
@@ -280,7 +366,8 @@ export const getWorkspaceStateStore = (storeName: string): PersistOptions<any, a
         storage: createJSONStorage(() => ({
             getItem: async (name) => {
                 const value = await extension.context.workspaceState.get(name);
-                return value ? (value as string) : "";
+                // Nothing stored yet is not a failed read: null, since "" does not parse.
+                return value ? (value as string) : null;
             },
             removeItem: (name) => extension.context.workspaceState.update(name, undefined),
             setItem: (name, value) => extension.context.workspaceState.update(name, value),

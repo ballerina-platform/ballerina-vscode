@@ -19,6 +19,7 @@
 import { capabilityValueText, seedCapabilityValue, SeedableProperty, showActivityIdentityReadOnly } from "./capabilityFieldValues";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import { goToAgent, startAgentChat } from "../AIChatAgent/utils";
@@ -105,6 +106,9 @@ import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAge
 import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
 import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
 import { errorMessageOf } from "../Connection/DevantConnections/utils";
+import { CloudKnowledgeBasePage as DevantLegacyKnowledgeBasePage } from "../Connection/DevantLegacyConnections/CloudKnowledgeBasePage";
+import { prepareDevantKnowledgeBase as prepareDevantLegacyKnowledgeBase } from "../Connection/DevantLegacyConnections/devant-kb-utils";
+import { hasDevantProject } from "../Connection/DevantLegacyConnections/utils";
 
 const Container = styled.div`
     width: 100%;
@@ -363,6 +367,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const { platformExtState, platformRpcClient, onLinkDevantProject, importConnection: importDevantConn } = usePlatformExtContext()
+    // Devant has its own connection screens.
+    const isDevant = platformExtState?.platform === DEVANT_PLATFORM;
+    const KnowledgeBasePage = isDevant ? DevantLegacyKnowledgeBasePage : CloudKnowledgeBasePage;
 
     const enrichedCategories = useMemo(() => {
         return enrichCategoryWithDevant(platformExtState?.devantConns?.list, categories, importingConn)
@@ -717,7 +724,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setShowProgressIndicator(true);
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         try {
-            const flowNode = await prepareDevantKnowledgeBase({
+            const prepare = isDevant ? prepareDevantLegacyKnowledgeBase : prepareDevantKnowledgeBase;
+            const flowNode = await prepare({
                 rpcClient,
                 platformRpcClient,
                 platformExtState,
@@ -4338,14 +4346,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
-                onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.projectName) ? onLinkDevantProject : undefined}
+                onLinkDevantProject={(platformExtState?.isExtInstalled && !(isDevant ? hasDevantProject(platformExtState) : platformExtState?.selectedContext?.projectName)) ? onLinkDevantProject : undefined}
                 onRefreshDevantConnections={
-                    hasCloudProject(platformExtState) && !platformExtState?.devantConns?.loading
+                    (isDevant ? hasDevantProject(platformExtState) : hasCloudProject(platformExtState)) && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
                 }
                 wso2CloudKbListSection={
-                    <CloudKnowledgeBasePage
+                    <KnowledgeBasePage
                         onCreateNew={handleCreateNewCloudKnowledgeBase}
                         onSelectExisting={(item) =>
                             cloudKbNodeRef.current

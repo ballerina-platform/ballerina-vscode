@@ -41,7 +41,7 @@ import {
     isCloudError,
 } from "@wso2/wso2-cloud-client";
 import type { CloudAccess } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { WSO2_CLOUD_AUTH_PROVIDER_ID, readCloudEnvName, scopeForEnv } from "@wso2/wso2-cloud-client/vscode";
+import { WSO2_CLOUD_AUTH_PROVIDER_ID, readCloudEnvName, scopeForEnv, scopeForPlatform } from "@wso2/wso2-cloud-client/vscode";
 
 /** `publisher.name` of the WSO2 Integrator extension, which hosts the cloud features. */
 export const WI_EXTENSION_ID = "wso2.wso2-integrator";
@@ -97,7 +97,7 @@ export function knownCopilotUrls(gate: IWso2PlatformExtensionGate | undefined = 
 }
 
 /** WSO2 Integrator's platform config, or undefined when it has not been reached or cannot say. */
-function platformConfigOf(gate: IWso2PlatformExtensionGate | undefined): { name?: string; copilotUrl?: unknown } | undefined {
+function platformConfigOf(gate: IWso2PlatformExtensionGate | undefined): { name?: string; copilotUrl?: unknown; platform?: unknown } | undefined {
     try {
         return gate?.getPlatformConfig();
     } catch {
@@ -105,9 +105,15 @@ function platformConfigOf(gate: IWso2PlatformExtensionGate | undefined): { name?
     }
 }
 
-/** The scope a session is requested with: sessions are per environment. */
-export function cloudSessionScopes(env: CloudEnvName = getCloudEnvName()): string[] {
-    return [scopeForEnv(env)];
+/** The platform WSO2 Integrator works against when it is not WSO2 Cloud, such as `devant`; undefined for WSO2 Cloud. */
+export function getCloudPlatform(gate: IWso2PlatformExtensionGate | undefined = knownGate): string | undefined {
+    const platform = platformConfigOf(gate)?.platform;
+    return typeof platform === "string" && platform ? platform : undefined;
+}
+
+/** The scopes a session is requested with: sessions are per environment, and per platform when it is not WSO2 Cloud. */
+export function cloudSessionScopes(env: CloudEnvName = getCloudEnvName(), platform: string | undefined = getCloudPlatform()): string[] {
+    return platform ? [scopeForEnv(env), scopeForPlatform(platform)] : [scopeForEnv(env)];
 }
 
 /** What WSO2 Integrator exports, and whether this extension can speak to it. */
@@ -185,7 +191,7 @@ let accessDeclined = false;
 
 async function readApiKey(gate: IWso2PlatformExtensionGate, options: CloudSessionOptions): Promise<string | undefined> {
     try {
-        const scopes = cloudSessionScopes(getCloudEnvName(gate));
+        const scopes = cloudSessionScopes(getCloudEnvName(gate), getCloudPlatform(gate));
         const granted = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, scopes, {
             silent: options.askAccess || options.silent ? true : undefined,
         });
@@ -253,7 +259,7 @@ export async function requestCloudAccess(): Promise<boolean> {
         return false;
     }
     try {
-        const session = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, cloudSessionScopes(getCloudEnvName(gate)), { createIfNone: true });
+        const session = await vscode.authentication.getSession(WSO2_CLOUD_AUTH_PROVIDER_ID, cloudSessionScopes(getCloudEnvName(gate), getCloudPlatform(gate)), { createIfNone: true });
         accessDeclined = false;
         return !!session;
     } catch (error) {

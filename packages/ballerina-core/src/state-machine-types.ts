@@ -1178,6 +1178,8 @@ export interface BIIntelSecrets {
     expiresAt?: number;  // Unix timestamp in milliseconds
     /** The WSO2 Cloud environment (prod, prod-eu, stage, dev) whose Copilot backend issued the token, when it came from the WSO2 Cloud token exchange. */
     cloudEnv?: string;
+    /** The platform WSO2 Integrator worked against when the token was exchanged, when it was not WSO2 Cloud. */
+    cloudPlatform?: string;
 }
 
 export interface AnthropicKeySecrets {

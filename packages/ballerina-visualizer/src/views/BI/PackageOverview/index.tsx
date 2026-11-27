@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { DEVANT_DEPLOY_WORDS } from "../Connection/DevantLegacyConnections/deploy-words";
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { OpenInConsoleParams } from "@wso2/wso2-cloud-client/contract";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +32,7 @@ import {
     isSamePath,
     WorkflowRuntimeStatusResponse,
 } from "@wso2/ballerina-core";
+import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Icon, Divider, CheckBox, ProgressIndicator, Overlay, Dropdown, Tooltip } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -632,7 +634,8 @@ function DeploymentOptions({
         queryKey: ["cloud-integration-status", projectPath],
         // null, not undefined: an absent status is kept as such and clears what was read before.
         queryFn: async () => (await rpcClient.getPlatformRpcClient().getCloudIntegrationStatus({ projectPath })) ?? null,
-        enabled: platformExtState.isExtInstalled && isDeployed,
+        // Devant's card shows no build or rollout.
+        enabled: platformExtState.isExtInstalled && isDeployed && platformExtState.platform !== DEVANT_PLATFORM,
         refetchInterval: (query) => cloudRefetchInterval(query.state.data, pushedAt, Date.now()),
     });
     const headline = cloudHeadline(cloudStatus);
@@ -677,7 +680,45 @@ function DeploymentOptions({
             <div>
                 <Title variant="h3">Deployment Options</Title>
 
-                {platformExtState.isExtInstalled && !isDevantLoading && (
+                {/* Devant's card: creating an integration there deploys it. */}
+                {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform === DEVANT_PLATFORM && (
+                    <DeploymentOption
+                        title={
+                            isDeployed ? (
+                                <DevantHeaderWrap>
+                                    <span>{DEVANT_DEPLOY_WORDS.deployedTitle}</span>
+                                    {isRefreshing ? (
+                                        <ProgressRing sx={{ width: 16, height: 16 }} />
+                                    ) : (
+                                        <Button appearance="icon" tooltip={DEVANT_DEPLOY_WORDS.refreshTooltip} onClick={handleRefreshDeploymentStatus}>
+                                            <Codicon name="refresh" />
+                                        </Button>
+                                    )}
+                                </DevantHeaderWrap>
+                            ) : (
+                                DEVANT_DEPLOY_WORDS.notDeployedTitle
+                            )
+                        }
+                        description={isDeployed ? DEVANT_DEPLOY_WORDS.packageDeployed : DEVANT_DEPLOY_WORDS.packageNotDeployed}
+                        buttonText={isDeployed ? "View in Console" : DEVANT_DEPLOY_WORDS.deployButton}
+                        isExpanded={expandedOptions.has("devant")}
+                        onToggle={() => toggleOption("devant")}
+                        onDeploy={isDeployed ? () => goToDevant() : handleDeploy}
+                        learnMoreLink={"https://wso2.com/integration-platform/docs/deploy/cloud/push-from-ide/"}
+                        hasDeployableIntegration={hasDeployableIntegration && !isRefreshing}
+                        secondaryAction={
+                            hasLocalChanges
+                                ? {
+                                    description: DEVANT_DEPLOY_WORDS.redeploy,
+                                    buttonText: "Open Source Control",
+                                    onClick: () => rpcClient.getCommonRpcClient().executeCommand({ commands: ["workbench.scm.focus"] }),
+                                }
+                                : undefined
+                        }
+                    />
+                )}
+
+                {platformExtState.isExtInstalled && !isDevantLoading && platformExtState.platform !== DEVANT_PLATFORM && (
                     <DeploymentOption
                         title={
                             isDeployed ? (

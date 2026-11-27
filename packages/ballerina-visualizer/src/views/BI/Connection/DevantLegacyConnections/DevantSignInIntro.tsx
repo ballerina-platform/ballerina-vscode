@@ -1,0 +1,57 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import React from "react";
+import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
+import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-provider";
+import { IntroText } from "../AddConnectionPopup/styles";
+import { hasDevantProject } from "./utils";
+
+/** What the Add Connection list says on Devant without a linked project: sign in, or deploy or associate the workspace. */
+export function DevantSignInIntro() {
+    const { platformExtState, platformRpcClient, loginToDevant, handleLinkWorkspace } = usePlatformExtContext();
+    if (!platformExtState?.isExtInstalled) {
+        return null;
+    }
+    // Signed in with a project linked: the cloud resources are listed below instead.
+    if (hasDevantProject(platformExtState)) {
+        return null;
+    }
+    // Signed in through WSO2 Integrator without access for this extension: logging in asks for it.
+    const accessMissing = platformExtState?.cloudAccess === "no-access" || platformExtState?.cloudAccess === "declined";
+    // Signed in without a linked project, or signed out of a workspace that never was in the cloud: deploy or associate.
+    return !accessMissing && (platformExtState?.isLoggedIn || !platformExtState?.hasPossibleComponent) ? (
+        <IntroText>
+            <VSCodeLink onClick={() => platformRpcClient.deployIntegrationInDevant()}>
+                Deploy integration
+            </VSCodeLink>{" "}
+            or{" "}
+            <VSCodeLink onClick={handleLinkWorkspace}>
+                associate workspace
+            </VSCodeLink>{" "}
+            with a WSO2 Cloud project in order to connect with cloud dependencies
+        </IntroText>
+    ) : (
+        <IntroText>
+            <VSCodeLink onClick={loginToDevant}>
+                Login
+            </VSCodeLink>{" "}
+            to WSO2 Cloud in order to connect with cloud dependencies
+        </IntroText>
+    );
+}

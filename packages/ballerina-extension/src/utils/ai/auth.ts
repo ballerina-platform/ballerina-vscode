@@ -21,7 +21,7 @@ import { extension } from "../../BalExtensionContext";
 import { getCopilotTokenExchangeUrl } from '../../features/ai/utils';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import { type TokenExchangeRequest, isCloudError } from '@wso2/wso2-cloud-client';
-import { type CloudSessionOptions, describeCloudAccess, getCloudEnvName, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
+import { type CloudSessionOptions, describeCloudAccess, getCloudEnvName, getCloudPlatform, getPlatformGate, readCloudAccess, withPlatformAPI } from '../cloud-auth';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { copilotName, WI_EXTENSION_ID } from '../config';
 
@@ -178,6 +178,10 @@ const MAX_COPILOT_EXCHANGE_ATTEMPTS = 3;
  */
 export const copilotTokenEnv = (secrets: BIIntelSecrets): string => secrets.cloudEnv ?? "prod";
 
+/** Whether a Copilot token was exchanged for the environment and the platform WSO2 Integrator works against now. */
+const isForCloudInUse = (secrets: BIIntelSecrets): boolean =>
+    copilotTokenEnv(secrets) === getCloudEnvName() && secrets.cloudPlatform === getCloudPlatform();
+
 /** Thrown where this WSO2 Cloud deployment has no Copilot token exchange to sign in through. */
 export class CopilotTokenExchangeUnavailableError extends Error {
     constructor() {
@@ -197,6 +201,7 @@ export const exchangeForCopilotToken = async (options: CloudSessionOptions = {})
     await getPlatformGate().catch((): undefined => undefined);
     // The environment the token is for: the Copilot backend, and the WSO2 Cloud session, are that environment's.
     const cloudEnv = getCloudEnvName();
+    const cloudPlatform = getCloudPlatform();
     const endpoint = getCopilotTokenExchangeUrl();
     if (!endpoint) {
         const error = new CopilotTokenExchangeUnavailableError();
@@ -207,7 +212,7 @@ export const exchangeForCopilotToken = async (options: CloudSessionOptions = {})
     const request: TokenExchangeRequest = { target: "copilot", endpoint };
     try {
         const token = await withPlatformAPI(async (api) => api?.exchangeToken(request), options);
-        return token ? { accessToken: token.accessToken, expiresAt: token.expiresAt, cloudEnv } : undefined;
+        return token ? { accessToken: token.accessToken, expiresAt: token.expiresAt, cloudEnv, ...(cloudPlatform ? { cloudPlatform } : {}) } : undefined;
     } catch (error) {
         // WSO2 Integrator's build has no Copilot backend for the environment, or not this one: as with none here, the
         // sign-in is not available, which is not a reason to end the WSO2 Cloud session.
@@ -311,9 +316,12 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                             const now = Date.now();
                             const bufferMs = 5 * 60 * 1000; // 5 minutes
                             const isExpired = secrets.expiresAt && (secrets.expiresAt - bufferMs) < now;
-                            // A token for another WSO2 Cloud environment (WSO2 Integrator switched production's region)
+                            // The environment and platform in use are known once WSO2 Integrator is reached; before
+                            // that both read as the defaults, and a token for another would be exchanged for nothing.
+                            await getPlatformGate().catch((): undefined => undefined);
+                            // A token for another WSO2 Cloud environment or platform (WSO2 Integrator switched)
                             // is not sent to this one's Copilot backend: a new one is exchanged instead.
-                            const forOtherEnv = copilotTokenEnv(secrets) !== getCloudEnvName();
+                            const forOtherEnv = !isForCloudInUse(secrets);
 
                             if (isExpired || forOtherEnv) {
                                 // What the refresh got, not a read of storage after it: the token and the region it
@@ -432,10 +440,10 @@ export const refreshBiIntelSecrets = async (): Promise<BIIntelSecrets> => {
     try {
         console.log('Refreshing the Copilot token through WSO2 Integrator...');
         let newSecrets = await refreshCopilotToken();
-        // A region switch while the exchange ran makes its token the region left's: it is exchanged again.
-        for (let attempt = 1; newSecrets.cloudEnv !== getCloudEnvName(); attempt++) {
+        // A region or platform switch while the exchange ran makes its token the one left's: it is exchanged again.
+        for (let attempt = 1; !isForCloudInUse(newSecrets); attempt++) {
             if (attempt >= MAX_COPILOT_EXCHANGE_ATTEMPTS) {
-                throw new Error("The WSO2 Cloud region kept changing while the Copilot token was exchanged.");
+                throw new Error("The WSO2 Cloud region or platform kept changing while the Copilot token was exchanged.");
             }
             newSecrets = await refreshCopilotToken();
         }

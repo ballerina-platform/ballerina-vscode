@@ -17,6 +17,12 @@
  */
 
 import type { ContextItemEnriched, DirectoryIntegration, Environment, PlatformSession } from "@wso2/wso2-cloud-client";
+import type {
+    ComponentKind as LegacyComponentKind,
+    ContextItemEnriched as LegacyContextItemEnriched,
+    Environment as LegacyEnvironment,
+    UserInfo as LegacyUserInfo,
+} from "@wso2/wso2-platform-core";
 // The browser-safe entry: this module reaches the webviews, and the package root pulls in Node modules.
 import { PLATFORM_EXTENSION_API_VERSION } from "@wso2/wso2-cloud-client/contract";
 import {
@@ -122,6 +128,9 @@ export interface PlatformExtConnectionState {
  */
 export type CloudAccess = "signed-out" | "no-access" | "declined" | "connected";
 
+/** `PlatformExtState.platform` while WSO2 Integrator works against Devant. */
+export const DEVANT_PLATFORM = "devant";
+
 /** What the visualizer sees of WSO2 Integrator's cloud state. */
 export interface PlatformExtState {
     isExtInstalled?: boolean;
@@ -145,6 +154,20 @@ export interface PlatformExtState {
     /** Why the project's environments could not be read, or that it has none; unset while they load and once they have. */
     envsError?: string;
     devantConns?: PlatformExtConnectionState;
+    /** The platform WSO2 Integrator works against when it is not WSO2 Cloud, such as `devant`. */
+    platform?: string;
+    /** On Devant, what the screens written for it read, in the shapes WSO2 Integrator 5.1 answered with. */
+    devant?: DevantPlatformExtState;
+}
+
+/** The Devant screens' state: the person, the open directory's components, the project and its environments. */
+export interface DevantPlatformExtState {
+    userInfo: LegacyUserInfo | null;
+    components: LegacyComponentKind[];
+    selectedComponent?: LegacyComponentKind;
+    selectedContext?: LegacyContextItemEnriched;
+    envs?: LegacyEnvironment[];
+    selectedEnv?: LegacyEnvironment;
 }
 
 export interface DevantTempConfig {
