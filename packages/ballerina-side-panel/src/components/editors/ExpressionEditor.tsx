@@ -49,7 +49,6 @@ import {
     SubPanelView,
     Type
 } from '@wso2/ballerina-core';
-import ReactMarkdown from 'react-markdown';
 import { FieldProvider } from "./FieldContext";
 import { useModeSwitcherContext } from "./ModeSwitcherContext";
 import ModeSwitcher from '../ModeSwitcher';
@@ -60,7 +59,11 @@ import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';
 
 import { FieldTypeChip } from "./FieldTypeChip";
-import { EditorMdContainer as SharedEditorMdContainer, formatFieldDocumentation } from "./FieldDescription";
+import {
+    EditorMdContainer as SharedEditorMdContainer,
+    FieldDescription,
+    formatFieldDocumentation
+} from "./FieldDescription";
 export type ContextAwareExpressionEditorProps = {
     id?: string;
     fieldKey?: string;
@@ -693,9 +696,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                     {isLoading ? (
                                         documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
-                                        <S.EditorMdContainer>
-                                            {documentation && <ReactMarkdown>{documentation}</ReactMarkdown>}
-                                        </S.EditorMdContainer>
+                                        <FieldDescription documentation={field.documentation} />
                                     )}
                                 </S.HeaderMain>
                                 {modeSwitcherNode}

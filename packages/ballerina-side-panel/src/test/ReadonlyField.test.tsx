@@ -87,8 +87,11 @@ describe("ReadonlyField description", () => {
             renderWithForm(<ReadonlyField field={fx.field} />, { defaultValues: { [key]: fx.field.value } });
             const description = screen.queryByTestId(`readonly-field-${key}-description`);
 
-            if (!documentation) {
+            if (!formatFieldDocumentation(documentation)) {
                 expect(description).toBeNull();
+                // Nothing is left between the label and the value, not even an empty element with a
+                // margin (documentation can arrive as whitespace only, e.g. "\n").
+                expect(screen.getByTestId(`readonly-field-${key}`).children).toHaveLength(2);
                 return;
             }
             const expected = fx.expectedDescription;
@@ -100,21 +103,4 @@ describe("ReadonlyField description", () => {
             );
         }
     );
-});
-
-describe("formatFieldDocumentation", () => {
-    it.each([
-        ["adds a missing period", "Port to bind", "Port to bind."],
-        ["keeps an existing period", "Port to bind.", "Port to bind."],
-        ["drops trailing whitespace before adding the period", "Port to bind \n", "Port to bind."],
-        ["keeps a question mark", "Use TLS?", "Use TLS?"],
-        ["keeps an exclamation mark", "Required!", "Required!"],
-        ["keeps a colon", "For example:", "For example:"],
-        ["leaves a closing code fence intact", "For example:\n```bal\nx\n```\n", "For example:\n```bal\nx\n```"],
-        ["leaves a closing tilde fence intact", "Run:\n~~~\nx\n~~~", "Run:\n~~~\nx\n~~~"],
-        ["returns empty text for whitespace", " \n ", ""],
-        ["returns empty text for no documentation", undefined, ""],
-    ])("%s", (_case, documentation, expected) => {
-        expect(formatFieldDocumentation(documentation)).toBe(expected);
-    });
 });

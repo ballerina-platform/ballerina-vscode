@@ -41,7 +41,8 @@ const Label = styled.div`
     margin-bottom: 4px;
 `;
 
-const Description = styled.div`
+// Styles FieldDescription's own container, so no margin is left behind when it renders nothing.
+const Description = styled(FieldDescription)`
     margin-top: 4px;
     margin-bottom: 4px;
     text-align: left;
@@ -212,14 +213,7 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                 {!field.optional && <RequiredFormInput />}
                 <FieldTypeChip types={field.types} />
             </Label>
-            {field.documentation && (
-                <Description>
-                    <FieldDescription
-                        documentation={field.documentation}
-                        testId={`readonly-field-${field.key}-description`}
-                    />
-                </Description>
-            )}
+            <Description documentation={field.documentation} testId={`readonly-field-${field.key}-description`} />
             <InputContainer>
                 {isExpression && (
                     <ExpressionRibbon>

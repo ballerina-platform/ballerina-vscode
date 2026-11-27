@@ -139,18 +139,22 @@ export function formatFieldDocumentation(documentation?: string): string {
 interface FieldDescriptionProps {
     documentation?: string;
     testId?: string;
+    // Lets a caller style the container itself, e.g. styled(FieldDescription), instead of wrapping
+    // it in an element that would stay behind when there is nothing to show.
+    className?: string;
 }
 
 /**
- * Renders a field's documentation as markdown, the same way ExpressionEditor does.
+ * Renders a field's documentation as markdown, or nothing when there is no documentation to show.
+ * ExpressionEditor and ReadonlyField both render descriptions through it, so the two stay alike.
  */
-export function FieldDescription({ documentation, testId }: FieldDescriptionProps) {
+export function FieldDescription({ documentation, testId, className }: FieldDescriptionProps) {
     const text = formatFieldDocumentation(documentation);
     if (!text) {
         return null;
     }
     return (
-        <EditorMdContainer data-testid={testId}>
+        <EditorMdContainer className={className} data-testid={testId}>
             <ReactMarkdown>{text}</ReactMarkdown>
         </EditorMdContainer>
     );
