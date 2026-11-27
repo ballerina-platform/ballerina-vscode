@@ -27,7 +27,11 @@ jest.mock("../utils/cloud-auth", () => ({
     onDidChangeCloudSessions: () => ({ dispose: () => undefined }),
 }));
 jest.mock("../stateMachine", () => ({ StateMachine: { context: () => ({}) } }));
-jest.mock("../BalExtensionContext", () => ({ extension: { context: { workspaceState: { get: (): undefined => undefined, update: async () => undefined } } } }));
+/** What the workspace holds for the store; a case replaces it to fail a read. */
+let mockStored: () => string | undefined = () => undefined;
+jest.mock("../BalExtensionContext", () => ({
+    extension: { context: { workspaceState: { get: () => mockStored(), update: async () => undefined } } },
+}));
 jest.mock("../utils", () => ({ updateSourceCode: jest.fn(), debug: jest.fn() }));
 jest.mock("../utils/logger", () => ({ log: jest.fn() }));
 jest.mock("@wso2/ballerina-core", () => ({ isSamePath: jest.fn() }));
@@ -41,11 +45,34 @@ jest.mock("../utils/config", () => ({ getOrgPackageName: jest.fn() }));
 import { DEVANT_PLATFORM } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
 import { window } from "vscode";
 import { DevantPlatformExtRpcManager } from "../rpc-managers/platform-ext/devant/rpc-manager";
-import { platformExtStore } from "../rpc-managers/platform-ext/platform-store";
+import { hydratePlatformExtStore, platformExtStore } from "../rpc-managers/platform-ext/platform-store";
 import { PlatformExtRpcManager } from "../rpc-managers/platform-ext/rpc-manager";
 
 const connections = () => platformExtStore.getState().state.devantConns;
 const listed = [{ name: "orders" }] as never[];
+
+describe("the stored state, read once for both managers", () => {
+    it("tries again after a read that failed, and reads no more once one has taken", async () => {
+        let reads = 0;
+        mockStored = () => {
+            reads++;
+            throw new Error("storage is not ready");
+        };
+        await hydratePlatformExtStore();
+        expect(platformExtStore.persist.hasHydrated()).toBe(false);
+
+        // Nothing stored yet is a read that took.
+        mockStored = () => {
+            reads++;
+            return undefined;
+        };
+        await hydratePlatformExtStore();
+        expect(platformExtStore.persist.hasHydrated()).toBe(true);
+
+        await Promise.all([hydratePlatformExtStore(), hydratePlatformExtStore()]);
+        expect(reads).toBe(2);
+    });
+});
 
 describe("a connection list read while the platform switches", () => {
     beforeEach(() => {

@@ -69,8 +69,14 @@ jest.mock("../../../../../views/BI/Connection/DatabaseConnectionPopup", () => ({
     fetchConnectorCredentials: () => Promise.resolve({ success: true, connectorCredentials: { properties: credentialProperties } }),
 }));
 
+/** What the screen reads of a connection: its entries per environment. */
+interface ConnectionAnswer {
+    configurations: Record<string, { entries: Record<string, { value?: string; isSensitive?: boolean; isFile?: boolean; valueRef?: string }> }>;
+}
+
 const platformRpcClient = {
-    getConnection: jest.fn(() =>
+    getConnection: jest.fn(
+        (): Promise<ConnectionAnswer> =>
         Promise.resolve({
             configurations: {
                 dev: {
@@ -196,7 +202,7 @@ describe("EditConnectorForm with a Devant connection", () => {
                         },
                     },
                 },
-            } as any)
+            })
         );
         mockPlatformExtState = {
             isLoggedIn: true,

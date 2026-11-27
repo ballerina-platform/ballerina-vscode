@@ -46,9 +46,11 @@ let hydration: Promise<void> | undefined;
  * A read that fails is forgotten, so the next caller tries again.
  */
 export function hydratePlatformExtStore(): Promise<void> {
-    hydration ??= Promise.resolve(platformExtStore.persist.rehydrate()).catch((error) => {
-        hydration = undefined;
-        throw error;
+    hydration ??= Promise.resolve(platformExtStore.persist.rehydrate()).then(() => {
+        // rehydrate() resolves on a failed read too; the store says whether it took.
+        if (!platformExtStore.persist.hasHydrated()) {
+            hydration = undefined;
+        }
     });
     return hydration;
 }

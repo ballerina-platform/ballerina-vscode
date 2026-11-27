@@ -366,7 +366,8 @@ export const getWorkspaceStateStore = (storeName: string): PersistOptions<any, a
         storage: createJSONStorage(() => ({
             getItem: async (name) => {
                 const value = await extension.context.workspaceState.get(name);
-                return value ? (value as string) : "";
+                // Nothing stored yet is not a failed read: null, since "" does not parse.
+                return value ? (value as string) : null;
             },
             removeItem: (name) => extension.context.workspaceState.update(name, undefined),
             setItem: (name, value) => extension.context.workspaceState.update(name, value),
