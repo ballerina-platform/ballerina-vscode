@@ -164,21 +164,23 @@ task (Cmd+Shift+P → "Tasks: Run Task") and then launch **Attach to Ballerina L
 How to run, write, and add tests at every level is in [docs/TEST_GUIDE.md](docs/TEST_GUIDE.md). In short,
 we push tests **down** a layered pyramid so most coverage is fast and deterministic:
 
-| Layer | What | Runs in |
+| Level | What | Runs in |
 |---|---|---|
-| **L0** Static | TS strict + shared contract types | compile |
-| **L1** Unit | pure logic (codegen, search, range math) | Jest, node |
+| **L1** Unit / contract | pure logic (codegen, search, range math) + shared-type (enum) invariants | Jest, node |
 | **L2** Component | fixture → render → assert *semantics* (the workhorse: forms, diagrams) | Jest + jsdom + RTL |
-| **L3** Contract | rpc-manager request/response shapes vs recorded LS fixtures | Jest, node, `vscode` mocked |
-| **L4** Integration | a real headless LS over stdio (no VSCode) + nightly fixture validation | Jest, node |
-| **L5** E2E smoke | ~critical journeys only | Playwright + VSCode |
-| **L6** QA-owned | visual / UX / perf — not automated | humans + perf scripts |
+| **L3** Integration | a real headless LS over stdio (no VSCode) + nightly fixture validation | Jest, node |
+| **L4** E2E smoke | ~critical journeys only | Playwright + VSCode |
+| _orthogonal_ · **Perf / QA** | latency baselines, visual / a11y | Jest, node + humans |
 
 **Deciding where a test goes:** pure in/out → L1. "Does the right UI render for this
-data?" → L2. "Do the two sides exchange the right message?" → L3. "Does the LS produce
-the right model?" → L4. Whole app → L5 (only if no lower layer can see it).
+data?" → L2. "Do the host and the real LS exchange the right message and produce the
+right model?" → L3. Whole app → L4 (only if no lower level can see it).
 
-### Running the fast tests (L0–L3)
+The language server also has its own Gradle/TestNG suite in
+`packages/ballerina-language-server`, outside this pyramid. See
+[Language server tests (Java)](docs/TEST_GUIDE.md#language-server-tests-java).
+
+### Running the fast tests (L1–L2)
 
 Fast tests use **Jest** (Node ≥ 20 required):
 

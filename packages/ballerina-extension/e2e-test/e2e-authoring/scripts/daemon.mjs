@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Demo-skill style Ballerina E2E writer daemon.
+ * Demo-skill style E2E test writer daemon.
  *
  * This intentionally launches VS Code through @wso2/playwright-vscode-tester,
  * matching the committed E2E runner, then exposes a tiny HTTP endpoint that
@@ -277,7 +277,7 @@ http.createServer((req, res) => {
   fs.writeFileSync(pidFile, String(process.pid));
   fs.writeFileSync(execScript, `#!/bin/bash\nexec curl -s --fail-with-body --max-time \${TIMEOUT:-900} -X POST http://127.0.0.1:${port} --data-binary @-\n`, { mode: 0o755 });
   log(`ready on :${port}`);
-  console.error(`ballerina-e2e-writer daemon '${sessionName}' ready: ${execScript}`);
+  console.error(`e2e-test-writer daemon '${sessionName}' ready: ${execScript}`);
 });
 
 process.on('SIGTERM', async () => {
