@@ -23,6 +23,7 @@ import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon, NodeIcon } from "@wso2/bi-diagram";
 import { MarkdownDescription } from "@wso2/ballerina-side-panel";
 import { actionDisplayLabel, formatResourceSignature } from "./connectorActions";
+import { actionMatchesSearch } from "./connectorSearch";
 import {
     Container,
     EmptyState,
@@ -183,23 +184,10 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
     const [searchText, setSearchText] = useState<string>("");
 
     const filteredActions = useMemo(() => {
-        const query = searchText.trim().toLowerCase();
-        if (!query) {
+        if (!searchText.trim()) {
             return actions;
         }
-        return actions.filter((action) => {
-            const label = `${action.metadata?.label ?? ""} ${actionDisplayLabel(action.metadata?.label)}`
-                .toLowerCase();
-            const description = action.metadata?.description?.toLowerCase() ?? "";
-            const symbol = action.codedata?.symbol?.toLowerCase() ?? "";
-            const resourcePath = action.codedata?.resourcePath?.toLowerCase() ?? "";
-            return (
-                label.includes(query) ||
-                description.includes(query) ||
-                symbol.includes(query) ||
-                resourcePath.includes(query)
-            );
-        });
+        return actions.filter((action) => actionMatchesSearch(action, searchText));
     }, [actions, searchText]);
 
     const searchPlaceholder = actions.length > 0

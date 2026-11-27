@@ -152,7 +152,6 @@ Open the repo in VS Code and press **F5**. The root `.vscode/launch.json` provid
 |---|---|
 | **Ballerina Extension** | Primary: extension host + `watch-ballerina` |
 | **Ballerina Extension (no watch)** | Faster launch if you've already built |
-| **Ballerina Extension Tests** | Mocha tests in extension host |
 | **Ballerina Extension AI Tests** | AI test fixtures |
 | **Debug Ballerina UI Tests** | vscode-extension-tester (Selenium-style) |
 | **Attach to Ballerina Language Server** | Java debugger attach on port 5005 |
@@ -171,7 +170,7 @@ we push tests **down** a layered pyramid so most coverage is fast and determinis
 | **L1** Unit | pure logic (codegen, search, range math) | Jest, node |
 | **L2** Component | fixture → render → assert *semantics* (the workhorse: forms, diagrams) | Jest + jsdom + RTL |
 | **L3** Contract | rpc-manager request/response shapes vs recorded LS fixtures | Jest, node, `vscode` mocked |
-| **L4** LS integration | a real headless LS over stdio (no VSCode) + nightly fixture validation | Jest, node |
+| **L4** Integration | a real headless LS over stdio (no VSCode) + nightly fixture validation | Jest, node |
 | **L5** E2E smoke | ~critical journeys only | Playwright + VSCode |
 | **L6** QA-owned | visual / UX / perf — not automated | humans + perf scripts |
 
@@ -315,9 +314,7 @@ monorepo. If you want them to land here, push them upstream to
   it anywhere; anything committed to it is gone by the next run.
 
 PR → `main` triggers `pull-request.yml` (extension build + tests, LS build if you
-touched LS code). PR → a `X.Y.x` release line is intended to add the bal E2E suite
-automatically, but that suite is currently disabled and does not run until the
-`ExtTest_Ballerina` job is re-enabled.
+touched LS code).
 
 The version lives in **`packages/ballerina-extension/package.json`** — that is the single
 source of truth — and on `main` it always names the *next* release as a snapshot, e.g.
@@ -349,6 +346,8 @@ Release process is documented at `.github/workflows/README.md`:
   *why* is far more valuable than ten one-line conventional commits.
 - Add labels on PRs to opt into heavier CI:
     - `Checks/Run Ballerina UI Tests` — runs the bal E2E suite on the PR
+    - `Checks/Run Integration Tests` — runs the L3 integration tests and capture drift
+      checks against the LS jar the PR builds
     - `Runner/AWS` — runs CI on the AWS CodeBuild runner pool
 
 ## Troubleshooting

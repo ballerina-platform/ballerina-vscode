@@ -348,7 +348,7 @@ jobs:
         working-directory: packages/ballerina-extension
         env:
           BAL_LS_JAR: ${{ github.workspace }}/ls-jar/ballerina-language-server-${{ matrix.version }}.jar
-          # Fail instead of skipping when the jar, distribution or JDK is not found.
+          # Branches whose reliability test predates resolveIntegrationLaunch() skip without this.
           BAL_RELIABILITY_REQUIRED: 'true'
         run: |
           set -euo pipefail
@@ -594,6 +594,8 @@ jobs:
       # TODO: Re-enable tests once the tests are stable.
       runFrontendTests: false
       runBackendTests: false
+      # The Tag job needs Build, so a failing integration test stops the nightly tag.
+      runIntegrationTests: ${{ !inputs.skipLSTests }}
 
   # Keep a stable ref for the most recent nightly that passed every validation job. The
   # 'nightly' tag and the 'nightly' release are both overwritten each run — no nightly

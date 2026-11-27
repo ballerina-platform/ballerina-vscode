@@ -64,6 +64,8 @@ import {
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
+    ConnectionConfigurablesRequest,
+    ConnectionConfigurablesResponse,
     BISourceCodeResponse,
     BISuggestedFlowModelRequest,
     BI_COMMANDS,
@@ -198,7 +200,7 @@ import { DebugProtocol } from "vscode-debugprotocol";
 import { selectIntegrationType as pickIntegrationType } from "../../features/devant/integration-type";
 import { extension } from "../../BalExtensionContext";
 import { notifyCurrentWebview } from "../../RPCLayer";
-import { OLD_BACKEND_URL } from "../../features/ai/utils";
+import { getOldBackendUrl } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
 import { BreakpointManager } from "../../features/debugger/breakpoint-manager";
@@ -230,6 +232,8 @@ import { openAIPanelWithPrompt } from "../../views/ai-panel/aiMachine";
 import { getCurrentBallerinaProject, getCurrentProjectRoot } from "../../utils/project-utils";
 import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
+import { renameFilePath } from "./rename-path";
+import { configTomlRenameEdits, saveOpenConfigTomls } from "./configurable-rename";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
 import { isAiSourceParseable } from "../diagram-validity";
@@ -360,12 +364,39 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
+    /**
+     * The configurable each literal of a connection, new or edited, gets when it is saved, without saving it, so the
+     * connection form can show the names beside the fields.
+     */
+    async getConnectionConfigurables(params: ConnectionConfigurablesRequest): Promise<ConnectionConfigurablesResponse> {
+        try {
+            // The LS reads the configurables' values from Config.toml on disk, so unsaved editor text must reach it
+            // first, as it does before saving the connection. Only this project's: the preview runs as the user types.
+            const errorMessage = await saveOpenConfigTomls(StateMachine.context().projectPath);
+            if (errorMessage) {
+                return { configurables: [], errorMsg: errorMessage };
+            }
+            return await StateMachine.langClient().getConnectionConfigurables(params);
+        } catch (error) {
+            return { configurables: [], errorMsg: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
     async getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
-        console.log(">>> requesting bi source code from ls", params);
+        // Not the node itself, nor the edits below: a connection's can hold its configurables' values from Config.toml.
+        console.log(">>> requesting bi source code from ls", { filePath: params.filePath, node: params.flowNode?.codedata?.node });
         try {
             this.ensureTargetFileExists(params.filePath);
+            if (params?.isConnector) {
+                // The LS computes a connection's Config.toml edits from disk, so unsaved editor text must reach it first.
+                const errorMessage = await saveOpenConfigTomls();
+                if (errorMessage) {
+                    window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
+                    return { artifacts: [], error: errorMessage };
+                }
+            }
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
-            console.log(">>> bi source code from ls", model);
+            console.log(">>> bi source code from ls", { files: Object.keys(model?.textEdits ?? {}), error: model?.errorMsg });
 
             if (model?.errorMsg) {
                 const errorMessage = model.errorMsg;
@@ -385,7 +416,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             }
 
             if (params?.isConnector) {
-                const artifacts = await updateSourceCode({ textEdits: model.textEdits, description: this.getSourceDescription(params) });
+                // A connection save can also write config.bal and Config.toml; only the connection's own artifact answers it.
+                const artifacts = await updateSourceCode({
+                    textEdits: model.textEdits,
+                    artifactData: {
+                        artifactType: DIRECTORY_MAP.CONNECTION,
+                        identifier: params.flowNode.properties?.variable?.value?.toString()
+                    },
+                    description: this.getSourceDescription(params),
+                    skipUpdateViewOnTomlUpdate: true
+                });
                 return { artifacts };
             }
 
@@ -969,7 +1009,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     };
                     console.log(">>> request ai suggestion", { request: requestBody });
                     // generate new nodes
-                    const response = await fetchWithAuth(OLD_BACKEND_URL + "/inline/generation", requestOptions);
+                    const response = await fetchWithAuth(getOldBackendUrl() + "/inline/generation", requestOptions);
                     if (!response.ok) {
                         console.log(">>> ai completion api call failed ", response.status);
                         console.log(">>> ai completion api call failed ", response);
@@ -1482,9 +1522,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const context = StateMachine.context();
             if (!context.projectPath) {
                 console.log(">>> projectPath not found in the context");
-                return new Promise((resolve) => {
-                    resolve(undefined);
-                });
+                resolve(undefined);
+                return;
             }
 
             const params: BIModuleNodesRequest = {
@@ -1499,9 +1538,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 })
                 .catch((error) => {
                     console.log(">>> error fetching bi module nodes from ls", error);
-                    return new Promise((resolve) => {
-                        resolve(undefined);
-                    });
+                    // Settled, so a caller waiting on it (a retry, a spinner) can go on.
+                    resolve(undefined);
                 });
         });
     }
@@ -1954,6 +1992,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 .updateType({ filePath, type: params.type, description: "" })
                 .then(async (updateTypeResponse: UpdateTypeResponse) => {
                     console.log(">>> update type response", updateTypeResponse);
+                    if (updateTypeResponse.errorMsg) {
+                        // The type was rejected, so there are no edits to apply.
+                        reject(new Error(updateTypeResponse.errorMsg));
+                        return;
+                    }
                     await updateSourceCode({ textEdits: updateTypeResponse.textEdits, description: 'Type Update', identifier: params.type.name });
                     resolve(updateTypeResponse);
                 }).catch((error) => {
@@ -2049,7 +2092,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         };
         console.log(">>> request ai suggestion", { request: requestBody });
         // generate new nodes
-        const response = await fetchWithAuth(OLD_BACKEND_URL + "/completion", requestOptions);
+        const response = await fetchWithAuth(getOldBackendUrl() + "/completion", requestOptions);
         if (!response.ok) {
             console.log(">>> ai completion api call failed ", response);
             return new Promise((resolve) => {
@@ -2124,6 +2167,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 resolve(res);
             } catch (error) {
                 console.log(error);
+                resolve({ errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
     }
@@ -2148,6 +2192,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 resolve(res);
             } catch (error) {
                 console.log(error);
+                resolve({ errorMsg: error instanceof Error ? error.message : String(error) });
             }
         });
     }
@@ -2224,8 +2269,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async renameIdentifier(params: RenameIdentifierRequest): Promise<boolean> {
-        const projectPath = StateMachine.context().projectPath;
-        const filePath = path.join(projectPath, params.fileName);
+        const filePath = renameFilePath(StateMachine.context().projectPath, params.fileName);
         const fileUri = Uri.file(filePath).toString();
         // The name is typed plain (issue-number, type); the language server's rename takes it in source form
         const newName = toSourceIdentifier(params.newName);
@@ -2237,13 +2281,34 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             newName
         };
         try {
+            // A configurable's value in Config.toml is renamed with it. Worked out before the rename, from the files
+            // as saved: if the language server refuses it, nothing is renamed, so the configurable keeps its value.
+            let configTomlEdits: { [key: string]: TextEdit[] } = {};
+            if (params.configurableName) {
+                const result = await configTomlRenameEdits(
+                    { filePath, name: params.configurableName, newName: params.newName },
+                    (editsRequest) => StateMachine.langClient().getConfigurableRenameEdits(editsRequest)
+                );
+                if ("error" in result) {
+                    window.showErrorMessage(`Could not rename ${params.configurableName}: ${result.error}`);
+                    return false;
+                }
+                configTomlEdits = result.edits;
+            }
             const workspaceEdit = await StateMachine.langClient().rename(request);
             // Resolves to whether the LS sent edits to apply: a rename at a position with no
             // identifier comes back empty and leaves the source as it was.
             const hasEdits = !!workspaceEdit && 'changes' in workspaceEdit && !!workspaceEdit.changes
                 && Object.values(workspaceEdit.changes).some((edits) => edits?.length > 0);
             if (hasEdits) {
-                const response = await updateSourceCode({ textEdits: workspaceEdit.changes, description: 'Rename for ' + params.newName, isRenameOperation: true });
+                // One update applies the source edits, then the Config.toml ones. The view waits for the source's
+                // artifacts as for any rename, rather than returning early as it does for Config.toml alone.
+                const response = await updateSourceCode({
+                    textEdits: { ...workspaceEdit.changes, ...configTomlEdits },
+                    description: 'Rename for ' + params.newName,
+                    isRenameOperation: true,
+                    skipUpdateViewOnTomlUpdate: Object.keys(configTomlEdits).length > 0
+                });
                 if (response && response.length > 0) {
                     // Find the artifact that is renamed or send all
                     const artifact = response.find(res => [params.newName, newName].includes(res.name)

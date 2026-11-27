@@ -257,6 +257,7 @@ export interface BaseType {
     patternErrorMessage?: string; // custom error message when pattern validation fails
     validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
     extensions?: string[];
+    typedesc?: string; // the typedesc a TYPE input stands for, set only on a typedesc's type editor
 }
 
 export interface EnumOptions {
@@ -711,6 +712,7 @@ export type NodeKind =
     | "WHILE"
     | "WORKFLOW"
     | "WORKFLOW_RUN"
+    | "WORKFLOW_RUN_WITH_ID"
     | "CHILD_WORKFLOW_RUN"
     | "CHILD_WORKFLOW_CALL"
     | "CHILD_WORKFLOW_WAIT"
@@ -784,6 +786,8 @@ export type ConfigVariable = {
 export type FormDiagnostics = {
     key: string;
     diagnostics: VSCodeDiagnostic[];
+    /** The check did not run (e.g. the language server call failed), so `diagnostics` says nothing about the value. */
+    checkFailed?: boolean;
 };
 
 export type CompletionInsertText = {

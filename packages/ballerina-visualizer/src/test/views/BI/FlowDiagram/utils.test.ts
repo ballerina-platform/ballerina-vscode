@@ -40,6 +40,31 @@ describe("filterCategoriesLocally", () => {
             items: [{ title: "Pinecone Store", items: undefined }],
         },
         {
+            title: "Connections",
+            items: [
+                {
+                    title: "slackClient",
+                    items: [
+                        {
+                            id: "RESOURCE_ACTION_CALL",
+                            label: "post /chat.postMessage",
+                            description: "Sends a message to a channel",
+                        },
+                        {
+                            id: "RESOURCE_ACTION_CALL",
+                            label: "get /conversations.list",
+                            description: "Lists all channels in a Slack team",
+                        },
+                        {
+                            id: "REMOTE_ACTION_CALL",
+                            label: "uploadFile",
+                            description: "Uploads a file to a channel",
+                        },
+                    ],
+                },
+            ],
+        },
+        {
             title: "Workflow",
             items: [
                 {
@@ -111,6 +136,68 @@ describe("filterCategoriesLocally", () => {
     it("treats a node without keywords or method as label-only", () => {
         expect(workflowSteps(filterCategoriesLocally(categories, "sleep")).map((n: any) => n.label))
             .toEqual(["Sleep"]);
+    });
+
+    // The rule for a query of several words: each word is looked for on its own, so the words need not be
+    // adjacent, in order, or separated by a single space.
+    it.each([
+        ["human task"],
+        ["task human"],
+        ["human   task"],
+        [" human task "],
+        ["await human"],
+        ["hum tas"],
+    ])("finds a node by every word of %p, wherever each one sits", (query) => {
+        expect(workflowSteps(filterCategoriesLocally(categories, query)).map((n: any) => n.label))
+            .toEqual(["Human Task"]);
+    });
+
+    it("lets some words name the group an item sits in", () => {
+        const result = filterCategoriesLocally(categories, "azure instance-2");
+        expect(result).toHaveLength(1);
+        expect(result[0].items).toEqual([
+            { title: "Azure OpenAI", items: [{ title: "gpt-35-instance-2", items: undefined }] },
+        ]);
+    });
+
+    // A resource operation is shown under its description, so that is what a user types.
+    const slackOperations = (result: any[]) =>
+        result.find((c: any) => c.title === "Connections")?.items[0]?.items.map((n: any) => n.label) ?? [];
+
+    it.each([
+        ["sends", ["post /chat.postMessage"]],
+        ["sends a message", ["post /chat.postMessage"]],
+        ["message channel", ["post /chat.postMessage"]],
+        ["lists channels", ["get /conversations.list"]],
+        ["slack lists", ["get /conversations.list"]],
+        ["upload file", ["uploadFile"]],
+    ])("finds a connection operation by the name the palette shows for %p", (query, labels) => {
+        expect(slackOperations(filterCategoriesLocally(categories, query))).toEqual(labels);
+    });
+
+    it("does not search the markup of a description, which the palette does not show", () => {
+        const marked = [{
+            title: "Connections",
+            items: [{
+                title: "apiClient",
+                items: [{ id: "RESOURCE_ACTION_CALL", label: "get /users", description: "<span>Lists users</span>" }],
+            }],
+        }];
+        expect(filterCategoriesLocally(marked, "span")).toEqual([]);
+        expect(filterCategoriesLocally(marked, "lists users")).toHaveLength(1);
+    });
+
+    it("searches the description of resource operations only", () => {
+        expect(filterCategoriesLocally(categories, "uploads")).toEqual([]);
+    });
+
+    it("drops an item when one of the words is found nowhere", () => {
+        expect(filterCategoriesLocally(categories, "human pinecone")).toEqual([]);
+    });
+
+    it("does not match on a top-level category title alone", () => {
+        expect(filterCategoriesLocally(categories, "workflow")).toEqual([]);
+        expect(filterCategoriesLocally(categories, "workflow sleep")).toEqual([]);
     });
 
     it("returns no categories for a query that matches nothing", () => {

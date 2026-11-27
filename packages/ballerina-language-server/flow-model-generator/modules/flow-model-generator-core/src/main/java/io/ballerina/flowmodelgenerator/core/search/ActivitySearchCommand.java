@@ -36,7 +36,6 @@ import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -285,9 +284,6 @@ class ActivitySearchCommand extends SearchCommand {
      * @return true if it matches the query or query is empty, false otherwise
      */
     private boolean matchesQuery(String funcName) {
-        if (query == null || query.isEmpty()) {
-            return true;
-        }
-        return funcName.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
+        return WorkspaceModuleSearchUtils.nameMatchesQuery(funcName, query);
     }
 }

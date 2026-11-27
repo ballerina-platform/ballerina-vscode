@@ -18,7 +18,7 @@
 
 import type { Component, Environment } from "@wso2/wso2-cloud-client";
 import { GetMarketplaceListReq,MarketplaceListResp, GetMarketplaceIdlReq, MarketplaceIdlResp, ConnectionListItem, GetConnectionsReq, DeleteLocalConnectionsConfigReq, GetMarketplaceItemReq, MarketplaceItem, GetConnectionItemReq, ConnectionDetailed, CreateLocalConnectionsConfigReq, CreateThirdPartyConnectionReq, GetComponentsReq, GetDatabaseServerReq, DatabaseAdminCredential, DatabaseServer, MarketplaceDatabaseListResp, DatabaseCredential, GetProjectEnvsReq, CreateDatabaseConnectionReq, GetDatabaseItemReq, ResolveConnectionSecretsReq, ResolveConnectionSecretsResp } from "@wso2/wso2-platform-core"
-import { CloudAccess, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
+import { CloudAccess, CloudIntegrationStatus, CloudIntegrationStatusReq, CreateInternalConnectionReq, DeleteDevantTempConfigReq, GenerateCustomConnectorFromOASReq, GenerateCustomConnectorFromOASResp, AddDevantTempConfigReq, AddDevantTempConfigResp, ReplaceDevantTempConfigValuesReq, RegisterDevantMarketplaceServiceReq, InitializeDevantOASConnectionReq, InitializeDevantOASConnectionResp } from "./interfaces";
 export * from "./rpc-type"
 export * from "./utils"
 
@@ -65,6 +65,8 @@ export interface PlatformExtAPI {
     /** Reads the sign-in again without asking, for access granted from the Accounts menu, which VS Code does not announce. */
     refreshCloudAccess: () => Promise<CloudAccess>;
     getProjectEnvs: (params: GetProjectEnvsReq) => Promise<Environment[]>;
+    /** The integration's latest build and deployments in WSO2 Cloud; undefined when it is not there or the session cannot be used. */
+    getCloudIntegrationStatus: (params: CloudIntegrationStatusReq) => Promise<CloudIntegrationStatus | undefined>;
     resolveConnectionSecrets: (params: ResolveConnectionSecretsReq) => Promise<ResolveConnectionSecretsResp>;
     deployIntegrationInDevant: () => void;
     createConnectionConfig: (params: CreateLocalConnectionsConfigReq) => Promise<string>;

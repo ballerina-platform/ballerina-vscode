@@ -18,9 +18,10 @@
 
 // Reliability (non-functional, not a PR gate): no language server process may remain after
 // its client goes away, whether or not the client sends LSP `exit`
-// (wso2/product-integrator#2854). Runs the locally built LS jar (resolveLocalLsCommand), so it
-// checks this repo's LS rather than the one bundled with the distribution. Skips when the jar,
-// a Ballerina distribution or a Java 25+ JDK in the distribution is missing.
+// (wso2/product-integrator#2854). Runs the locally built LS jar (resolveIntegrationLaunch), so it
+// checks this repo's LS rather than the one bundled with the distribution. Fails when the jar,
+// a Ballerina distribution or a Java 25+ JDK in the distribution is missing, or when the jar is
+// older than the LS sources.
 //
 // These tests check the process, not the cause: the launcher's System.exit makes both pass
 // whatever threads are left. StartServerExitTest in the launcher module checks the exit
@@ -30,29 +31,16 @@
 import * as fs from "fs";
 import * as path from "path";
 import { ChildProcess } from "child_process";
-import { LsHarness, resolveLocalLsCommand, pathToFileUri } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch, pathToFileUri } from "@wso2/test-config/ls-harness";
 
-const launch = resolveLocalLsCommand();
-const projectRoot = path.join(__dirname, "..", "ls-integration", "fixtures", "hello");
+const launch = resolveIntegrationLaunch();
+const projectRoot = path.join(__dirname, "..", "integration", "fixtures", "hello");
 const mainBal = path.join(projectRoot, "main.bal");
 
 // The launcher calls System.exit once stdin closes, so the JVM exits within seconds. Without
 // that call it would wait for every non-daemon thread to end, including lsp4j's idle listener
 // thread, which ends only after 60 s.
 const EXIT_TIMEOUT_MS = 15_000;
-
-if (!launch) {
-    // The nightly sets BAL_RELIABILITY_REQUIRED, so a missing jar, distribution or JDK fails the
-    // job there instead of passing with no tests run.
-    if (process.env.BAL_RELIABILITY_REQUIRED === "true") {
-        throw new Error("[reliability] BAL_RELIABILITY_REQUIRED is set, but no local LS jar, "
-            + "Ballerina distribution or Java 25+ JDK was found.");
-    }
-    // eslint-disable-next-line no-console
-    console.warn("[reliability] No local LS jar, Ballerina distribution or Java 25+ JDK found; skipping.");
-}
-
-const describeReliability = launch ? describe : describe.skip;
 
 function waitForExit(proc: ChildProcess, timeoutMs: number): Promise<boolean> {
     if (proc.exitCode !== null || proc.signalCode !== null) {
@@ -103,7 +91,7 @@ function expectExitedOnItsOwn(proc: ChildProcess): void {
     expect(proc.signalCode).toBeNull();
 }
 
-describeReliability("Language server process exit (reliability)", () => {
+describe("Language server process exit (reliability)", () => {
     let ls: LsHarness | undefined;
 
     afterEach(async () => {
@@ -118,7 +106,7 @@ describeReliability("Language server process exit (reliability)", () => {
 
     // Assigns `ls` before the first await, so afterEach can kill the process if setup fails.
     function startLs(): LsHarness {
-        ls = new LsHarness(launch!);
+        ls = new LsHarness(launch);
         ls.start();
         return ls;
     }

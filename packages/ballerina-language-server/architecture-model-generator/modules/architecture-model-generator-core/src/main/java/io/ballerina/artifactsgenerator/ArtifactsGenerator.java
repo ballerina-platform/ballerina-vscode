@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -51,34 +52,108 @@ public class ArtifactsGenerator {
     public static Map<String, Map<String, Map<String, Artifact>>> artifactChanges(String projectPath,
                                                                                   SyntaxTree syntaxTree,
                                                                                   SemanticModel semanticModel) {
+        return artifactChanges(projectPath, syntaxTree, semanticModel, null);
+    }
+
+    /**
+     * Computes the artifact changes caused by a change to one document.
+     * <p>
+     * A document's artifacts can depend on another document: a TCP service lists the handlers of a connection
+     * service class declared elsewhere, and that class is then left out of Types. So when the changed document was,
+     * or now is, on either side of such a pair, every linked document is regenerated with it. Any other change
+     * regenerates the changed document alone.
+     *
+     * @param projectPath   the project path
+     * @param syntaxTree    the syntax tree of the changed document
+     * @param semanticModel the semantic model of the document's module
+     * @param module        the document's module, or null to look no further than the changed document
+     * @return the artifact changes, by category and event type
+     */
+    public static Map<String, Map<String, Map<String, Artifact>>> artifactChanges(String projectPath,
+                                                                                  SyntaxTree syntaxTree,
+                                                                                  SemanticModel semanticModel,
+                                                                                  Module module) {
+        return artifactChanges(projectPath, syntaxTree, semanticModel, module,
+                ArtifactsCache.getInstance().nextGeneration());
+    }
+
+    /**
+     * Computes the artifact changes caused by a change to one document, from a snapshot taken at the given
+     * generation.
+     * <p>
+     * Changes to different documents are computed concurrently, and one change can regenerate another document it is
+     * linked to. A document whose artifacts were already generated from a newer snapshot is left as it is, so an
+     * older snapshot never overwrites a newer result.
+     *
+     * @param projectPath   the project path
+     * @param syntaxTree    the syntax tree of the changed document
+     * @param semanticModel the semantic model of the document's module
+     * @param module        the document's module, or null to look no further than the changed document
+     * @param generation    the generation of the snapshot, from {@link ArtifactsCache#nextGeneration()}
+     * @return the artifact changes, by category and event type
+     */
+    public static Map<String, Map<String, Map<String, Artifact>>> artifactChanges(String projectPath,
+                                                                                  SyntaxTree syntaxTree,
+                                                                                  SemanticModel semanticModel,
+                                                                                  Module module, long generation) {
         if (!syntaxTree.containsModulePart()) {
             return Map.of();
         }
 
-        Map<String, List<String>> prevIdMap = new HashMap<>(
-                ArtifactsCache.getInstance().getArtifactIds(projectPath, syntaxTree.filePath()));
-        Map<String, List<String>> newIdMap = new HashMap<>();
+        TcpConnectionLinks links = TcpConnectionLinks.of(module, syntaxTree, semanticModel);
+        // Without the module, the links only cover the changed document, so they are not recorded over the module's
+        Set<String> previous = module == null ? Set.of() : ArtifactsCache.getInstance()
+                .recordLinkedDocuments(projectPath, module.moduleName().toString(), links.documents());
+        Set<String> documents = TcpConnectionLinks.withLinkedDocuments(syntaxTree.filePath(), previous,
+                links.documents());
 
         Map<String, Map<String, Map<String, Artifact>>> categoryMap = new HashMap<>();
-        List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel);
-        artifacts.forEach(artifact -> {
-            String category = Artifact.getCategory(artifact.type());
-            String artifactId = artifact.id();
-
-            // Determine if this is an update or an addition
-            String eventType = determineEventTypeAndRemove(prevIdMap.get(category), artifactId);
-
-            // Update the new artifact using helper
-            putArtifactInMap(categoryMap, category, eventType, artifactId, artifact);
-            newIdMap.computeIfAbsent(category, k -> new ArrayList<>()).add(artifactId);
-        });
-
-        // Process remaining items in prevIdMap as deletions
-        addDeletionsToCategoryMap(categoryMap, prevIdMap);
-
-        // Update the artifacts cache
-        ArtifactsCache.getInstance().updateArtifactIds(projectPath, syntaxTree.filePath(), newIdMap);
+        // One document at a time: each holds its cache lock only while it is regenerated, so no two locks are ever
+        // held together and concurrent changes cannot deadlock on each other's documents.
+        documents.stream().sorted().forEach(document -> links.syntaxTree(document).ifPresent(documentTree ->
+                addDocumentChanges(projectPath, documentTree, semanticModel, links, generation, categoryMap)));
         return categoryMap;
+    }
+
+    private static void addDocumentChanges(String projectPath, SyntaxTree syntaxTree, SemanticModel semanticModel,
+                                           TcpConnectionLinks links, long generation,
+                                           Map<String, Map<String, Map<String, Artifact>>> categoryMap) {
+        // getArtifactIds takes the document's cache lock and only updateArtifactIds releases it, so the update runs
+        // in a finally block. If generation fails, the cached ids are written back unchanged.
+        Map<String, List<String>> cachedIdMap =
+                ArtifactsCache.getInstance().getArtifactIds(projectPath, syntaxTree.filePath());
+        Map<String, List<String>> idMapToCache = cachedIdMap;
+        try {
+            // A newer snapshot already published this document, through a change to a document linked to it
+            if (ArtifactsCache.getInstance().hasNewerGeneration(projectPath, syntaxTree.filePath(), generation)) {
+                return;
+            }
+            // The cached lists are copied, since matching removes ids from them
+            Map<String, List<String>> prevIdMap = new HashMap<>();
+            cachedIdMap.forEach((category, ids) -> prevIdMap.put(category, new ArrayList<>(ids)));
+            Map<String, List<String>> newIdMap = new HashMap<>();
+
+            List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel, links);
+            artifacts.forEach(artifact -> {
+                String category = Artifact.getCategory(artifact.type());
+                String artifactId = artifact.id();
+
+                // Determine if this is an update or an addition
+                String eventType = determineEventTypeAndRemove(prevIdMap.get(category), artifactId);
+
+                // Update the new artifact using helper
+                putArtifactInMap(categoryMap, category, eventType, artifactId, artifact);
+                newIdMap.computeIfAbsent(category, k -> new ArrayList<>()).add(artifactId);
+            });
+
+            // Process remaining items in prevIdMap as deletions
+            addDeletionsToCategoryMap(categoryMap, prevIdMap);
+            idMapToCache = newIdMap;
+        } finally {
+            // Update the artifacts cache and release the lock
+            ArtifactsCache.getInstance().updateArtifactIds(projectPath, syntaxTree.filePath(), idMapToCache,
+                    generation);
+        }
     }
 
     public static Map<String, Map<String, Artifact>> artifacts(Project project) {
@@ -89,12 +164,13 @@ public class ArtifactsGenerator {
 
         Map<String, Map<String, Artifact>> artifactMap = new ConcurrentHashMap<>();
         ConcurrentMap<String, Map<String, List<String>>> documentMap = new ConcurrentHashMap<>();
+        TcpConnectionLinks links = TcpConnectionLinks.of(defaultModule, null, semanticModel);
         defaultModule.documentIds().stream().parallel().forEach(documentId -> {
             Document document = defaultModule.document(documentId);
             Map<String, List<String>> idMap = new HashMap<>();
             SyntaxTree syntaxTree = document.syntaxTree();
             String projectPath = project.sourceRoot().toAbsolutePath().toString();
-            List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel);
+            List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel, links);
             artifacts.forEach(artifact -> {
                 String category = Artifact.getCategory(artifact.type());
                 String artifactId = artifact.id();
@@ -105,6 +181,8 @@ public class ArtifactsGenerator {
         });
 
         ArtifactsCache.getInstance().initializeProject(project.sourceRoot().toString(), documentMap);
+        ArtifactsCache.getInstance().recordLinkedDocuments(project.sourceRoot().toString(),
+                defaultModule.moduleName().toString(), links.documents());
         return artifactMap;
     }
 
@@ -120,6 +198,7 @@ public class ArtifactsGenerator {
                 ArtifactsCache.getInstance().getProjectDocuments(projectId);
         ConcurrentMap<String, Map<String, Map<String, Artifact>>> combinedDeltas = new ConcurrentHashMap<>();
         ConcurrentMap<String, Map<String, List<String>>> newDocumentMap = new ConcurrentHashMap<>();
+        TcpConnectionLinks links = TcpConnectionLinks.of(defaultModule, null, semanticModel);
         defaultModule.documentIds().stream().parallel().forEach(documentId -> {
             Document document = defaultModule.document(documentId);
             String documentName = document.name();
@@ -134,7 +213,7 @@ public class ArtifactsGenerator {
             Map<String, Map<String, Map<String, Artifact>>> documentDeltas = new HashMap<>();
 
             String projectPath = project.sourceRoot().toAbsolutePath().toString();
-            List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel);
+            List<Artifact> artifacts = collectArtifactsFromSyntaxTree(projectPath, syntaxTree, semanticModel, links);
             artifacts.forEach(artifact -> {
                 String category = Artifact.getCategory(artifact.type());
                 String artifactId = artifact.id();
@@ -164,17 +243,20 @@ public class ArtifactsGenerator {
 
         // Update cache with new project artifacts
         ArtifactsCache.getInstance().initializeProject(projectId, newDocumentMap);
+        ArtifactsCache.getInstance().recordLinkedDocuments(projectId, defaultModule.moduleName().toString(),
+                links.documents());
         return combinedDeltas;
     }
 
     private static List<Artifact> collectArtifactsFromSyntaxTree(String projectPath, SyntaxTree syntaxTree,
-                                                                 SemanticModel semanticModel) {
+                                                                 SemanticModel semanticModel,
+                                                                 TcpConnectionLinks links) {
         List<Artifact> artifacts = new ArrayList<>();
         if (!syntaxTree.containsModulePart()) {
             return artifacts;
         }
         ModulePartNode rootNode = syntaxTree.rootNode();
-        ModuleNodeTransformer moduleNodeTransformer = new ModuleNodeTransformer(projectPath, semanticModel);
+        ModuleNodeTransformer moduleNodeTransformer = new ModuleNodeTransformer(projectPath, semanticModel, links);
         rootNode.members().stream()
                 .map(member -> member.apply(moduleNodeTransformer))
                 .flatMap(Optional::stream)

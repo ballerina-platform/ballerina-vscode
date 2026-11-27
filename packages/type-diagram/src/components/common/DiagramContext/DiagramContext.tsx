@@ -17,7 +17,7 @@
  */
 
 import React, { createContext, ReactNode } from 'react';
-import { Type } from '@wso2/ballerina-core';
+import { Type, TypeFunctionModel } from '@wso2/ballerina-core';
 
 interface DiagramContextProps {
     children?: ReactNode;
@@ -29,8 +29,14 @@ interface DiagramContextProps {
     setSelectedNodeId?: (id: string) => void;
     onEditNode?: (id: string, isGraphqlRoot?: boolean) => void;
     goToSource?: (node: Type) => void,
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
+    /** Opens the request context editor; the root node offers it when given. */
+    onOpenRequestContext?: () => void;
 }
 
 interface IDiagramContext {
@@ -42,8 +48,15 @@ interface IDiagramContext {
     setSelectedNodeId?: (id: string) => void;
     onEditNode?: (id: string, isGraphqlRoot?: boolean) => void;
     goToSource?: (node: Type) => void
+    /** Opens a class method's implementation; the method names of a class are links only when set. */
+    onFunctionOpen?: (node: Type, func: TypeFunctionModel) => void;
     onNodeDelete?: (typeId: string) => void;
     verifyTypeDelete?: (typeId: string) => Promise<boolean>;
+    onOperationSelect?: (operation: TypeFunctionModel) => void;
+    /** Whether the GraphQL service has a request context, which its root node then indicates. */
+    hasRequestContext?: boolean;
+    /** Opens the request context editor; the root node offers it when given. */
+    onOpenRequestContext?: () => void;
 }
 
 const defaultState: any = {};
@@ -60,8 +73,12 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         setSelectedNodeId,
         onEditNode,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        onOperationSelect,
+        hasRequestContext,
+        onOpenRequestContext
     } = props;
 
     let context: IDiagramContext = {
@@ -73,8 +90,12 @@ export function DesignDiagramContext(props: DiagramContextProps) {
         setSelectedNodeId,
         onEditNode,
         goToSource,
+        onFunctionOpen,
         onNodeDelete,
-        verifyTypeDelete
+        verifyTypeDelete,
+        onOperationSelect,
+        hasRequestContext,
+        onOpenRequestContext
     }
 
     return (

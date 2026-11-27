@@ -32,16 +32,38 @@ const ICON_NAME_MAP: Record<HelperPaneIconType, string> = {
     [HelperPaneIconType.VARIABLE]: "bi-variable",
     [HelperPaneIconType.FUNCTION]: "bi-function",
     [HelperPaneIconType.INPUT]: "bi-input",
-    [HelperPaneIconType.CONFIGURABLE]: "bi-settings",
+    [HelperPaneIconType.CONFIGURABLE]: "configurable-icon",
     [HelperPaneIconType.VALUE]: "bi-code",
     [HelperPaneIconType.DOCUMENT]: "bi-attach-file",
+};
+
+/**
+ * Glyphs drawn without the padding the `bi-*` icons have, scaled to look the same size beside them.
+ * `configurable-icon` fills its 16-unit box; a `bi-*` icon leaves about a sixth of its 24-unit box clear.
+ */
+const ICON_SCALE: Record<string, number> = {
+    "configurable-icon": 0.75,
 };
 
 export const getHelperPaneIcon = (
     iconType: HelperPaneIconType,
     fontSize: string = "16px"
-): ReactElement => {
-    const iconName = ICON_NAME_MAP[iconType];
+): ReactElement => helperPaneIconByName(ICON_NAME_MAP[iconType], fontSize);
+
+/** A helper pane icon by its font name, drawn the size of its neighbours (see ICON_SCALE). */
+export const helperPaneIconByName = (iconName: string, fontSize: string = "16px"): ReactElement => {
+    const scale = ICON_SCALE[iconName];
+    if (scale) {
+        // Drawn edge to edge, the glyph looks larger than its neighbours at the same size. It keeps their box and
+        // place, and is only drawn smaller around its centre.
+        return (
+            <Icon
+                name={iconName}
+                sx={{ fontSize }}
+                iconSx={{ display: "inline-block", transform: `scale(${scale})`, transformOrigin: "center" }}
+            />
+        );
+    }
     return <Icon name={iconName} sx={{ fontSize }} />;
 };
 

@@ -37,7 +37,7 @@ import {
 } from "../features/ai/utils/libs/lib-docs-cache";
 import type { Library, RemoteFunction } from "../features/ai/utils/libs/library-types";
 
-const FIXTURE = path.join(__dirname, "..", "..", "test", "ai", "unit_tests", "libs", "resources", "sample-libraries.json");
+const FIXTURE = path.join(__dirname, "ai", "libs", "resources", "sample-libraries.json");
 const libraries: Library[] = JSON.parse(fs.readFileSync(FIXTURE, "utf8"));
 const http = libraries.find(l => l.name === "ballerina/http")!;
 const withClients = libraries.find(l => (l.clients?.length ?? 0) > 0)!;

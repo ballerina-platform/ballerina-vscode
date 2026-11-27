@@ -26,6 +26,7 @@ import { DiagramContext } from '../../../common';
 import styled from '@emotion/styled';
 import { Button, Icon, Confirm, Item, Menu, MenuItem, Popover, ThemeColors } from '@wso2/ui-toolkit';
 import { MoreVertIcon } from '../../../../resources';
+import { RequestContextBadge } from './RequestContextBadge';
 
 interface ServiceHeadProps {
     engine: DiagramEngine;
@@ -43,7 +44,7 @@ const HeaderButtonsContainer = styled.div`
     align-items: center;
     margin-left: auto;
     justify-content: flex-end;
-    width: 45px;
+    min-width: 45px;
 `;
 
 const EntityNameContainer = styled.div`
@@ -91,7 +92,7 @@ interface Origin {
 
 export function EntityHeadWidget(props: ServiceHeadProps) {
     const { engine, node, isSelected } = props;
-    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly } = useContext(DiagramContext);
+    const { setFocusedNodeId, onEditNode, goToSource, onNodeDelete, verifyTypeDelete, readonly, hasRequestContext, onOpenRequestContext } = useContext(DiagramContext);
 
     const displayName: string = node.getID()?.slice(node.getID()?.lastIndexOf(':') + 1);
     const isImported = !node?.entityObject?.editable;
@@ -131,6 +132,14 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
     const onGoToSource = () => {
         goToSource(node.entityObject);
         setAnchorEl(null);
+    };
+
+    const isEditableGraphqlRoot = node.isGraphqlRoot && !readonly;
+    const showContextTag = isEditableGraphqlRoot && !!hasRequestContext && !!onOpenRequestContext;
+
+    const onRequestContext = () => {
+        setAnchorEl(null);
+        onOpenRequestContext?.();
     };
 
     const onFocusedView = () => {
@@ -194,6 +203,11 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                 label: "Source",
                 onClick: () => onGoToSource()
             },
+            ...(isEditableGraphqlRoot && onOpenRequestContext ? [{
+                id: "requestContext",
+                label: "Request Context",
+                onClick: () => onRequestContext()
+            }] : []),
             ...(!node.isGraphqlRoot ? [{
                 id: "delete",
                 label: "Delete",
@@ -252,6 +266,9 @@ export function EntityHeadWidget(props: ServiceHeadProps) {
                         )}
                     </EntityNameContainer>
                     <HeaderButtonsContainer>
+                        {showContextTag && (
+                            <RequestContextBadge onOpen={onRequestContext} />
+                        )}
                         <MenuButton appearance="icon" onClick={handleOnMenuClick} data-testid={`type-node-${displayName}-menu`} disabled={readonly}>
                             <MoreVertIcon />
                         </MenuButton>

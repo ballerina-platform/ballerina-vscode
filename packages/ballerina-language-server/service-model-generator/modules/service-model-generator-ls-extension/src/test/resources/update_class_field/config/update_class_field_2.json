@@ -1,0 +1,86 @@
+{
+  "filePath": "renamed_field.bal",
+  "description": "Update a field renamed in place to a longer name, with the range recorded before the rename",
+  "field": {
+    "isPrivate": true,
+    "isFinal": false,
+    "codedata": {
+      "lineRange": {
+        "fileName": "renamed_field.bal",
+        "startLine": {
+          "line": 1,
+          "offset": 4
+        },
+        "endLine": {
+          "line": 1,
+          "offset": 29
+        }
+      },
+      "inListenerInit": false,
+      "isBasePath": false,
+      "inDisplayAnnotation": false
+    },
+    "type": {
+      "metadata": {
+        "label": "Parameter Type",
+        "description": "The type of the parameter"
+      },
+      "enabled": true,
+      "editable": true,
+      "value": "string",
+      "valueType": "TYPE",
+      "isType": true,
+      "optional": false,
+      "advanced": false,
+      "addNewButton": false
+    },
+    "name": {
+      "metadata": {
+        "label": "Parameter Name",
+        "description": "The name of the parameter"
+      },
+      "enabled": true,
+      "editable": true,
+      "value": "newVarName",
+      "valueType": "IDENTIFIER",
+      "isType": false,
+      "optional": false,
+      "advanced": false,
+      "addNewButton": false
+    },
+    "defaultValue": {
+      "metadata": {
+        "label": "Default Value",
+        "description": "The default value of the parameter"
+      },
+      "enabled": true,
+      "editable": true,
+      "isType": false,
+      "optional": false,
+      "advanced": false,
+      "addNewButton": false,
+      "value": "\"\""
+    },
+    "enabled": true,
+    "editable": false,
+    "optional": false,
+    "advanced": false
+  },
+  "output": {
+    "renamed_field.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 4
+          },
+          "end": {
+            "line": 1,
+            "character": 35
+          }
+        },
+        "newText": "private string newVarName = \"\";"
+      }
+    ]
+  }
+}

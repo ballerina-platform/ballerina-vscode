@@ -49,7 +49,6 @@ import org.ballerinalang.langserver.common.utils.PositionUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -61,6 +60,8 @@ import java.util.Optional;
 public class AgentToolSearchCommand extends SearchCommand {
 
     private static final Gson GSON = new Gson();
+    // The description of a tool without documentation. It says nothing about the tool, so it is not searched.
+    private static final String UNDOCUMENTED_TOOL_DESCRIPTION = "Agent tool function";
     private List<Item> cachedAgentTools;
 
     public AgentToolSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
@@ -79,22 +80,27 @@ public class AgentToolSearchCommand extends SearchCommand {
             return agentTools;
         }
 
+        // A tool is found by its name and by its documentation, and the words of the query may be split between them:
+        // "weather forecast" finds a getWeather documented as returning a forecast.
         Category agentToolCategory = (Category) agentTools.getFirst();
         List<Item> tools = agentToolCategory.items();
-        String lowerCaseQuery = query == null ? null : query.toLowerCase(Locale.ROOT);
         List<Item> matchingTools = tools.stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
-                        (lowerCaseQuery == null ||
-                                availableNode.metadata().label().toLowerCase(Locale.ROOT).contains(lowerCaseQuery) ||
-                                availableNode.codedata().symbol().toLowerCase(Locale.ROOT).contains(lowerCaseQuery) ||
-                                availableNode.metadata().description().toLowerCase(Locale.ROOT)
-                                        .contains(lowerCaseQuery)))
+                        WorkspaceModuleSearchUtils.matchesEveryWord(query, availableNode.metadata().label(),
+                                availableNode.codedata().symbol(), documentationOf(availableNode)))
                 .toList();
 
         tools.clear();
         tools.addAll(matchingTools);
 
         return List.of(agentToolCategory);
+    }
+
+    // The documentation a tool is found by, or null for a tool without any, so that "tool" or "function" does not
+    // find every undocumented tool through the description that stands in for it.
+    private static String documentationOf(AvailableNode tool) {
+        String description = tool.metadata().description();
+        return UNDOCUMENTED_TOOL_DESCRIPTION.equals(description) ? null : description;
     }
 
     @Override
@@ -125,7 +131,6 @@ public class AgentToolSearchCommand extends SearchCommand {
 
         Category.Builder agentToolsBuilder = rootBuilder.stepIn(Category.Name.AGENT_TOOLS);
         List<Item> agentToolNodes = new ArrayList<>();
-        String lowerCaseQuery = query.isEmpty() ? null : query.toLowerCase(Locale.ROOT);
 
         for (Symbol symbol : functionSymbols) {
             FunctionSymbol functionSymbol = (FunctionSymbol) symbol;
@@ -145,10 +150,8 @@ public class AgentToolSearchCommand extends SearchCommand {
                 }
             }
 
-            // Filter by query if provided
-            if (symbol.getName().isEmpty() ||
-                    (lowerCaseQuery != null && !symbol.getName().get().toLowerCase(Locale.ROOT)
-                            .contains(lowerCaseQuery))) {
+            // The query is not applied here: search() matches it against the name and the documentation together.
+            if (symbol.getName().isEmpty()) {
                 continue;
             }
 
@@ -177,7 +180,7 @@ public class AgentToolSearchCommand extends SearchCommand {
                     .label(symbol.getName().get())
                     .description(functionSymbol.documentation()
                             .flatMap(Documentation::description)
-                            .orElse("Agent tool function"))
+                            .orElse(UNDOCUMENTED_TOOL_DESCRIPTION))
                     .addData("isAgentTool", true)
                     .addData("isIsolatedFunction", isIsolatedFunction)
                     .addData("inputParameters", inputParameters)

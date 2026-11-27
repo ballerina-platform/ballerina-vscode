@@ -145,3 +145,13 @@ type User5 readonly & (User1 | Person);
 type OrderWrapper record {|
     string 'order;
 |};
+
+type PersonStream stream<Address, PersonError?>;
+
+type NameAndScores [string, int...];
+
+type PersonWithAddresses [Person, Address...];
+
+type TimedValues record {|
+    stream<string, time:Error?> values;
+|};

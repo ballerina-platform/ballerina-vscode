@@ -38,7 +38,7 @@ import ConnectionConfigView from "../ConnectionConfigView";
 import { getFormProperties } from "../../../../utils/bi";
 import { ExpressionFormField, FormField, FormValues, PanelContainer } from "@wso2/ballerina-side-panel";
 import { Icon, Overlay, ThemeColors, Typography } from "@wso2/ui-toolkit";
-import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { FormSkeleton } from "../../../../components/Skeletons";
 import { HelperView } from "../../HelperView";
 import { BodyText } from "../../../styles";
 import { DownloadIcon } from "../../../../components/DownloadIcon";
@@ -416,11 +416,9 @@ export function AddConnectionWizard(props: AddConnectionWizardProps) {
                     onBack={handleOnBack}
                 >
                     <>
-                        {pullingStatus && (
+                        {pullingStatus === PullingStatus.FETCHING && <FormSkeleton />}
+                        {pullingStatus && pullingStatus !== PullingStatus.FETCHING && (
                             <StatusContainer>
-                                {pullingStatus === PullingStatus.FETCHING && (
-                                    <RelativeLoader message="Loading connector package..." />
-                                )}
                                 {pullingStatus === PullingStatus.PULLING && (
                                     <StatusCard>
                                         <DownloadIcon color="var(--vscode-progressBar-background)" />

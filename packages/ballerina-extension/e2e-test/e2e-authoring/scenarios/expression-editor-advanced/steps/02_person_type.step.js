@@ -62,16 +62,16 @@
   await intOption.click({ force: true });
   console.log('selected int for age');
 
-  // Mark age as optional — the "?" icon button next to the field
-  // (vscode-button[title="Set as an Optional Field"]); active state flips the
-  // icon fill from descriptionForeground to button-background.
-  const optionalBtn = frame.locator('vscode-button[title="Set as an Optional Field"]').last();
+  // Mark age as optional — the "?" toggle at the end of the field name
+  // ([data-testid="syntax-toggle-optional-field"]), shown while the row is
+  // hovered; aria-pressed flips to "true" when active.
+  await frame.locator('[data-testid="identifier-field"]').last().hover();
+  const optionalBtn = frame.locator('[data-testid="syntax-toggle-optional-field"]').last();
   await optionalBtn.waitFor({ state: 'visible', timeout: 10000 });
   await optionalBtn.click({ force: true });
   await window.waitForTimeout(500);
-  const activeFill = await optionalBtn.locator('g[fill="var(--vscode-button-background)"]').count();
-  if (activeFill === 0) {
-    throw new Error('optional-field "?" button did not activate for age');
+  if ((await optionalBtn.getAttribute('aria-pressed')) !== 'true') {
+    throw new Error('optional-field "?" toggle did not activate for age');
   }
   console.log('marked age as optional (? icon active)');
 

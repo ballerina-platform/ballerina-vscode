@@ -520,7 +520,7 @@ const SECTIONS: SectionConfig[] = [
     {
         key: DIRECTORY_MAP.CONFIGURABLE,
         title: "Configurations",
-        icon: "bi-config",
+        icon: "configurable-icon",
         description: "Configurable values defined in your library.",
         addLabel: "Add a Configuration",
         addTooltip: "Add New Configuration",

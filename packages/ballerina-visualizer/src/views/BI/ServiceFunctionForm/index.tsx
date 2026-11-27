@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { FunctionModel, LineRange, RecordTypeField, Property, PropertyTypeMemberInfo, NodePosition, getPrimaryInputType } from '@wso2/ballerina-core';
+import { FunctionModel, LineRange, RecordTypeField, Property, PropertyTypeMemberInfo, NodePosition, DIRECTORY_MAP, getPrimaryInputType } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { FormField, FormImports, FormValues } from '@wso2/ballerina-side-panel';
 import { ArtifactForm } from '../Forms/ArtifactForm';
@@ -52,10 +52,12 @@ export interface ServiceFunctionFormProps {
     currentFilePath?: string;
     projectPath?: string;
     isAgentDefinitionConstructor?: boolean;
+    // The artifact the save is awaited as; Types unless the opener says the class is listed elsewhere.
+    artifactType?: DIRECTORY_MAP;
 }
 
 export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
-    const { position, currentFilePath, projectPath, isAgentDefinitionConstructor } = props;
+    const { position, currentFilePath, projectPath, isAgentDefinitionConstructor, artifactType } = props;
     const { rpcClient } = useRpcContext();
     const [model, setFunctionModel] = useState<FunctionModel | null>(null);
     const [fields, setFields] = useState<FormField[]>([]);
@@ -188,7 +190,7 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
 
     const onFunctionCreate = (data: FormValues, formImports: FormImports) => {
         if (model) {
-            handleFunctionCreate(data, formImports, model, rpcClient, setIsSaving, currentFilePath, position);
+            handleFunctionCreate(data, formImports, model, rpcClient, setIsSaving, currentFilePath, position, artifactType);
         }
     };
 

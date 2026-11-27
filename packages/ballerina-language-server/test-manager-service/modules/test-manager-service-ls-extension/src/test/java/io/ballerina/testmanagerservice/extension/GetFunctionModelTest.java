@@ -56,7 +56,7 @@ public class GetFunctionModelTest extends AbstractLSTest {
             GetFunctionModelTest.TestConfig updatedConfig =
                     new GetFunctionModelTest.TestConfig(testConfig.description(), testConfig.filePath(),
                             testConfig.functionName(), response);
-            updateConfig(configJsonPath, updatedConfig);
+//            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
     }

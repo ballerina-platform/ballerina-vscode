@@ -1,0 +1,195 @@
+{
+  "source": "workflow_project/main.bal",
+  "position": {
+    "line": 30,
+    "offset": 0
+  },
+  "description": "With several workflows in the project, the palette's node preselects none and keeps the input hidden",
+  "codedata": {
+    "node": "WORKFLOW_RUN_WITH_ID"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Run with ID",
+      "description": "Run a new workflow instance under an id you choose"
+    },
+    "codedata": {
+      "node": "WORKFLOW_RUN_WITH_ID",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Workflow",
+          "description": "The workflow to start"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "orderWorkflow",
+                "value": "orderWorkflow"
+              },
+              {
+                "label": "simpleWorkflow",
+                "value": "simpleWorkflow"
+              },
+              {
+                "label": "shipmentWorkflow",
+                "value": "shipmentWorkflow"
+              },
+              {
+                "label": "pollWorkflow",
+                "value": "pollWorkflow"
+              },
+              {
+                "label": "refundWorkflow",
+                "value": "refundWorkflow"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "instanceId": {
+        "metadata": {
+          "label": "Instance ID",
+          "description": "The instance id to start under, such as an order number"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Input data for the workflow"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "placeholder": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "dependentProperty": "workflow"
+        }
+      },
+      "ifRunning": {
+        "metadata": {
+          "label": "If Running",
+          "description": "What to do when an instance with this id is running"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "workflow:RunningInstancePolicy",
+            "options": [
+              {
+                "label": "FAIL",
+                "value": "\"FAIL\""
+              },
+              {
+                "label": "USE_EXISTING",
+                "value": "\"USE_EXISTING\""
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "placeholder": "\"FAIL\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "ifClosed": {
+        "metadata": {
+          "label": "If Closed",
+          "description": "What to do when an instance with this id has closed"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "workflow:ClosedInstancePolicy",
+            "options": [
+              {
+                "label": "ALLOW_DUPLICATE",
+                "value": "\"ALLOW_DUPLICATE\""
+              },
+              {
+                "label": "ALLOW_DUPLICATE_FAILED_ONLY",
+                "value": "\"ALLOW_DUPLICATE_FAILED_ONLY\""
+              },
+              {
+                "label": "REJECT_DUPLICATE",
+                "value": "\"REJECT_DUPLICATE\""
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "placeholder": "\"ALLOW_DUPLICATE\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Workflow ID Variable Name",
+          "description": "Variable name to receive the started workflow ID."
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": false
+          }
+        ],
+        "value": "workflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

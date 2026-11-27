@@ -19,27 +19,26 @@
 // Perf / QA benchmark (orthogonal suite — not a scope level): measures LS request
 // latency and emits a trend record. Not a hard pass/fail gate — the assertion is a
 // loose guardrail; the value is the logged/append trend (set PERF_TREND_FILE to
-// accumulate). See docs/TEST_GUIDE.md (Perf / QA). Skips when no Ballerina distribution is found.
+// accumulate). See docs/TEST_GUIDE.md (Perf / QA). Runs the LS jar built from this repository
+// (resolveIntegrationLaunch), so it measures this repository's LS; fails without that jar.
 
 import * as fs from "fs";
 import * as path from "path";
-import { LsHarness, resolveBalCommand, pathToFileUri } from "@wso2/test-config/ls-harness";
+import { LsHarness, resolveIntegrationLaunch, pathToFileUri } from "@wso2/test-config/ls-harness";
 
-const bal = resolveBalCommand();
-const projectRoot = path.join(__dirname, "..", "ls-integration", "fixtures", "hello");
+const launch = resolveIntegrationLaunch();
+const projectRoot = path.join(__dirname, "..", "integration", "fixtures", "hello");
 const mainBal = path.join(projectRoot, "main.bal");
-
-const describePerf = bal ? describe : describe.skip;
 
 function percentile(sorted: number[], p: number): number {
     return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
 }
 
-describePerf("LS latency benchmark", () => {
+describe("LS latency benchmark", () => {
     let ls: LsHarness;
 
     beforeAll(async () => {
-        ls = new LsHarness(bal!);
+        ls = new LsHarness(launch);
         ls.start();
         await ls.initialize(projectRoot);
         ls.didOpen(mainBal, fs.readFileSync(mainBal, "utf8"));

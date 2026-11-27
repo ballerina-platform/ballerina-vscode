@@ -1,0 +1,10 @@
+{
+  "description": "Creating over an existing context replaces only its value, and the new name avoids the taken one",
+  "project": "graphql_context_among",
+  "api": "applyGraphqlContext",
+  "request": {
+    "action": "create"
+  },
+  "expected": "context_create_among_others",
+  "file": "main.bal"
+}

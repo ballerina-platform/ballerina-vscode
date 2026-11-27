@@ -116,6 +116,9 @@ export function ConnectionConfigView(props: ConnectionConfigViewProps) {
         }
     }, [fileName, selectedNode, rpcClient]);
 
+    // The form takes no `onSaveNewVariable`, so its helper panes, record editor included, offer no
+    // "+ New Variable": `onSubmit` here would save the variable as the connection and end the form,
+    // and a variable declared beside a connection is one BI lists nowhere. Configurables cover that.
     return (
         <Container footerActionButton={footerActionButton}>
             {targetLineRange && (
@@ -132,7 +135,6 @@ export function ConnectionConfigView(props: ConnectionConfigViewProps) {
                     disableSaveButton={isPullingConnector}
                     footerActionButton={footerActionButton}
                     navigateToPanel={navigateToPanel}
-                    handleOnFormSubmit={onSubmit}
                     devantExpressionEditor={devantExpressionEditor}
                     customValidator={customValidator}
                     fieldOverrides={fieldOverrides}

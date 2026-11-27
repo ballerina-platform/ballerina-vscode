@@ -128,7 +128,7 @@ import { openChatWindowWithCommand } from "../../features/ai/data-mapper/index";
 import { generateDocumentationForService } from "../../features/ai/documentation/generator";
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
 import { removeConsoleSummary } from "../../features/ai/agent/console-summary";
-import { BACKEND_URL } from "../../features/ai/utils";
+import { getBackendUrl } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
 import { submitFeedback as submitFeedbackUtil } from "../../features/ai/utils/feedback";
@@ -1116,7 +1116,7 @@ User reverted the last made changes. The files have been restored to the state b
             return undefined;
         }
         try {
-            const url = BACKEND_URL + LLM_API_BASE_PATH + "/usage";
+            const url = getBackendUrl() + LLM_API_BASE_PATH + "/usage";
             const response = await fetchWithAuth(url, { method: "GET" });
             if (response && response.ok) {
                 const data = await response.json() as UsageResponse;
@@ -1144,7 +1144,7 @@ User reverted the last made changes. The files have been restored to the state b
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 20000);
         try {
-            const url = BACKEND_URL + LLM_API_BASE_PATH + "/quota-requests";
+            const url = getBackendUrl() + LLM_API_BASE_PATH + "/quota-requests";
             const response = await fetchWithAuth(url, {
                 method: "POST",
                 body: JSON.stringify({ note: params.note, email }),

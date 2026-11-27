@@ -36,6 +36,7 @@ import {
     errorMessageOf,
     generateInitialConnectionName,
     getInitialAccess,
+    knowledgeBaseName,
     serviceUrlConfigName,
 } from "./utils";
 
@@ -192,7 +193,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     // the knowledge base is in this project, otherwise the gateway (the service URL and an API key).
     const { visibility, schema: chosenSchema } = getInitialAccess(item, platformExtState?.selectedContext?.projectName);
     if (!chosenSchema?.entries?.some((e) => e.name === SERVICE_URL_ENTRY)) {
-        throw new Error(`The knowledge base service "${item.name}" does not expose a service URL to connect to.`);
+        throw new Error(`The knowledge base "${knowledgeBaseName(item)}" does not expose a service URL to connect to.`);
     }
 
     // The template comes first: its connector version decides which configurables to create.
@@ -276,7 +277,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
             serviceSchemaId: chosenSchema?.id || "",
             serviceId: item.serviceId,
             serviceVisibility: visibility,
-            // The configurables the platform fills: the endpoint URL, and with gateway access the API key.
+            // The configurables: the endpoint URL, and the API key when the endpoint's API takes one.
             configurableName: serviceUrlConfigName(devantConfigs),
             apiKeyConfigurableName: apiKeyConfigName(devantConfigs),
             componentType: isProjectLevel
@@ -291,7 +292,7 @@ export async function prepareDevantKnowledgeBase(deps: PrepareDevantKnowledgeBas
     }
     if (!createdConnection) {
         await removePlaceholders();
-        throw new Error(`WSO2 Cloud did not create a connection to "${item.name}".`);
+        throw new Error(`WSO2 Cloud did not create a connection to "${knowledgeBaseName(item)}".`);
     }
 
     try {

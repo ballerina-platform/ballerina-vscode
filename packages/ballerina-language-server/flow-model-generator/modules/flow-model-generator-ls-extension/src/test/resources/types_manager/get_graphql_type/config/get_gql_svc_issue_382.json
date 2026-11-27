@@ -125,6 +125,7 @@
         "name": "query1",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -178,6 +179,20 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "issue_382.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 5
+            }
           }
         }
       },
@@ -191,6 +206,7 @@
         "name": "query2",
         "description": "",
         "returnType": "string",
+        "returnTypeName": "string",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -245,6 +261,20 @@
             "advanced": false,
             "hidden": false
           }
+        },
+        "graphqlType": "String!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "issue_382.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 9,
+              "offset": 5
+            }
+          }
         }
       },
       {
@@ -257,6 +287,7 @@
         "name": "query2",
         "description": "",
         "returnType": "int",
+        "returnTypeName": "int",
         "isGraphqlId": false,
         "refs": [],
         "properties": {
@@ -310,6 +341,20 @@
             "editable": true,
             "advanced": false,
             "hidden": false
+          }
+        },
+        "graphqlType": "Int!",
+        "codedata": {
+          "lineRange": {
+            "fileName": "issue_382.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 12,
+              "offset": 5
+            }
           }
         }
       }

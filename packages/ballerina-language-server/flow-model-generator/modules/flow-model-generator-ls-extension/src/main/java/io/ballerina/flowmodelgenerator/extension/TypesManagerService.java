@@ -41,6 +41,7 @@ import io.ballerina.flowmodelgenerator.core.type.AmbiguousTypeCastResolver;
 import io.ballerina.flowmodelgenerator.core.type.IntersectionNormalizer;
 import io.ballerina.flowmodelgenerator.core.type.RecordValueGenerator;
 import io.ballerina.flowmodelgenerator.core.type.TypeSymbolAnalyzerFromTypeModel;
+import io.ballerina.flowmodelgenerator.core.utils.WorkspaceProbes;
 import io.ballerina.flowmodelgenerator.extension.request.DeleteTypeRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FilePathRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FindTypeRequest;
@@ -394,6 +395,10 @@ public class TypesManagerService implements ExtendedLanguageServerService {
                 TypesManager typesManager = new TypesManager(document);
                 response.setName(typeData.name());
                 response.setTextEdits(typesManager.updateType(filePath, typeData));
+            } catch (IllegalArgumentException e) {
+                // A type the generator rejects is reported with its reason, so the editor can show why it was
+                // not saved.
+                response.setError(e);
             } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
@@ -503,12 +508,17 @@ public class TypesManagerService implements ExtendedLanguageServerService {
                         Path filePath = PathUtil.convertUriStringToPath(request.filePath());
                         WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(request.filePath());
                         Project project = workspaceManager.loadProject(filePath);
-                        Optional<Document> document = workspaceManager.document(filePath);
-                        Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
-                        if (document.isPresent() && semanticModel.isPresent()) {
-                            AmbiguousTypeCastResolver.applyAmbiguityCasts(project, document.get(),
-                                    semanticModel.get(), typeConstraint, request.codedata(), typeJson);
-                        }
+                        // The probes write into the document and restore it, so they take their turn with the
+                        // other requests that do.
+                        WorkspaceProbes.exclusively(() -> {
+                            Optional<Document> document = workspaceManager.document(filePath);
+                            Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
+                            if (document.isPresent() && semanticModel.isPresent()) {
+                                AmbiguousTypeCastResolver.applyAmbiguityCasts(project, document.get(),
+                                        semanticModel.get(), typeConstraint, request.codedata(), typeJson);
+                            }
+                            return null;
+                        });
                     } catch (Throwable ignored) {
                         // Best-effort cast probing failed; return the bare value below.
                     }

@@ -52,8 +52,10 @@ import {
     FormImports,
     HelperpaneOnChangeOptions,
     InputMode,
-    getTypeCompletionSearchText
+    getTypeCompletionSearchText,
+    isNodeTypeField
 } from "@wso2/ballerina-side-panel";
+import { isTypedescField } from "../../../../utils/type-constraint";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, Overlay, ThemeColors } from "@wso2/ui-toolkit";
 
@@ -69,7 +71,8 @@ import {
     removeDuplicateDiagnostics,
     updateLineRange
 } from "../../../../utils/bi";
-import { debounce, DebouncedFunc } from "lodash";
+import { debounce } from "lodash";
+import { debounceByKey } from "../../../../utils/debounceByKey";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
 import { EXPRESSION_EXTRACTION_REGEX, TypeHelperContext } from "../../../../constants";
@@ -136,28 +139,12 @@ interface ArtifactFormProps {
     opensPrefilled?: boolean;
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
+    // Check TYPE field values against the LS as the user types.
+    checkTypeDiagnostics?: boolean;
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
-}
-
-/** Debounces each key on its own, so a call for one key never replaces another key's pending call. */
-function debouncePerKey<A extends unknown[], R>(
-    fn: (...args: A) => R,
-    wait: number,
-    getKey: (...args: A) => string
-): (...args: A) => R | undefined {
-    const debouncers = new Map<string, DebouncedFunc<(...args: A) => R>>();
-    return (...args: A) => {
-        const key = getKey(...args);
-        let debounced = debouncers.get(key);
-        if (!debounced) {
-            debounced = debounce(fn, wait);
-            debouncers.set(key, debounced);
-        }
-        return debounced(...args);
-    };
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -197,6 +184,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         opensPrefilled,
         onCreateNode,
         customDiagnosticFilter,
+        checkTypeDiagnostics,
         onValidityChange,
         recordsOnly,
         secondarySubmitText,
@@ -284,8 +272,14 @@ export function ArtifactForm(props: ArtifactFormProps) {
         setEditingTypeName("");
         if (type) {
             const typeName = typeof type === 'string' ? type : (type as Type).name;
+            // A type created from a type field fills only that field; otherwise it is the node's type. A typedesc
+            // argument is a TYPE field too, but it keeps its own value.
+            const targetField = typeEditorState.field;
+            const isTargetField = targetField && getPrimaryInputType(targetField.types)?.fieldType === 'TYPE'
+                ? (field: FormField) => field.key === targetField.key
+                : isNodeTypeField;
             setFields(fields.map((field) => {
-                if (getPrimaryInputType(field.types)?.fieldType === 'TYPE') {
+                if (isTargetField(field)) {
                     return { ...field, value: typeName };
                 }
                 return field;
@@ -549,24 +543,71 @@ export function ArtifactForm(props: ArtifactFormProps) {
         setFilteredTypes([]);
     };
 
-    const debouncedRetrieveCompletions = useCallback(
-        debounce(
-            async (
-                value: string,
-                property: ExpressionProperty,
-                offset: number,
-                triggerCharacter?: string
-            ) => {
-                let expressionCompletions: CompletionItem[] = [];
-                const { parentContent, currentContent } = value
-                    .slice(0, offset)
-                    .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
-                if (
-                    completions.length > 0 &&
-                    !triggerCharacter &&
-                    parentContent === prevCompletionFetchText.current
-                ) {
-                    expressionCompletions = completions
+    // Fetches completions for an expression, publishes them to the editor, and returns them.
+    const fetchCompletions = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ) => {
+            let expressionCompletions: CompletionItem[] = [];
+            const { parentContent, currentContent } = value
+                .slice(0, offset)
+                .match(EXPRESSION_EXTRACTION_REGEX)?.groups ?? {};
+            if (
+                completions.length > 0 &&
+                !triggerCharacter &&
+                parentContent === prevCompletionFetchText.current
+            ) {
+                expressionCompletions = completions
+                    .filter((completion) => {
+                        const lowerCaseText = currentContent.toLowerCase();
+                        const lowerCaseLabel = completion.label.toLowerCase();
+
+                        return lowerCaseLabel.includes(lowerCaseText);
+                    })
+                    .sort((a, b) => a.sortText.localeCompare(b.sortText));
+            } else {
+                const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
+                const completionRequest: ExpressionCompletionsRequest = {
+                    filePath: fileName,
+                    context: {
+                        expression: value,
+                        startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                        lineOffset: lineOffset,
+                        offset: charOffset,
+                        codedata: undefined,
+                        property: property
+                    },
+                    completionContext: {
+                        triggerKind: triggerCharacter ? 2 : 1,
+                        triggerCharacter: triggerCharacter as TriggerCharacter
+                    }
+                };
+
+                let completions: ExpressionCompletionsResponse;
+                if (!isDataMapperEditor) {
+                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
+                } else {
+                    completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
+                }
+
+                // Convert completions to the ExpressionEditor format
+                let convertedCompletions: CompletionItem[] = [];
+                completions?.forEach((completion) => {
+                    if (completion.detail) {
+                        // HACK: Currently, completion with additional edits apart from imports are not supported
+                        // Completions that modify the expression itself (ex: member access)
+                        convertedCompletions.push(convertBalCompletion(completion));
+                    }
+                });
+                setCompletions(convertedCompletions);
+
+                if (triggerCharacter) {
+                    expressionCompletions = convertedCompletions;
+                } else {
+                    expressionCompletions = convertedCompletions
                         .filter((completion) => {
                             const lowerCaseText = currentContent.toLowerCase();
                             const lowerCaseLabel = completion.label.toLowerCase();
@@ -574,63 +615,17 @@ export function ArtifactForm(props: ArtifactFormProps) {
                             return lowerCaseLabel.includes(lowerCaseText);
                         })
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                } else {
-                    const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    const completionRequest: ExpressionCompletionsRequest = {
-                        filePath: fileName,
-                        context: {
-                            expression: value,
-                            startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
-                            lineOffset: lineOffset,
-                            offset: charOffset,
-                            codedata: undefined,
-                            property: property
-                        },
-                        completionContext: {
-                            triggerKind: triggerCharacter ? 2 : 1,
-                            triggerCharacter: triggerCharacter as TriggerCharacter
-                        }
-                    };
-
-                    let completions: ExpressionCompletionsResponse;
-                    if (!isDataMapperEditor) {
-                        completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
-                    } else {
-                        completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
-                    }
-
-                    // Convert completions to the ExpressionEditor format
-                    let convertedCompletions: CompletionItem[] = [];
-                    completions?.forEach((completion) => {
-                        if (completion.detail) {
-                            // HACK: Currently, completion with additional edits apart from imports are not supported
-                            // Completions that modify the expression itself (ex: member access)
-                            convertedCompletions.push(convertBalCompletion(completion));
-                        }
-                    });
-                    setCompletions(convertedCompletions);
-
-                    if (triggerCharacter) {
-                        expressionCompletions = convertedCompletions;
-                    } else {
-                        expressionCompletions = convertedCompletions
-                            .filter((completion) => {
-                                const lowerCaseText = currentContent.toLowerCase();
-                                const lowerCaseLabel = completion.label.toLowerCase();
-
-                                return lowerCaseLabel.includes(lowerCaseText);
-                            })
-                            .sort((a, b) => a.sortText.localeCompare(b.sortText));
-                    }
                 }
+            }
 
-                prevCompletionFetchText.current = parentContent ?? "";
-                setFilteredCompletions(expressionCompletions);
-            },
-            250
-        ),
+            prevCompletionFetchText.current = parentContent ?? "";
+            setFilteredCompletions(expressionCompletions);
+            return expressionCompletions;
+        },
         [rpcClient, completions, fileName, targetLineRange]
     );
+
+    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
 
     const handleRetrieveCompletions = useCallback(async (
         value: string,
@@ -644,6 +639,25 @@ export function ArtifactForm(props: ArtifactFormProps) {
             await debouncedRetrieveCompletions.flush();
         }
     }, [debouncedRetrieveCompletions]);
+
+    // The helper pane's field requests return their own response, so they bypass the shared debouncer:
+    // its flush() runs, and returns, whichever call was queued last. A queued call is dropped, as flush() would.
+    const retrieveCompletionsWithResult = useCallback(
+        async (
+            value: string,
+            property: ExpressionProperty,
+            offset: number,
+            triggerCharacter?: string
+        ): Promise<CompletionItem[] | undefined> => {
+            if (!triggerCharacter) {
+                await handleRetrieveCompletions(value, property, offset);
+                return undefined;
+            }
+            debouncedRetrieveCompletions.cancel();
+            return fetchCompletions(value, property, offset, triggerCharacter);
+        },
+        [handleRetrieveCompletions, debouncedRetrieveCompletions, fetchCompletions]
+    );
 
     /**
      * Debounced function that fetches and filters visible types based on user input, with caching support and special handling for GraphQL contexts.
@@ -675,7 +689,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         visibleTypesResponse = await rpcClient.getBIDiagramRpcClient().getVisibleTypes({
                             filePath: fileName,
                             position: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
-                            ...(getPrimaryInputType(types)?.ballerinaType && { typeConstraint: getPrimaryInputType(types)?.ballerinaType })
+                            ...(getPrimaryInputType(types)?.ballerinaType && { typeConstraint: getPrimaryInputType(types)?.ballerinaType }),
+                            ...(isTypedescField(types) && { typedescValue: true })
                         });
                     }
 
@@ -739,7 +754,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
     // Debounced per field: with one shared debounce, a check for another field replaced a pending check, and
     // its caller never heard back (the type editor then kept Save disabled as still validating).
     const handleExpressionFormDiagnostics = useCallback(
-        debouncePerKey(
+        debounceByKey(
             async (
                 showDiagnostics: boolean,
                 expression: string,
@@ -785,24 +800,30 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         });
 
                         let uniqueDiagnostics = removeDuplicateDiagnostics(response.diagnostics);
-                        // HACK: filter unknown module and undefined type diagnostics for local connections
-                        uniqueDiagnostics = filterUnsupportedDiagnostics(uniqueDiagnostics);
+                        // HACK: filter unknown module and undefined type diagnostics for local connections.
+                        // A field that asks for type validation needs the undefined-type error, so it is kept.
+                        if (!field.validateType) {
+                            uniqueDiagnostics = filterUnsupportedDiagnostics(uniqueDiagnostics);
+                        }
                         // Apply custom diagnostic filter if provided
                         if (customDiagnosticFilter) {
                             uniqueDiagnostics = customDiagnosticFilter(uniqueDiagnostics);
                         }
 
                         setDiagnosticsInfo({ key, diagnostics: uniqueDiagnostics });
+                    } else {
+                        // Always answer, or a type editor waiting on this key keeps Save disabled.
+                        setDiagnosticsInfo({ key, diagnostics: [] });
                     }
                 } catch (error) {
-                    // Remove diagnostics if LS crashes
+                    // No verdict if the LS call fails: the form keeps the diagnostics the field arrived with
                     console.error(">>> Error getting expression diagnostics", error);
-                    setDiagnosticsInfo({ key, diagnostics: [] });
+                    setDiagnosticsInfo({ key, diagnostics: [], checkFailed: true });
                 }
 
             },
-            250,
-            (_showDiagnostics, _expression, key) => key
+            (_showDiagnostics: boolean, _expression: string, key: string, _property: ExpressionProperty, _setDiagnosticsInfo: (diagnostics: FormDiagnostics) => void) => key,
+            250
         ),
         [rpcClient, fileName, targetLineRange, customDiagnosticFilter]
     );
@@ -845,7 +866,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             filteredCompletions: filteredCompletions,
             isInModal: false,
             types: types,
-            handleRetrieveCompletions: handleRetrieveCompletions,
+            handleRetrieveCompletions: retrieveCompletionsWithResult,
             inputMode: inputMode,
         });
     };
@@ -1083,6 +1104,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getHelperPane: handleGetHelperPane,
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
+            checkTypeDiagnostics,
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1104,6 +1126,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         handleExpressionEditorCancel,
         openRecordConfigPage,
         types,
+        checkTypeDiagnostics,
     ]);
 
     const handleSubmit = (values: FormValues) => {

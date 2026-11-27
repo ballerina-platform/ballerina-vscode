@@ -25,13 +25,14 @@
 // paths into another package's internals. Shipped as plain JS + a .d.ts (matching
 // fixtures.js) so ts-jest in every consumer loads it without transforming node_modules.
 //
-// Uses the distribution's `bal start-language-server`. Resolution order:
+// resolveBalCommand() finds the distribution's `bal` launcher. Resolution order:
 //   1. $BAL_LS_CMD               (explicit path to the bal launcher)
 //   2. $BALLERINA_HOME/bin/bal
 //   3. ~/.ballerina/ballerina-home/bin/bal
-// resolveBalCommand() returns null when none exist, so suites can skip cleanly.
+// It returns null when none exist. Passing it to LsHarness runs `bal start-language-server`,
+// the distribution's LS; that is deprecated for tests, use resolveIntegrationLaunch().
 //
-// resolveLocalLsCommand() instead runs a locally built LS jar with `java` directly, on the
+// resolveLocalLsCommand() runs the locally built LS jar with `java` directly, on the
 // same classpath the extension uses (getServerOptionsUsingJava in
 // ballerina-extension/src/utils/server/server.ts). Jar resolution order:
 //   1. $BAL_LS_JAR
@@ -360,4 +361,51 @@ class LsHarness {
     }
 }
 
-module.exports = { resolveBalCommand, resolveLocalLsCommand, pathToFileUri, LsHarness };
+// The newest modification time of a file under a src/main directory of the LS, skipping build
+// output and src/test. Checking out or editing a source file updates its time, so a jar older
+// than this was built from other sources.
+function newestLsSourceTime(dir) {
+    let newest = 0;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            const skip = entry.name === "build" || entry.name === ".gradle"
+                || (entry.name === "test" && path.basename(dir) === "src");
+            if (!skip) {
+                newest = Math.max(newest, newestLsSourceTime(full));
+            }
+        } else if (full.includes(`${path.sep}src${path.sep}main${path.sep}`)) {
+            newest = Math.max(newest, fs.statSync(full).mtimeMs);
+        }
+    }
+    return newest;
+}
+
+// The LS an integration, capture or perf test runs against: the jar built from this
+// repository (resolveLocalLsCommand()). The LS bundled with the installed distribution is
+// deprecated for tests: it lags this repository, so a test against it cannot catch a change
+// here. Throws when the jar, distribution or JDK is missing, and when the jar in
+// packages/ballerina-language-server/build is older than the LS sources, so a test never
+// passes without running this checkout's LS. $BAL_LS_JAR skips the age check.
+function resolveIntegrationLaunch() {
+    const buildHint = "run `./gradlew build pack -x test` in packages/ballerina-language-server";
+    const jar = resolveLocalLsJar();
+    if (!jar) {
+        throw new Error(`[integration] No LS jar was found: ${buildHint}.`);
+    }
+    if (!process.env.BAL_LS_JAR) {
+        const lsDir = path.join(__dirname, "..", "ballerina-language-server");
+        if (newestLsSourceTime(lsDir) > fs.statSync(jar).mtimeMs) {
+            throw new Error(`[integration] ${jar} is older than the LS sources, so it was not built `
+                + `from this checkout: ${buildHint}. To run it anyway, set BAL_LS_JAR to its path.`);
+        }
+    }
+    const launch = resolveLocalLsCommand();
+    if (!launch) {
+        throw new Error("[integration] The LS jar was found, but the Ballerina distribution or its "
+            + "Java 25 JDK is missing.");
+    }
+    return launch;
+}
+
+module.exports = { resolveBalCommand, resolveLocalLsCommand, resolveIntegrationLaunch, pathToFileUri, LsHarness };

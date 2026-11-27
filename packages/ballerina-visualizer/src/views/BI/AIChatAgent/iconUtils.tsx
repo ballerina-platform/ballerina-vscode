@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { Icon } from "@wso2/ui-toolkit";
 import { ReactElement } from "react";
+import { helperPaneIconByName } from "../HelperPaneNew/utils/iconUtils";
 
 
 export enum HelperPaneIconType {
@@ -32,17 +32,14 @@ const ICON_NAME_MAP: Record<HelperPaneIconType, string> = {
     [HelperPaneIconType.VARIABLE]: "bi-variable",
     [HelperPaneIconType.FUNCTION]: "bi-function",
     [HelperPaneIconType.INPUT]: "bi-input",
-    [HelperPaneIconType.CONFIGURABLE]: "bi-settings",
+    [HelperPaneIconType.CONFIGURABLE]: "configurable-icon",
     [HelperPaneIconType.VALUE]: "bi-code",
 };
 
 export const getHelperPaneIcon = (
     iconType: HelperPaneIconType,
     fontSize: string = "16px"
-): ReactElement => {
-    const iconName = ICON_NAME_MAP[iconType];
-    return <Icon name={iconName} sx={{ fontSize }} />;
-};
+): ReactElement => helperPaneIconByName(ICON_NAME_MAP[iconType], fontSize);
 
 export const getIconByKind = (
     kind: string,

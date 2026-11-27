@@ -36,7 +36,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.DOUBLE
  * @since 1.0.0
  */
 public class Value {
-    private final Map<String, String> imports;
+    private Map<String, String> imports;
     private MetaData metadata;
     private Codedata codedata;
     private String placeholder;
@@ -362,6 +362,10 @@ public class Value {
 
     public Map<String, String> getImports() {
         return imports;
+    }
+
+    public void setImports(Map<String, String> imports) {
+        this.imports = imports;
     }
 
     public List<ValidationRule> getValidations() {

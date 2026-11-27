@@ -96,7 +96,9 @@ import io.ballerina.designmodelgenerator.core.model.Location;
 import io.ballerina.designmodelgenerator.core.model.Workflow;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.GraphqlTypeMapper;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.service.TcpConnectionServiceResolver;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
 import io.ballerina.modelgenerator.commons.trigger.models.ArtifactIcon;
 import io.ballerina.tools.text.LineRange;
@@ -119,6 +121,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private final IntermediateModel intermediateModel;
     private IntermediateModel.FunctionModel currentFunctionModel;
     private IntermediateModel.ServiceModel currentServiceModel;
+    private boolean isGraphqlService;
     private final Path rootPath;
     private final ConnectionFinder connectionFinder;
     private IntermediateModel.ServiceClassModel currentServiceClass;
@@ -136,6 +139,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String AGENT_SEND_DATA_METHOD = "sendData";
     private static final String AGENT_SEND_DATA_NAME_ARG = "eventName";
     private static final String AGENT_RUN_METHOD = "run";
+    private static final String AGENT_RUN_WITH_ID_METHOD = "runWithId";
     private static final int SEND_DATA_NAME_ARG_INDEX = 2;
     private static final Map<String, String> BUILTIN_ACTIVITY_LABELS = Map.of(
             Constants.Workflow.BUILTIN_REST_FUNCTION, Constants.Workflow.BUILTIN_REST_LABEL,
@@ -197,7 +201,13 @@ public class CodeAnalyzer extends NodeVisitor {
         IntermediateModel.ServiceModel serviceModel = new IntermediateModel.ServiceModel(
                 displayName, absoluteResourcePath, sortText, getLocation(lineRange));
         serviceModel.serviceType = serviceType;
+        serviceModel.connectionServiceClass = TcpConnectionServiceResolver
+                .findConnectionServiceClass(serviceDeclarationNode, semanticModel)
+                .flatMap(ClassSymbol::getName)
+                .orElse(null);
         this.currentServiceModel = serviceModel;
+        this.isGraphqlService = serviceSymbol.isPresent()
+                && GraphqlTypeMapper.isGraphqlService((ServiceDeclarationSymbol) serviceSymbol.get());
         intermediateModel.serviceModelMap.put(String.valueOf(lineRange.hashCode()), serviceModel);
 
         for (ExpressionNode expressionNode : serviceDeclarationNode.expressions()) {
@@ -242,16 +252,27 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         serviceDeclarationNode.members().forEach(member -> member.accept(this));
         this.currentServiceModel = null;
+        this.isGraphqlService = false;
     }
 
     @Override
     public void visit(FunctionDefinitionNode functionDefinitionNode) {
+        // A method of an object constructed inside a function body (e.g. a `service object {}` returned from a
+        // resource) is part of that function, not a member of the enclosing service or a function of its own.
+        if (this.currentFunctionModel != null) {
+            functionDefinitionNode.functionBody().accept(this);
+            return;
+        }
         String functionName = functionDefinitionNode.functionName().text().trim();
         this.currentFunctionModel = new IntermediateModel.FunctionModel(functionName);
         if (this.currentServiceModel != null) {
             Optional<Symbol> symbol = this.semanticModel.symbol(functionDefinitionNode);
             if (symbol.isPresent()) {
                 MethodSymbol methodSymbol = (MethodSymbol) symbol.get();
+                if (this.isGraphqlService) {
+                    this.currentFunctionModel.graphqlField =
+                            GraphqlFieldResolver.resolve(functionDefinitionNode, methodSymbol);
+                }
                 if (functionDefinitionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
                     this.currentFunctionModel.path = CommonUtils.getResourcePathStr(semanticModel,
                             (ResourceMethodSymbol) methodSymbol);
@@ -278,6 +299,10 @@ public class CodeAnalyzer extends NodeVisitor {
         functionDefinitionNode.functionBody().accept(this);
         if (currentServiceClass != null) {
             currentServiceClass.functionModels.add(this.currentFunctionModel);
+            if (functionDefinitionNode.qualifierList().stream()
+                    .anyMatch(qualifier -> qualifier.kind() == SyntaxKind.REMOTE_KEYWORD)) {
+                currentServiceClass.remoteFunctions.add(this.currentFunctionModel);
+            }
         }
         this.currentFunctionModel = null;
         this.currentWorkflow = null;
@@ -322,7 +347,8 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         String methodName = qualifiedName.identifier().text();
-        boolean isRun = Constants.Workflow.RUN_METHOD_NAME.equals(methodName);
+        boolean isRun = Constants.Workflow.RUN_METHOD_NAME.equals(methodName)
+                || Constants.Workflow.RUN_WITH_ID_METHOD_NAME.equals(methodName);
         boolean isSendData = Constants.Workflow.SEND_DATA_METHOD_NAME.equals(methodName);
         if (!isRun && !isSendData) {
             return;
@@ -457,9 +483,9 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             return;
         }
-        if (!AGENT_RUN_METHOD.equals(methodName)) {
+        if (!AGENT_RUN_METHOD.equals(methodName) && !AGENT_RUN_WITH_ID_METHOD.equals(methodName)) {
             // Read-only interactions (getResult/waitForResult/waitForDataResult/...) draw no
-            // edge: like regular workflows, only run and data-event sends connect on the overview.
+            // edge: like regular workflows, only run, runWithId and data-event sends connect on the overview.
             return;
         }
         this.currentFunctionModel.workflows.add(agent.getUuid());

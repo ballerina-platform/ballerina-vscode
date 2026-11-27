@@ -64,13 +64,13 @@ public class DataMappingClausePositionTest extends AbstractLSTest {
             if (testConfig.position() != null) {
                 TestConfig updatedConfig = new TestConfig(testConfig.source(), testConfig.description(),
                         testConfig.codedata(), testConfig.targetField(), testConfig.index(), position);
-                updateConfig(configJsonPath, updatedConfig);
+//                updateConfig(configJsonPath, updatedConfig);
                 Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
             }
         } else if (!position.equals(testConfig.position())) {
             TestConfig updatedConfig = new TestConfig(testConfig.source(), testConfig.description(),
                     testConfig.codedata(), testConfig.targetField(), testConfig.index(), position);
-            updateConfig(configJsonPath, updatedConfig);
+//            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
     }

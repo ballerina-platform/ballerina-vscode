@@ -281,7 +281,7 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
     {
         id: "configurable",
         displayName: "Configuration",
-        icon: <Icon name="bi-config" />,
+        icon: <Icon name="configurable-icon" />,
         directoryKey: DIRECTORY_MAP.CONFIGURABLE,
         tooltip: "A value that can be configured externally without changing code.",
     },
