@@ -20,6 +20,8 @@
 // A Copilot token is only handed out for the WSO2 Cloud region it was exchanged for.
 
 let cloudEnv = "prod-eu";
+/** The platform WSO2 Integrator reports when it is not WSO2 Cloud. */
+let cloudPlatform: string | undefined;
 let exchanges = 0;
 /** Runs during an exchange, before it answers: a region switch meanwhile. */
 let duringExchange: () => void = () => undefined;
@@ -29,6 +31,7 @@ let duringStore: () => void = () => undefined;
 
 jest.mock("../utils/cloud-auth", () => ({
     getCloudEnvName: () => cloudEnv,
+    getCloudPlatform: () => cloudPlatform,
     getPlatformGate: async () => undefined,
     withPlatformAPI: async (use: (api: unknown) => Promise<unknown>) =>
         use({
@@ -66,6 +69,7 @@ const unexpired = () => Date.now() + 3_600_000;
 describe("Copilot token and the WSO2 Cloud region", () => {
     beforeEach(() => {
         secrets.clear();
+        cloudPlatform = undefined;
         exchanges = 0;
         duringExchange = () => undefined;
         duringStore = () => undefined;
@@ -113,5 +117,19 @@ describe("Copilot token and the WSO2 Cloud region", () => {
         const token = (await getAccessToken())?.secrets as { accessToken: string; cloudEnv?: string };
         // The pair stays together: the request goes to the backend of the region the token is for.
         expect(token).toMatchObject({ accessToken: "copilot-1", cloudEnv: "prod-eu" });
+    });
+
+    it("exchanges again when WSO2 Integrator switches platform within the same environment", async () => {
+        cloudEnv = "prod";
+        await storeBiIntelCredentials({ accessToken: "choreo", expiresAt: unexpired(), cloudEnv: "prod" } as never);
+        cloudPlatform = "devant";
+        const onDevant = (await getAccessToken())?.secrets as { accessToken: string; cloudPlatform?: string };
+        expect(onDevant).toMatchObject({ accessToken: "copilot-1", cloudPlatform: "devant" });
+        await getAccessToken();
+        expect(exchanges).toBe(1);
+        cloudPlatform = undefined;
+        const back = (await getAccessToken())?.secrets as { accessToken: string; cloudPlatform?: string };
+        expect(back.accessToken).toBe("copilot-2");
+        expect(back.cloudPlatform).toBeUndefined();
     });
 });
