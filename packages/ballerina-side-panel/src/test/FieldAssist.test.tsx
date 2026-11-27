@@ -404,13 +404,12 @@ describe("field threads in a host", () => {
 });
 
 describe("the form's first-use hint", () => {
-    // A form with an empty required value, as the header's hint needs.
-    function EmptyForm() {
+    function CopilotForm() {
         const host = useAssistHost()!;
-        useEffect(() => host.registerForm({ needsValues: () => true } as unknown as FormController), [host.registerForm]);
+        useEffect(() => host.registerForm({} as FormController), [host.registerForm]);
         return <AssistHeaderButton />;
     }
-    const openForm = () => render(<AssistHostProvider><EmptyForm /></AssistHostProvider>);
+    const openForm = () => render(<AssistHostProvider><CopilotForm /></AssistHostProvider>);
     const hint = () => screen.queryByRole("note");
 
     beforeEach(() => localStorage.clear());
