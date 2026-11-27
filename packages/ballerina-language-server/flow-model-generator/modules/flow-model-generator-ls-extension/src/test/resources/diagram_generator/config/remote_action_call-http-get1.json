@@ -254,7 +254,7 @@
                 "selected": true
               }
             ],
-            "value": "json",
+            "value": "json|error",
             "placeholder": "var",
             "optional": false,
             "editable": false,
@@ -478,7 +478,7 @@
                 "selected": true
               }
             ],
-            "value": "json",
+            "value": "json|http:ClientError",
             "placeholder": "var",
             "optional": false,
             "editable": false,

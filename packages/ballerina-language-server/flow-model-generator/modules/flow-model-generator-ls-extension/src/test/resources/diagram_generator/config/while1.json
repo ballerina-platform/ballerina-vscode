@@ -484,7 +484,7 @@
                         "selected": true
                       }
                     ],
-                    "value": "json",
+                    "value": "json|http:ClientError",
                     "placeholder": "var",
                     "optional": false,
                     "editable": false,

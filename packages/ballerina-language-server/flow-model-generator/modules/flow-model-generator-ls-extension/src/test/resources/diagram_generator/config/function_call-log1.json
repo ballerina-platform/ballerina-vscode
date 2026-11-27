@@ -675,7 +675,7 @@
                 "selected": true
               }
             ],
-            "value": "json",
+            "value": "json|error",
             "placeholder": "var",
             "optional": false,
             "editable": false,
