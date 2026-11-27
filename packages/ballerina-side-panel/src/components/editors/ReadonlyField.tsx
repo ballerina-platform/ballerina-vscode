@@ -22,6 +22,7 @@ import { Button, Icon, RequiredFormInput, ThemeColors, Tooltip } from "@wso2/ui-
 import { capitalize } from "./utils";
 import styled from "@emotion/styled";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FieldDescription } from "./FieldDescription";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -40,11 +41,9 @@ const Label = styled.div`
     margin-bottom: 4px;
 `;
 
-const Description = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-list-deemphasizedForeground);
+// Styles FieldDescription's own container, so no margin is left behind when it renders nothing.
+const Description = styled(FieldDescription)`
     margin-top: 4px;
-    color: var(--vscode-list-deemphasizedForeground);
     margin-bottom: 4px;
     text-align: left;
 `;
@@ -214,7 +213,7 @@ export function ReadonlyField(props: ReadonlyFieldProps) {
                 {!field.optional && <RequiredFormInput />}
                 <FieldTypeChip types={field.types} />
             </Label>
-            {field.documentation && <Description>{field.documentation}</Description>}
+            <Description documentation={field.documentation} testId={`readonly-field-${field.key}-description`} />
             <InputContainer>
                 {isExpression && (
                     <ExpressionRibbon>

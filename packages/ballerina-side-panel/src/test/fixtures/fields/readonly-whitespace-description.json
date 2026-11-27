@@ -1,0 +1,16 @@
+{
+    "description": "read-only field whose documentation is only whitespace: no description and no margin is rendered",
+    "expectedEditor": "ReadonlyField",
+    "fieldInputType": { "fieldType": "TEXT" },
+    "field": {
+        "key": "blankDoc",
+        "label": "Blank doc",
+        "type": "TEXT",
+        "optional": false,
+        "editable": false,
+        "documentation": "\n",
+        "value": "",
+        "types": [{ "fieldType": "TEXT", "selected": true }],
+        "enabled": true
+    }
+}
