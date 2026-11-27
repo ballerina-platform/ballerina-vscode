@@ -58,7 +58,6 @@ public class A2aToolKitGetTemplateTest extends AbstractLSTest {
         Assert.assertTrue(response.has("flowNode"), response.toString());
         JsonObject flowNode = response.getAsJsonObject("flowNode");
         JsonObject properties = flowNode.getAsJsonObject("properties");
-        System.out.println("A2A_TEMPLATE " + flowNode);
         for (String name : new String[]{"agent", "$name", "secret", "clientConfig", "headers", "requiresApproval",
                 "variable"}) {
             Assert.assertTrue(properties.has(name), "missing " + name + ": " + properties.keySet());
