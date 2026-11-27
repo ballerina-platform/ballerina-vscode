@@ -276,8 +276,13 @@ describe("open-repo", () => {
         expect(executeCommand).toHaveBeenCalledWith("vscode.openFolder", expect.objectContaining({ fsPath: path.join(tmp, "choreo-sample-apps") }));
     });
 
-    it("refuses a repository from an org outside the allowed list", async () => {
-        await handleOpenRepo(asExtension(makeExtension(tmp)), "https://github.com/jclark/semtype");
+    it.each([
+        ["an org outside the allowed list", "https://github.com/jclark/semtype"],
+        ["a host other than github.com", "https://example.com/wso2/samples"],
+        ["a host that starts with github.com", "https://github.com.example.com/wso2/samples"],
+        ["a scheme other than https", "http://github.com/wso2/samples"],
+    ])("refuses a repository from %s", async (_case, url) => {
+        await handleOpenRepo(asExtension(makeExtension(tmp)), url);
 
         expect(executeCommand).not.toHaveBeenCalled();
         expect(showError).toHaveBeenCalledWith("Unauthorized repository.");

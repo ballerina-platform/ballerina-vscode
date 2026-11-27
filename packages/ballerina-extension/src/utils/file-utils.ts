@@ -133,8 +133,10 @@ export async function handleOpenRepo(ballerinaExtInstance: BallerinaExtension, r
     try {
         const defaultDownloadsPath = path.join(os.homedir(), 'Downloads'); // Construct the default downloads path
         const selectedPath = ballerinaExtInstance.getFileDownloadPath() || defaultDownloadsPath;
+        const url = new URL(repoUrl);
+        const validHost = url.protocol === "https:" && url.hostname === GIT_DOMAIN;
         const username = getGithubUsername(repoUrl);
-        if (ALLOWED_ORG_LIST.includes(username)) {
+        if (validHost && ALLOWED_ORG_LIST.includes(username)) {
             const cleanRepoUrl = repoUrl.replace(".git", "");
             const repoLocation = await getRepositoryLocation(ballerinaExtInstance, cleanRepoUrl);
             if (repoLocation) {
