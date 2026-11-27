@@ -1191,6 +1191,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         renameLog,
         assistHost,
         partOfParentForm,
+        assistPrefix: partOfParentForm ? parentContext?.nestedAssistPrefix : undefined,
     };
 
     const isEmptyValue = (value: unknown) => value === undefined || value === "";

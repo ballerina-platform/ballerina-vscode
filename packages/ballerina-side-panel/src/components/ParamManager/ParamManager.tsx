@@ -26,7 +26,9 @@ import { Codicon, ErrorBanner, LinkButton, RequiredFormInput, ThemeColors } from
 import { FormField, FormValues } from '../Form/types';
 import { getGraphqlIdForField } from './graphqlId';
 import { Controller } from 'react-hook-form';
-import { useFormContext } from '../../context';
+import { useAssistKey, useFormContext } from '../../context';
+import { useAssistHost } from '../editors/FieldAssist/AssistHost';
+import { withoutRow } from '../editors/FieldAssist/ChangeReview';
 import { Imports, NodeKind } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { FieldFactory } from '../editors/FieldFactory';
@@ -63,6 +65,15 @@ export function useHeldParameters(value: Parameter[] | undefined, parameters: Pa
             return tracked ? { ...param, identifierRange: tracked.identifierRange } : param;
         }));
     }, [value]);
+}
+
+// Copilot marks each shown parameter on its own row (`parameters-1`); deleting a row moves the marks below it up.
+export function useRowMarks(propertyKey: string, parameters: Parameter[]) {
+    const host = useAssistHost();
+    const fieldKey = useAssistKey(propertyKey);
+    const rowKey = (index: number) => `${fieldKey}-${parameters.slice(0, index).filter((param) => !param.hidden).length}`;
+    const rowRemoved = (index: number) => host?.setApplied((current) => current && withoutRow(current, rowKey(index)));
+    return { rowKey, rowRemoved };
 }
 
 export interface ParamConfig {
@@ -245,6 +256,7 @@ export function ParamManager(props: ParamManagerProps) {
     const [isNew, setIsNew] = useState(false);
     const [parameters, setParameters] = useState<Parameter[]>(paramConfigs.paramValues);
     useHeldParameters(value, parameters, setParameters);
+    const { rowKey, rowRemoved } = useRowMarks(propertyKey, parameters);
     const [paramComponents, setParamComponents] = useState<React.ReactElement[]>([]);
     const [isGraphql, setIsGraphql] = useState<boolean>(false);
     const [autoOpenedWaitDataEditor, setAutoOpenedWaitDataEditor] = useState<boolean>(false);
@@ -292,6 +304,7 @@ export function ParamManager(props: ParamManagerProps) {
         const indexToRemove = param.id;
         if (indexToRemove >= 0 && indexToRemove < updatedParameters.length) {
             updatedParameters.splice(indexToRemove, 1);
+            rowRemoved(indexToRemove);
         }
         const reArrangedParameters = updatedParameters.map((item, index) => ({
             ...item,
@@ -383,6 +396,7 @@ export function ParamManager(props: ParamManagerProps) {
                             onSave={onSaveParam}
                             onCancelEdit={onParamEditCancel}
                             openRecordEditor={openRecordEditor}
+                            markKey={rowKey(index)}
                         />
                     )
                 } else if ((editingSegmentId !== index && !(param.hidden ?? false))) {
@@ -390,6 +404,7 @@ export function ParamManager(props: ParamManagerProps) {
                         <ParamItem
                             key={param.id}
                             param={param}
+                            markKey={rowKey(index)}
                             readonly={editingSegmentId !== -1 || readonly}
                             isGraphql={isGraphql}
                             onDelete={onDelete}

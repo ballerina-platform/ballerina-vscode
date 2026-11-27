@@ -80,6 +80,11 @@ export interface AppliedMark {
     handoff?: AssistFlowChange;
 }
 
+export interface FieldThreadHandle {
+    revise: (instruction: string) => boolean;
+    stop: () => void;
+}
+
 // The form's thread, kept by the host so it survives the form rebuilding itself after a change.
 export interface FormThread {
     formId: string;
@@ -163,9 +168,13 @@ export interface AssistHostValue {
     formShown: boolean;
     registerField: (key: string, field: AssistField) => () => void;
     // A field's own Copilot thread, which takes Revise for a change it made; returns its unregister.
-    registerFieldThread: (key: string, revise: (instruction: string) => boolean) => () => void;
+    registerFieldThread: (key: string, thread: FieldThreadHandle) => () => void;
     // Revises a change in the thread of the field that made it; false when the field has no thread here.
     reviseInField: (key: string, instruction: string) => boolean;
+    stopFieldThread: (key: string) => void;
+    // The field whose thread runs a Revise sent from its change card, which shows it working.
+    fieldRunning?: string;
+    setFieldRunning: React.Dispatch<React.SetStateAction<string | undefined>>;
     // A field's requests so far, kept here so they outlive the field's editor.
     fieldThread: (key: string) => FieldThread;
     registerAction: (id: string, action: AssistAction) => () => void;
@@ -196,6 +205,9 @@ export interface AssistHostValue {
     // The change the review card sits under, and whether the card takes the focus when it moves there.
     reviewKey?: string;
     setReviewKey: (key?: string) => void;
+    // The field whose expanded editor is open; its review card shows in that editor instead of under the field.
+    expandedKey?: string;
+    setExpandedKey: React.Dispatch<React.SetStateAction<string | undefined>>;
     reviewFocus: React.MutableRefObject<ReviewFocus | undefined>;
     revising?: string;
     setRevising: (key?: string) => void;
@@ -299,6 +311,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const refocus = useRef(false);
     const [orb, setOrb] = useState<HTMLElement | null>(null);
     const [reviewKey, setReviewKey] = useState<string>();
+    const [expandedKey, setExpandedKey] = useState<string>();
     const reviewFocus = useRef<ReviewFocus>();
     const [revising, setRevising] = useState<string>();
     const handOff = useCallback((messages: string[], focus: AssistFocus, pending?: string) => {
@@ -311,14 +324,22 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const registerFieldSource = useCallback((source: AssistFieldSource) => sources.register(source, source), [sources.register]);
     const fieldSources = useCallback(() => [...sources.all().values()], [sources.all]);
     const actions = useRegistry<string, AssistAction>(false);
-    const fieldThreads = useRegistry<string, (instruction: string) => boolean>(false);
+    const fieldThreads = useRegistry<string, FieldThreadHandle>(false);
+    const [fieldRunning, setFieldRunning] = useState<string>();
     const keptThreads = useRef(new Map<string, Omit<FieldThread, "keep">>());
     const fieldThread = useCallback((key: string): FieldThread => {
         const kept = keptThreads.current.get(key) ?? { history: [], marks: new Map() };
         keptThreads.current.set(key, kept);
         return { ...kept, keep: (history) => { kept.history = history; } };
     }, []);
-    const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.(instruction), [fieldThreads.all]);
+    // A form that went away, e.g. back to the node list, takes its threads along; a rebuilt form re-registers in the same commit.
+    useEffect(() => {
+        if (!fields.count && !sources.count) {
+            keptThreads.current.clear();
+        }
+    }, [fields.count, sources.count]);
+    const reviseInField = useCallback((key: string, instruction: string) => !!fieldThreads.all().get(key)?.revise(instruction), [fieldThreads.all]);
+    const stopFieldThread = useCallback((key: string) => fieldThreads.all().get(key)?.stop(), [fieldThreads.all]);
     const [dockOwner, setDockOwner] = useState<object>();
     const claimDock = useCallback((owner: object) => {
         setDockOwner((current) => current ?? owner);
@@ -382,6 +403,9 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         registerField: fields.register,
         registerFieldThread: fieldThreads.register,
         reviseInField,
+        stopFieldThread,
+        fieldRunning,
+        setFieldRunning,
         fieldThread,
         assistFields: fields.all,
         fieldCount: fields.count,
@@ -406,6 +430,8 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         refocus,
         reviewKey,
         setReviewKey,
+        expandedKey,
+        setExpandedKey,
         reviewFocus,
         revising,
         setRevising,
@@ -415,7 +441,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         dropMark,
         formErrors,
         setFormErrors,
-    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, fieldThread, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, revising, review, applied, dropMark, formErrors]);
+    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, stopFieldThread, fieldRunning, fieldThread, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, expandedKey, revising, review, applied, dropMark, formErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -643,7 +669,6 @@ function OrbPopover({ orb, closing, children }: { orb: HTMLElement; closing?: bo
 }
 
 const HINT_USED_KEY = "wso2.copilot.formChangeApplied";
-const HINT_MS = 4000;
 
 function hintUsed(): boolean {
     try {
@@ -661,32 +686,29 @@ function markHintUsed() {
     }
 }
 
-function useFormHint(ready: boolean, needsValues: () => boolean, formOpen: boolean, applied: boolean) {
+// Shown until it is dismissed or the form's Copilot is used; either ends it for good.
+function useFormHint(ready: boolean, needsValues: () => boolean, used: boolean) {
     const [shown, setShown] = useState(false);
+    const dismiss = useCallback(() => {
+        markHintUsed();
+        setShown(false);
+    }, []);
     useEffect(() => {
-        if (!ready || hintUsed() || !needsValues()) {
-            return;
+        if (ready && !hintUsed() && needsValues()) {
+            setShown(true);
         }
-        setShown(true);
-        const timer = setTimeout(() => setShown(false), HINT_MS);
-        return () => clearTimeout(timer);
     }, [ready]);
     useEffect(() => {
-        if (formOpen) {
-            setShown(false);
+        if (used) {
+            dismiss();
         }
-    }, [formOpen]);
-    useEffect(() => {
-        if (applied) {
-            markHintUsed();
-        }
-    }, [applied]);
-    return shown;
+    }, [used]);
+    return { shown, dismiss };
 }
 
 export function AssistHeaderButton() {
     const host = useAssistHost();
-    const hint = useFormHint(!!host?.formReady, () => !!host?.liveForm()?.needsValues(), !!host?.formOpen, !!host?.applied);
+    const hint = useFormHint(!!host?.formReady, () => !!host?.liveForm()?.needsValues(), !!host?.formOpen || !!host?.applied);
     const orbFace = useContext(AssistOrbContext);
     if (!host?.formReady) {
         return null;
@@ -708,12 +730,21 @@ export function AssistHeaderButton() {
         );
     }
     return (
-        <S.HeaderOrb ref={host.setOrb} type="button" aria-label={working ? "Copilot is working" : "Fill this form with Copilot"}
-            aria-pressed={host.formOpen} aria-busy={working} onClick={() => (host.formOpen ? host.close() : host.open(FORM_SCOPE))}>
-            {face}
-            <S.OrbHint aria-hidden="true" shown={hint}>Use Copilot to fill this form</S.OrbHint>
-            {!hint && <S.OrbTip aria-hidden="true">Fill this form with Copilot</S.OrbTip>}
-        </S.HeaderOrb>
+        <S.OrbAnchor>
+            <S.HeaderOrb ref={host.setOrb} type="button" aria-label={working ? "Copilot is working" : "Fill this form with Copilot"}
+                aria-pressed={host.formOpen} aria-busy={working} onClick={() => (host.formOpen ? host.close() : host.open(FORM_SCOPE))}>
+                {face}
+                <S.OrbTip aria-hidden="true" hidden={hint.shown}>Fill this form with Copilot</S.OrbTip>
+            </S.HeaderOrb>
+            {hint.shown && (
+                <S.OrbBubble role="note" onClick={() => host.open(FORM_SCOPE)}>
+                    Use Copilot to fill this form
+                    <S.HeaderButton type="button" aria-label="Dismiss" title="Dismiss" onClick={(event) => { event.stopPropagation(); hint.dismiss(); }}>
+                        <Codicon name="close" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
+                    </S.HeaderButton>
+                </S.OrbBubble>
+            )}
+        </S.OrbAnchor>
     );
 }
 

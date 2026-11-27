@@ -386,7 +386,7 @@
                 "selected": true
               }
             ],
-            "value": "pkgB:ExternalCustomer",
+            "value": "pkgB:ExternalCustomer|error",
             "placeholder": "var",
             "optional": false,
             "editable": false,
@@ -730,7 +730,7 @@
                 "selected": true
               }
             ],
-            "value": "pkgB:ExternalCustomer",
+            "value": "pkgB:ExternalCustomer|error",
             "placeholder": "var",
             "optional": false,
             "editable": false,

@@ -28,6 +28,7 @@ import { useFormContext } from '../../context';
 import { ExpressionProperty, FormDiagnostics, InputType, RecordTypeField, TextEdit, getPrimaryInputType } from '@wso2/ballerina-core';
 import { HelperPaneHeight } from '@wso2/ui-toolkit';
 import { FormExpressionEditorRef } from '@wso2/ui-toolkit';
+import { AssistMark } from '../editors/FieldAssist/AssistMark';
 
 export interface ParamProps {
     propertyKey: string;
@@ -36,10 +37,11 @@ export interface ParamProps {
     onSave: (param: Parameter) => void | Promise<void>;
     onCancelEdit: (param?: Parameter) => void;
     openRecordEditor?: (open: boolean) => void;
+    markKey?: string;
 }
 
 export function ParamEditor(props: ParamProps) {
-    const { propertyKey, parameter, paramFields, onSave, onCancelEdit, openRecordEditor } = props;
+    const { propertyKey, parameter, paramFields, onSave, onCancelEdit, openRecordEditor, markKey } = props;
     const { expressionEditor, targetLineRange, fileName } = useFormContext();
 
     const onCompletionItemSelect = async (value: string, fieldKey: string, additionalTextEdits?: TextEdit[]) => {
@@ -186,6 +188,7 @@ export function ParamEditor(props: ParamProps) {
                 preserveOrder={true}
                 isSaving={isSaving}
             />
+            {markKey && <AssistMark fieldKey={markKey} />}
         </EditorContainer >
     );
 }

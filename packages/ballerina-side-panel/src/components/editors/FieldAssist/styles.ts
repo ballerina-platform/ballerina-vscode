@@ -145,10 +145,22 @@ export namespace S {
         color: ${ThemeColors.ON_SURFACE_VARIANT};
         background: transparent;
         ${pressable}
-        &:hover {
+        &:hover:not(:disabled) {
             color: ${ThemeColors.ON_SURFACE};
             background-color: var(--vscode-toolbar-hoverBackground);
         }
+        &:disabled {
+            cursor: default;
+            opacity: 0.4;
+        }
+    `;
+
+    // Pinned to the card's top-left, beside the right-aligned bubbles, so it stays put while the thread scrolls.
+    export const ClearThread = styled(HeaderButton)`
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 1;
     `;
 
     // The header's button around the app's Copilot orb, which draws its own sphere, glow and states.
@@ -210,7 +222,7 @@ export namespace S {
         }
     `;
 
-    // The first-use hint, a speech bubble from the orb; clicks reach the orb.
+    // The errors hint, a speech bubble from the orb; clicks reach the orb.
     export const OrbHint = styled(OrbTip)<{ shown: boolean }>`
         top: calc(100% + 10px);
         padding: 6px 10px;
@@ -221,6 +233,53 @@ export namespace S {
         opacity: ${({ shown }) => (shown ? 1 : 0)};
         transform: ${({ shown }) => (shown ? "none" : "translateY(-4px)")};
         transition: opacity 180ms ${EASE_OUT}, transform 180ms ${EASE_OUT};
+        &::before {
+            content: "";
+            position: absolute;
+            top: -5px;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            background: inherit;
+            border-top: inherit;
+            border-left: inherit;
+            transform: rotate(45deg);
+        }
+    `;
+
+    // Holds the orb and its first-use bubble, which sits outside the orb's button so it can hold its own Dismiss button.
+    export const OrbAnchor = styled.span`
+        position: relative;
+        flex-shrink: 0;
+        display: inline-flex;
+    `;
+
+    // The first-use hint, a speech bubble from the orb that stays until it is dismissed or the thread opens.
+    export const OrbBubble = styled.div`
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 6px 6px 12px;
+        border: 1px solid var(--vscode-editorHoverWidget-border, ${FIELD_BORDER});
+        border-radius: 12px;
+        background-color: var(--vscode-editorHoverWidget-background, ${ThemeColors.SURFACE_DIM});
+        box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+        color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+        font-family: var(--vscode-font-family);
+        font-size: 13px;
+        font-weight: normal;
+        line-height: 18px;
+        white-space: nowrap;
+        cursor: pointer;
+        animation: ${rise} 180ms ${EASE_OUT};
+        @media (prefers-reduced-motion: reduce) {
+            animation-name: ${fade};
+        }
+        /* The tail, under the orb's centre. */
         &::before {
             content: "";
             position: absolute;
@@ -267,6 +326,10 @@ export namespace S {
             padding: 12px 12px 0;
             min-height: 0;
             overflow-y: auto;
+        }
+        & .copilot-history {
+            max-height: none;
+            overflow-y: visible;
         }
         & .copilot-prompt {
             position: sticky;
@@ -435,6 +498,7 @@ export namespace S {
     `;
 
     export const Panel = styled.div`
+        position: relative;
         margin-top: 6px;
         display: flex;
         flex-direction: column;
@@ -456,18 +520,23 @@ export namespace S {
 
     // The shell inside the popover: the popover is the card, so the thread sits flat in it.
     export const EmbeddedPanel = styled.div`
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 8px;
         padding: 8px;
     `;
 
+    // A long thread scrolls inside the card, which keeps the field and the prompt in view.
     export const History = styled.div`
         display: flex;
         flex-direction: column;
         align-items: flex-end;
         gap: 8px;
         padding: 2px 2px 0;
+        max-height: 160px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
     `;
 
     // As in the Copilot orb's chat.

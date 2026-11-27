@@ -39,7 +39,7 @@ import { WarningBanner } from '../Form/WarningBanner';
 import { CollapsibleDescription } from './CollapsibleDescription';
 import { dedupeMessages } from '../Form/DiagnosticsStore';
 import { FormField, FormExpressionEditorProps, HelperpaneOnChangeOptions } from '../Form/types';
-import { useFormContext, useFormFieldLoadingContext } from '../../context';
+import { useAssistKey, useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
     ExpressionProperty,
     FormDiagnostics,
@@ -59,7 +59,7 @@ import { useModeSwitcherContext } from "./ModeSwitcherContext";
 import ModeSwitcher from '../ModeSwitcher';
 import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
-import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, reviewNote, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
 import { AssistCardFrame, ValueDisplay, reviseInCard, useAssistHost, usePresence, withFieldChange } from './FieldAssist/AssistHost';
 import { HostedFieldPanel, replaceEditorText, switchesToExpression, useFieldThread, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
 import { S as AssistStyles } from './FieldAssist/styles';
@@ -519,6 +519,7 @@ const reviewDisplay = (inputMode: InputMode, before: string): ValueDisplay | und
 // Wires the AI helper to one field: which modes take it, where the panel shows, and how a proposal lands in the editor.
 function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     const { field, fieldKey: key, inputMode, readOnly, watch, fieldRef, sanitizedExpression, expanded } = props;
+    const markKey = useAssistKey(key);
     const { updateImports, form, nodeInfo, fields } = useFormContext();
     const modeSwitcherContext = useModeSwitcherContext();
     // A text or number field can still take a computed value: it switches to Expression mode when one is applied.
@@ -529,7 +530,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     const host = useAssistHost();
     const inPopover = !!host && !expanded;
     const assist = useFieldAssist({
-        thread: host?.fieldThread(key),
+        thread: host?.fieldThread(markKey),
         assist: assistable && !readOnly && props.assistExpression
             ? (input) => props.assistExpression({
                 ...input,
@@ -546,7 +547,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         getValue: () => watch(key) ?? "",
         sensitive: isSensitiveField(field.label, key),
         handOff: inPopover ? (messages, pending) => host.handOff(messages, { key, label: field.label }, pending) : undefined,
-        review: inPopover ? (proposal, request) => writeForReview(proposal, request) : undefined,
+        review: host ? (proposal, request) => writeForReview(proposal, request) : undefined,
         continueInChat: inPopover ? (request, context) => host.liveForm()?.continueInChat?.(request, `In the ${field.label} field.\n${context}`) : undefined,
     });
     // The editor whose button opened the helper: the field itself, or the expanded editor over it.
@@ -556,9 +557,10 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     // The field's errors from this render, filled in by fixAction; the panel offers a fix while there are any.
     const errorsRef = useRef<string[]>([]);
     errorsRef.current = [];
-    const scope = `field:${key}`;
+    const scope = `field:${markKey}`;
     const hosted = inPopover && assist.available;
-    useFieldThread(key, field.label, assist, hosted);
+    // In the expanded editor a Revise continues the thread in the editor's own card.
+    useFieldThread(markKey, field.label, assist, !!host && assist.available, expanded ? () => assist.open || assist.toggle() : undefined);
     const hostOpen = host?.scope === scope;
     const openHosted = () => host?.open(scope, field.label);
     // The expanded editor covers the panel, so no popover from the panel stays open over it.
@@ -578,8 +580,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         () => (assist.available ? {
             open: (from?: HTMLElement, draft?: string) => {
                 assistTarget.current = from ?? null;
-                // The expanded editor covers the review card, so its button keeps the field's own Copilot.
-                if (!draft && !expandedEditor(from ?? null) && reviseInCard(host, key)) {
+                if (!draft && reviseInCard(host, markKey)) {
                     return;
                 }
                 if (draft) {
@@ -593,7 +594,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
                     openHosted();
                 }
             },
-            isOpen: host?.revising === key || (hosted ? hostOpen : assist.open),
+            isOpen: host?.revising === markKey || (hosted ? hostOpen : assist.open),
         } : undefined),
         [assist.available, assist.open, hosted, hostOpen, host]
     );
@@ -629,25 +630,35 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     // The suggestion lands in the field at once; the card under it keeps, undoes or revises it, as for a form change.
     const writeForReview = async (proposal: Proposal, request: string) => {
         const before = watch(key) ?? "";
-        await applyProposal(proposal, false);
-        host?.setApplied((current) => withFieldChange(current, key, {
+        // A configurable the value names is declared as it lands; Undo removes it with the value.
+        const removeCreated = await runValueActions(props.runAssistActions, proposal.actions, before);
+        await applyProposal({ ...proposal, actions: undefined }, false);
+        host?.setApplied((current) => withFieldChange(current, markKey, {
             before: display(before),
             after: display(proposal.expression),
             display: reviewDisplay(inputMode, before),
             request,
             label: field.label,
-            note: proposal.note,
+            note: reviewNote(proposal, before),
             handoff: proposal.flowChange,
             values: { before, after: proposal.expression },
-            revert: () => applyProposal({ expression: before }, false),
+            revert: () => {
+                void applyProposal({ expression: before }, false);
+                if (removeCreated) {
+                    void removeCreated();
+                }
+            },
         }));
-        host?.setReviewKey(key);
+        host?.setReviewKey(markKey);
         host?.close();
+        if (expanded) {
+            assist.close();
+        }
     };
     // A value from the field's own Copilot is the user's edit, as typing is, so a form review of the field ends.
     const replaceWithProposal = async (proposal: Proposal) => {
         await applyProposal(proposal);
-        host?.dropMark(key);
+        host?.dropMark(markKey);
     };
     const presence = usePresence(!hosted && assist.open);
     const assistPanel = hosted ? (
@@ -731,6 +742,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     } = props as ExpressionEditorProps;
 
     const key = fieldKey ?? field.key;
+    const markKey = useAssistKey(key);
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
     // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
@@ -1277,6 +1289,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}
                                         assistPanel={isExpandedModalOpen ? assistPanel : undefined}
+                                        assistKey={markKey}
                                         revision={expandedRevision}
                                         errorAction={fixAction}
                                         field={field}

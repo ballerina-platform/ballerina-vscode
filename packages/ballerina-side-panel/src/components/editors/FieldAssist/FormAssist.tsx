@@ -719,6 +719,7 @@ function groupChanges(group: FormAssistGroup, rows: Record<string, string>[], re
             label: (group.max ?? 2) <= 1 ? group.rowLabel ?? group.label : `${group.rowLabel ?? group.label} ${(step.after ?? step.before ?? 0) + 1}`,
             mark: step.was === undefined ? "+" : step.now === undefined ? "−" : undefined,
             before: step.was ?? "",
+            after: step.now,
             ...createdBy(response, group.id, step.now ?? ""),
         }));
 }

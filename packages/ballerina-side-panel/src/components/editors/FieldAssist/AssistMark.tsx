@@ -20,11 +20,12 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Global } from "@emotion/react";
 import { scrollParent, useAssistHost } from "./AssistHost";
 import type { FormField } from "../../Form/types";
-import { ChangeCard, currentReview } from "./ChangeReview";
+import { ChangeCard, currentReview, rowGroup } from "./ChangeReview";
 import { keysWithin } from "./formFields";
 import { CHANGED_FIELD, S, changedFieldStyles } from "./styles";
 
-export function AssistMark({ fieldKey }: { fieldKey: string }) {
+// `expanded` is the mark in the field's expanded editor, which takes the review card while that editor is open.
+export function AssistMark({ fieldKey, expanded = false }: { fieldKey: string; expanded?: boolean }) {
     const host = useAssistHost();
     const mark = host?.applied?.marks[fieldKey];
     const [field, setField] = useState<HTMLElement | null>(null);
@@ -65,7 +66,7 @@ export function AssistMark({ fieldKey }: { fieldKey: string }) {
     return (
         <>
             <span ref={markRef} hidden><Global styles={changedFieldStyles} /></span>
-            {field && currentReview(host) === fieldKey && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} />}
+            {field && currentReview(host) === fieldKey && (host.expandedKey === fieldKey) === expanded && <ChangeCard host={host} fieldKey={fieldKey} mark={mark} field={field} inline={expanded} />}
         </>
     );
 }
@@ -108,9 +109,9 @@ export function useCopilotChanged(fieldKeys: string[]): boolean {
 export function SectionChanges({ fields = [], keys, onReveal }: { fields?: FormField[]; keys?: string[]; onReveal: () => void }) {
     const host = useAssistHost();
     const fieldKeys = keys ?? keysWithin(fields);
-    const marks = host?.applied?.marks;
-    const count = fieldKeys.filter((key) => marks?.[key]).length;
-    const reviewed = !!host?.reviewKey && fieldKeys.includes(host.reviewKey);
+    const within = (key: string) => fieldKeys.includes(key) || fieldKeys.includes(rowGroup(key) ?? "");
+    const count = Object.keys(host?.applied?.marks ?? {}).filter(within).length;
+    const reviewed = !!host?.reviewKey && within(host.reviewKey);
     useEffect(() => {
         if (count || reviewed) {
             onReveal();

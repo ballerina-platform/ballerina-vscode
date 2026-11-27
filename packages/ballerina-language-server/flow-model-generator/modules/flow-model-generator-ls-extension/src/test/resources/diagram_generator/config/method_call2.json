@@ -782,7 +782,7 @@
                 "selected": true
               }
             ],
-            "value": "int",
+            "value": "int|error",
             "placeholder": "var",
             "optional": false,
             "editable": false,

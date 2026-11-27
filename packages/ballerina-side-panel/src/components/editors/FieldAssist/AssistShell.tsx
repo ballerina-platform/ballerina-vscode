@@ -50,6 +50,8 @@ interface AssistShellProps {
     reply?: string;
     // Off where the thread is pinned in view already, so it never pulls the form away from what changed.
     keepInView?: boolean;
+    // Starts the thread over; offered once there are requests to clear.
+    onClear?: () => void;
     children?: React.ReactNode;
 }
 
@@ -63,10 +65,18 @@ function useDraft(embedded?: boolean): [string, (draft: string) => void] {
 }
 
 // The helper's frame: what was asked, progress, messages, the proposal passed as children, and the prompt.
-export function AssistShell({ history, loadingLabel, error, withheld, placeholder, onSubmit, onClose, proposal, onAccept, embedded, headless, hint, starters, onStarter, onStop, reply, keepInView = true, children }: AssistShellProps) {
+export function AssistShell({ history, loadingLabel, error, withheld, placeholder, onSubmit, onClose, proposal, onAccept, embedded, headless, hint, starters, onStarter, onStop, reply, keepInView = true, onClear, children }: AssistShellProps) {
     const [draft, setDraft] = useDraft(embedded);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
+    const historyRef = useRef<HTMLDivElement>(null);
+    // The latest request stays in view as the thread grows.
+    useEffect(() => {
+        const thread = historyRef.current;
+        if (thread) {
+            thread.scrollTop = thread.scrollHeight;
+        }
+    }, [history.length]);
     const loading = !!loadingLabel;
 
     useEffect(() => {
@@ -98,8 +108,9 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
     const empty = !history.length && !loading && !error && !proposal;
     return (
         <Frame ref={panelRef} className="copilot-panel" {...(embedded ? {} : DIALOG)}>
+            <ClearThread onClear={onClear} history={history} loading={loading} inputRef={inputRef} />
             {history.length > 0 && (
-                <S.History>
+                <S.History ref={historyRef} className="copilot-history">
                     {history.map((text, index) => <S.Bubble key={index}>{text}</S.Bubble>)}
                 </S.History>
             )}
@@ -120,6 +131,29 @@ export function AssistShell({ history, loadingLabel, error, withheld, placeholde
             <PromptInput className="copilot-prompt" inputRef={inputRef} glyph={!embedded || headless} draft={draft} setDraft={setDraft} placeholder={placeholder}
                 loading={loading} onSend={send} onStop={onStop} onClose={onClose} onTab={proposal ? onAccept : undefined} />
         </Frame>
+    );
+}
+
+interface ClearThreadProps {
+    onClear?: () => void;
+    history: string[];
+    loading: boolean;
+    inputRef: React.RefObject<HTMLTextAreaElement>;
+}
+
+// Offered once there are requests to clear and none is running; the prompt takes the focus, as the button goes away.
+function ClearThread({ onClear, history, loading, inputRef }: ClearThreadProps) {
+    if (!onClear || !history.length || loading) {
+        return null;
+    }
+    const clear = () => {
+        onClear();
+        inputRef.current?.focus();
+    };
+    return (
+        <S.ClearThread type="button" title="Clear Chat" aria-label="Clear chat" onClick={clear}>
+            <Codicon name="clear-all" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
+        </S.ClearThread>
     );
 }
 

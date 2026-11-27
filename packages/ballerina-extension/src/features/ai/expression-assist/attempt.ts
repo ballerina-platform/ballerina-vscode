@@ -95,13 +95,15 @@ export async function checkValue(site: AssistSite, expression: string, imports: 
     return { expression, errors, hints: errors.length ? [...fixes, ...keywordHints(expression, names)] : [] };
 }
 
-// A field named for a secret; `token` only at the end, so `accessToken` counts and `tokenUrl` does not.
-const SECRET_FIELD = /(api_?key|secret|token$|password|passwd|passphrase|credential|private_?key)/i;
-const TEXT_FIELD = /\b(\w+)\s*:\s*"(?:[^"\\]|\\.)+"/g;
+// A field named for a secret, matched at the end, so `accessToken` counts and `tokenUrl` or `privateKeyPath` do not.
+const SECRET_FIELD = /(api_?key|secret|token|password|passwd|passphrase|credentials?|private_?key)$/i;
+const TEXT_FIELD = /\b(\w+)\s*:\s*("(?:[^"\\]|\\.)+")/g;
+const textFields = (expression: string) => [...expression.matchAll(TEXT_FIELD)].map(([, name, text]) => ({ name, pair: `${name}:${text}` }));
 
-/** A secret typed into the value as text would land in source; the configurable keeps it in Config.toml. */
-export function secretInValue(expression: string): string | undefined {
-    const field = [...expression.matchAll(TEXT_FIELD)].map(([, name]) => name).find((name) => SECRET_FIELD.test(name));
+/** A secret typed into the value as text would land in source; the configurable keeps it in Config.toml. One already in the form is the user's. */
+export function secretInValue(expression: string, current = ""): string | undefined {
+    const kept = new Set(textFields(current).map(({ pair }) => pair));
+    const field = textFields(expression).find(({ name, pair }) => SECRET_FIELD.test(name) && !kept.has(pair))?.name;
     return field && `${field} holds a secret as text, which would be saved in source: declare a configurable for it with create_configurable and use its name`;
 }
 

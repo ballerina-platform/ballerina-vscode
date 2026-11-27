@@ -23,6 +23,7 @@ import { Button } from '@wso2/ui-toolkit';
 import { FieldEditor } from './FieldEditor';
 import styled from '@emotion/styled';
 import { duplicateNames, useRowKeys } from './TypeUtil';
+import { AssistMark } from '@wso2/ballerina-side-panel';
 
 
 const Header = styled.div`
@@ -125,19 +126,22 @@ export const RecordEditor = forwardRef<{ addMember: () => void }, RecordEditorPr
                 </Header>
             }
             {type.members.map((member, index) => (
-                <FieldEditor
-                    index={index}
-                    isGraphql={isGraphql}
-                    key={keys[index]}
-                    member={member}
-                    onChange={handleMemberChange(index)}
-                    onDelete={handleDeleteMember(index)}
-                    type={type}
-                    onValidationError={onValidationError}
-                    onFieldValidation={(isIdentifier, hasError) => handleFieldValidation(keys[index], isIdentifier ? "identifier" : "type", hasError)}
-                    onRecordValidation={(hasError) => handleFieldValidation(keys[index], "record", hasError)}
-                />
+                <div key={keys[index]}>
+                    <FieldEditor
+                        index={index}
+                        isGraphql={isGraphql}
+                        member={member}
+                        onChange={handleMemberChange(index)}
+                        onDelete={handleDeleteMember(index)}
+                        type={type}
+                        onValidationError={onValidationError}
+                        onFieldValidation={(isIdentifier, hasError) => handleFieldValidation(keys[index], isIdentifier ? "identifier" : "type", hasError)}
+                        onRecordValidation={(hasError) => handleFieldValidation(keys[index], "record", hasError)}
+                    />
+                    {!isAnonymous && <AssistMark fieldKey={`field-${index}`} />}
+                </div>
             ))}
+            {!isAnonymous && <div><AssistMark fieldKey="fields" /></div>}
             {duplicates.length > 0 && (
                 <ValidationMessage>Field names must be unique: {duplicates.join(", ")}</ValidationMessage>
             )}

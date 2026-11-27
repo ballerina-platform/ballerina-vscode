@@ -511,8 +511,18 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
         });
     }
 
+    // Each popup edits its own level, so the parent's edits never land on the type created from one of its fields.
+    const levelEditorContext = (level: number) => ({
+        stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack,
+        replaceTop: (item: StackItem) => {
+            setStack((prev) => prev.map((current, i) =>
+                i === level ? { ...item, fieldIndex: item.fieldIndex ?? current.fieldIndex } : current));
+        },
+    });
+
+    // Called when a popup opens, not only on close: the closing popup's editor can still write to the stack.
     const resetStack = () => {
-        setStack([getDefaultValue()]);
+        setStack([{ isDirty: false, type: undefined }]);
     }
 
     const setRefetchForCurrentModal = (shouldRefetch: boolean) => {
@@ -1074,6 +1084,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
         setBaseFields(updatedFields);
         const newTypeValue = typeof newType === 'string' ? newType : f[editingField?.key];
         typeHelperOnChangeRef.current = undefined;
+        resetStack();
         setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue, typedesc: takesTypedesc(editingField?.types) });
     };
 
@@ -1747,6 +1758,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
         const handleCreateNewType = (typeName: string) => {
             typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
+            resetStack();
             setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey, typedesc: takesTypedesc(types) });
         }
 
@@ -1907,6 +1919,8 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 newStack[newStack.length - 2] = newTop;
                 newStack.pop();
                 setStack(newStack);
+                // The closed popup's entry goes with it, so the refetch below reaches the popup that holds the new type's field.
+                setRefetchStates((prev) => prev.slice(0, -1));
             }
             setRefetchForCurrentModal(true);
         }
@@ -2258,18 +2272,20 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             </BreadcrumbContainer>
                         )}
                         <div style={{ height: '560px', overflow: 'auto' }}>
-                            <FormTypeEditor
-                                type={peekTypeStack()?.type}
-                                newType={peekTypeStack() ? peekTypeStack().isDirty : false}
-                                newTypeValue={typeEditorState.newTypeValue}
-                                isGraphql={isGraphql}
-                                onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                onSaveType={onSaveType}
-                                onTypeCreate={() => { }}
-                                isPopupTypeForm={true}
-                                getNewTypeCreateForm={getNewTypeCreateForm}
-                                refetchTypes={refetchStates[i]}
-                            />
+                            <EditorContext.Provider value={levelEditorContext(i)}>
+                                <FormTypeEditor
+                                    type={item.type}
+                                    newType={item.isDirty}
+                                    newTypeValue={typeEditorState.newTypeValue}
+                                    isGraphql={isGraphql}
+                                    onTypeChange={(type) => onTypeChange(type, i === 0)}
+                                    onSaveType={onSaveType}
+                                    onTypeCreate={() => { }}
+                                    isPopupTypeForm={true}
+                                    getNewTypeCreateForm={getNewTypeCreateForm}
+                                    refetchTypes={refetchStates[i]}
+                                />
+                            </EditorContext.Provider>
                         </div>
                     </DynamicModal>)
                 }
@@ -2418,18 +2434,20 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             </BreadcrumbContainer>
                         )}
                         <div style={{ height: '560px', overflow: 'auto' }}>
-                            <FormTypeEditor
-                                type={peekTypeStack()?.type}
-                                newType={peekTypeStack() ? peekTypeStack().isDirty : false}
-                                newTypeValue={typeEditorState.newTypeValue}
-                                isGraphql={isGraphql}
-                                onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                onSaveType={onSaveType}
-                                onTypeCreate={() => { }}
-                                isPopupTypeForm={true}
-                                getNewTypeCreateForm={getNewTypeCreateForm}
-                                refetchTypes={refetchStates[i]}
-                            />
+                            <EditorContext.Provider value={levelEditorContext(i)}>
+                                <FormTypeEditor
+                                    type={item.type}
+                                    newType={item.isDirty}
+                                    newTypeValue={typeEditorState.newTypeValue}
+                                    isGraphql={isGraphql}
+                                    onTypeChange={(type) => onTypeChange(type, i === 0)}
+                                    onSaveType={onSaveType}
+                                    onTypeCreate={() => { }}
+                                    isPopupTypeForm={true}
+                                    getNewTypeCreateForm={getNewTypeCreateForm}
+                                    refetchTypes={refetchStates[i]}
+                                />
+                            </EditorContext.Provider>
                         </div>
                     </DynamicModal>)
                 }
@@ -2623,18 +2641,20 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         </BreadcrumbContainer>
                     )}
                     <div style={{ height: '560px', overflow: 'auto' }}>
-                        <FormTypeEditor
-                            type={peekTypeStack()?.type}
-                            newType={peekTypeStack() ? peekTypeStack().isDirty : false}
-                            newTypeValue={typeEditorState.newTypeValue}
-                            isPopupTypeForm={true}
-                            isGraphql={isGraphql}
-                            onTypeChange={(type) => onTypeChange(type, i === 0)}
-                            onSaveType={onSaveType}
-                            onTypeCreate={() => { }}
-                            getNewTypeCreateForm={getNewTypeCreateForm}
-                            refetchTypes={refetchStates[i]}
-                        />
+                        <EditorContext.Provider value={levelEditorContext(i)}>
+                            <FormTypeEditor
+                                type={item.type}
+                                newType={item.isDirty}
+                                newTypeValue={typeEditorState.newTypeValue}
+                                isPopupTypeForm={true}
+                                isGraphql={isGraphql}
+                                onTypeChange={(type) => onTypeChange(type, i === 0)}
+                                onSaveType={onSaveType}
+                                onTypeCreate={() => { }}
+                                getNewTypeCreateForm={getNewTypeCreateForm}
+                                refetchTypes={refetchStates[i]}
+                            />
+                        </EditorContext.Provider>
                     </div>
                 </DynamicModal>
             ))}

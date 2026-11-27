@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { debounce } from 'lodash';
 import { Imports, LineRange, PayloadContext, Type, Protocol, functionKinds } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
@@ -31,6 +31,8 @@ import styled from '@emotion/styled';
 import { TypeHelperContext } from '../../../constants';
 import { TypeFormAssist } from '../Forms/form-assist/TypeFormAssist';
 import { canAssistType } from '../Forms/form-assist/typeSchema';
+import { AssistHeaderButton, AssistHostProvider } from '@wso2/ballerina-side-panel';
+import { ModalHeaderSlot } from '../../../components/Modal';
 
 // Lines the Copilot's change banner up with the editor's padded content; it takes no room when nothing shows.
 const AssistSlot = styled.div`
@@ -39,6 +41,20 @@ const AssistSlot = styled.div`
         padding-top: 10px;
     }
 `;
+
+// A popup type form has its own Copilot, in the dialog's header, apart from the form that opened the popup.
+function PopupAssistHost({ popup, children }: { popup: boolean; children: ReactNode }) {
+    const slot = useContext(ModalHeaderSlot);
+    if (!popup) {
+        return <>{children}</>;
+    }
+    return (
+        <AssistHostProvider review="start">
+            {slot && createPortal(<AssistHeaderButton />, slot)}
+            {children}
+        </AssistHostProvider>
+    );
+}
 
 const LoadingContainer = styled.div`
     position: absolute;
@@ -319,7 +335,7 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                             onTypeCreate: handleTypeCreate
                         }}
                     /> :
-                    <>
+                    <PopupAssistHost popup={isPopupTypeForm}>
                     {canAssistType(draftKind) && tab !== "import" && (
                         <AssistSlot>
                             <TypeFormAssist
@@ -365,7 +381,7 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
                             onTypeCreate: handleTypeCreate
                         }}
                     />
-                    </>
+                    </PopupAssistHost>
             )}
             {isAddingType && createPortal(
                 <>

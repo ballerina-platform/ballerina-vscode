@@ -45,9 +45,13 @@ async function propose(check: Check, { name, type, documentation, useFieldValue 
     if (!CAMEL_CASE.test(name)) {
         return "Use a camelCase name of letters and digits, e.g. apiKey.";
     }
-    // A name that compiles is already declared here.
-    if ((await check(name)).length === 0) {
+    // Only an undefined name is free: one declared with another type, or a keyword, fails the check too.
+    const nameErrors = await check(name);
+    if (nameErrors.length === 0) {
         return `${name} already exists here. Submit it as the value, or pick another name.`;
+    }
+    if (!nameErrors.some((error) => error.includes("undefined symbol"))) {
+        return `${name} is already in use or is a keyword (${nameErrors[0]}). Pick another name.`;
     }
     // Any value of the configurable's type stands in for it, since it is not declared yet.
     const whole = (await check(`<${type}><any>()`)).length === 0;

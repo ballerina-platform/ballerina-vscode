@@ -22,6 +22,7 @@ import styled from "@emotion/styled";
 import { Type, Member } from "@wso2/ballerina-core";
 import { IdentifierField } from "./IdentifierField";
 import { duplicateNames, useRowKeys } from "./TypeUtil";
+import { AssistMark } from "@wso2/ballerina-side-panel";
 
 namespace S {
     export const Container = styled.div`
@@ -215,7 +216,7 @@ export function EnumEditor({ type, onChange, onValidationError }: EnumEditorProp
                 </div>
             </S.Header>
             {type.members.map((member, index) => (
-                <React.Fragment key={keys[index]}>
+                <div key={keys[index]}>
                     <S.MemberRow>
                         <S.ExpandIconButton
                             appearance="icon"
@@ -260,8 +261,10 @@ export function EnumEditor({ type, onChange, onValidationError }: EnumEditorProp
                             />
                         </S.ConstantExpressionContainer>
                     )}
-                </React.Fragment>
+                    <AssistMark fieldKey={`member-${index}`} />
+                </div>
             ))}
+            <div><AssistMark fieldKey="members" /></div>
             {duplicates.length > 0 && (
                 <S.ValidationMessage>Member names must be unique: {duplicates.join(", ")}</S.ValidationMessage>
             )}

@@ -21,7 +21,7 @@ import React, { useEffect, useState } from 'react';
 import styled from '@emotion/styled';
 import { ParamEditor } from './ParamEditor';
 import { ParamItem } from './ParamItem';
-import { ParamConfig, Parameter, useHeldParameters } from './ParamManager';
+import { ParamConfig, Parameter, useHeldParameters, useRowMarks } from './ParamManager';
 import { Codicon, ErrorBanner, LinkButton, RequiredFormInput, ThemeColors } from '@wso2/ui-toolkit';
 import { FormField, FormValues } from '../Form/types';
 import { Controller } from 'react-hook-form';
@@ -158,6 +158,7 @@ export function ArgManager(props: ArgManagerProps) {
     const [isNew, setIsNew] = useState(false);
     const [parameters, setParameters] = useState<Parameter[]>(paramConfigs.paramValues);
     useHeldParameters(value, parameters, setParameters);
+    const { rowKey, rowRemoved } = useRowMarks(propertyKey, parameters);
     const [paramComponents, setParamComponents] = useState<React.ReactElement[]>([]);
 
     useEffect(() => {
@@ -216,6 +217,7 @@ export function ArgManager(props: ArgManagerProps) {
         const indexToRemove = param.id;
         if (indexToRemove >= 0 && indexToRemove < updatedParameters.length) {
             updatedParameters.splice(indexToRemove, 1);
+            rowRemoved(indexToRemove);
         }
         const reArrangedParameters = updatedParameters.map((item, index) => ({
             ...item,
@@ -285,6 +287,7 @@ export function ArgManager(props: ArgManagerProps) {
                             onSave={onSaveParam}
                             onCancelEdit={onParamEditCancel}
                             openRecordEditor={openRecordEditor}
+                            markKey={rowKey(index)}
                         />
                     )
                 } else if ((editingSegmentId !== index && !(param.hidden ?? false))) {
@@ -292,6 +295,7 @@ export function ArgManager(props: ArgManagerProps) {
                         <ParamItem
                             key={param.id}
                             param={param}
+                            markKey={rowKey(index)}
                             readonly={editingSegmentId !== -1 || readonly}
                             onDelete={onDelete}
                             onEditClick={onEdit}

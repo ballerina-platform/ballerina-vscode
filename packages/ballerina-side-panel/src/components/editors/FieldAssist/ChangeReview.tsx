@@ -23,7 +23,7 @@ import type { AssistFlowChange } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ChipText, StandardIcon, getTokenIconClass } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 import { TokenType } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
+import { AppliedChanges, AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
 import { PromptInput } from "./AssistShell";
 import { HandoffCard, handOffNote } from "./Handoff";
 import { CHANGED_FIELD, S } from "./styles";
@@ -107,7 +107,36 @@ function revertMark(host: AssistHostValue, fieldKey: string, mark: AppliedMark) 
     }
     mark.undone?.();
     markUndone(host, fieldKey, mark);
-    host.dropMark(fieldKey);
+    if (mark.added) {
+        host.setApplied((current) => current && withoutRow(current, fieldKey));
+    } else {
+        host.dropMark(fieldKey);
+    }
+}
+
+const ROW_KEY = /^(.+)-(\d+)$/;
+
+// The list a row's mark key belongs to, e.g. `parameters` for `parameters-1`.
+export const rowGroup = (key: string) => key.match(ROW_KEY)?.[1];
+
+// A row's mark key once the row `removed` is gone: the rows below it move up one.
+export function renumbered(key: string, removed: string): string {
+    const [, group, index] = key.match(ROW_KEY) ?? [];
+    const [, removedGroup, removedIndex] = removed.match(ROW_KEY) ?? [];
+    return group && group === removedGroup && Number(index) > Number(removedIndex) ? `${group}-${Number(index) - 1}` : key;
+}
+
+// Drops the mark of a row Copilot added and the user removed; Undo All still finds each moved change by its first key.
+export function withoutRow(applied: AppliedChanges, removed: string): AppliedChanges {
+    const marks = Object.entries(applied.marks).filter(([key]) => key !== removed);
+    const firstKeys = Object.fromEntries(marks.map(([key]) => [renumbered(key, removed), key]));
+    return {
+        ...applied,
+        marks: Object.fromEntries(marks.map(([key, mark]) => [renumbered(key, removed), mark])),
+        changes: Object.fromEntries(Object.entries(applied.changes).map(([id, keys]) =>
+            [id, keys.filter((key) => key !== removed).map((key) => renumbered(key, removed))])),
+        revert: (keys, form) => applied.revert(keys.map((key) => firstKeys[key] ?? key), form),
+    };
 }
 
 const FIELD_CONTROLS = "input:not([type='hidden']), textarea, select, vscode-text-field, vscode-text-area, vscode-dropdown";
@@ -146,11 +175,13 @@ function valueBox(field: HTMLElement): HTMLElement {
 
 function besideField(field: HTMLElement, side: ReviewSide, cardHeight: number): Beside | undefined {
     const view = field.ownerDocument.defaultView;
-    if (!view || field.closest("[role=dialog]")) {
+    const dialog = field.closest("[role=dialog]");
+    // In a dialog only the start side lies outside it.
+    if (!view || (dialog && side !== "start")) {
         return undefined;
     }
     const box = field.getBoundingClientRect();
-    const form = scrollParent(field)?.getBoundingClientRect() ?? new DOMRect(0, 0, view.innerWidth, view.innerHeight);
+    const form = (dialog ?? scrollParent(field))?.getBoundingClientRect() ?? new DOMRect(0, 0, view.innerWidth, view.innerHeight);
     // A side panel's canvas lies left of its form; a page's margin lies right of its fields.
     const [from, to] = side === "start" ? [CARD_GAP, form.left - CARD_GAP] : [box.right + CARD_GAP, view.innerWidth - CARD_GAP];
     const width = Math.min(CARD_WIDTH, to - from);
@@ -196,11 +227,13 @@ interface ChangeCardProps {
     fieldKey: string;
     mark: AppliedMark;
     field: HTMLElement;
+    // Under the field, never beside the form, e.g. in an expanded editor.
+    inline?: boolean;
 }
 
-export function ChangeCard({ host, fieldKey, mark, field }: ChangeCardProps) {
+export function ChangeCard({ host, fieldKey, mark, field, inline }: ChangeCardProps) {
     const [card, setCard] = useState<HTMLDivElement | null>(null);
-    const side = mark.inField ? undefined : host.reviewSide;
+    const side = mark.inField || inline ? undefined : host.reviewSide;
     const beside = useBeside(field, side, card);
     const changeCard = (
         <S.ChangeCard
@@ -215,8 +248,8 @@ export function ChangeCard({ host, fieldKey, mark, field }: ChangeCardProps) {
             <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} />
         </S.ChangeCard>
     );
-    // Out of the form's flow, so the fields below stay where they are.
-    return beside ? createPortal(changeCard, field.ownerDocument.body) : changeCard;
+    // Out of the form's flow, so the fields below stay where they are; inside a dialog, so it stays above the dialog's backdrop.
+    return beside ? createPortal(changeCard, field.closest("[role=dialog]") ?? field.ownerDocument.body) : changeCard;
 }
 
 function cardLabel(host: AssistHostValue, fieldKey: string, mark: AppliedMark): string {
@@ -237,7 +270,9 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
     }, [mark]);
     useEffect(() => {
         if (!hidden && focusNext.current) {
-            buttons[focusNext.current].current?.focus({ preventScroll: true });
+            // An arrow at the end of the list is disabled, so the focus goes to Keep.
+            const button = buttons[focusNext.current].current;
+            (button?.disabled ? buttons.keep.current : button)?.focus({ preventScroll: true });
             focusNext.current = undefined;
         }
     }, [mark, hidden]);
@@ -284,10 +319,10 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
                     <>
                         <S.HeadLink type="button" onClick={() => decide(() => undoAll(host))}>Undo All</S.HeadLink>
                         <S.HeadLink type="button" onClick={() => decide(() => host.setApplied(undefined))}>Keep All</S.HeadLink>
-                        <S.HeaderButton ref={buttons.previous} type="button" aria-label="Previous Change" title="Previous Change" onClick={() => moveTo(step(-1), "previous")}>
+                        <S.HeaderButton ref={buttons.previous} type="button" aria-label="Previous Change" title="Previous Change" disabled={index === 0} onClick={() => moveTo(step(-1), "previous")}>
                             <Codicon name="chevron-up" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
                         </S.HeaderButton>
-                        <S.HeaderButton ref={buttons.next} type="button" aria-label="Next Change" title="Next Change" onClick={() => moveTo(nextChange, "next")}>
+                        <S.HeaderButton ref={buttons.next} type="button" aria-label="Next Change" title="Next Change" disabled={index === keys.length - 1} onClick={() => moveTo(nextChange, "next")}>
                             <Codicon name="chevron-down" sx={{ fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
                         </S.HeaderButton>
                     </>
@@ -304,7 +339,7 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
                     <Icon name="bi-ai-chat" sx={{ width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
                     Revise
                 </S.GhostAction>
-                <S.Secondary type="button" onClick={() => decide(() => revertMark(host, fieldKey, mark), nextChange)}>{mark.added ? "Remove" : "Undo"}</S.Secondary>
+                <S.Secondary type="button" onClick={() => decide(() => revertMark(host, fieldKey, mark), mark.added && nextChange ? renumbered(nextChange, fieldKey) : nextChange)}>{mark.added ? "Remove" : "Undo"}</S.Secondary>
                 <S.Primary ref={buttons.keep} type="button" onClick={() => decide(() => host.dropMark(fieldKey), nextChange)}>Keep</S.Primary>
             </S.ChangeActions>
             {revising && <RevisePrompt host={host} focus={{ key: fieldKey, label: mark.label }} mark={mark} onClose={closePrompt} />}
@@ -328,20 +363,22 @@ const dropHandoff = (host: AssistHostValue, key: string) => host.setApplied((cur
 // A change the field's own Copilot made continues that field's thread; a form change goes to the form with the request that made it.
 function RevisePrompt({ host, focus, mark, onClose }: { host: AssistHostValue; focus: AssistFocus; mark: AppliedMark; onClose: () => void }) {
     const [draft, setDraft] = useState("");
-    const running = host.orbState === "running";
+    const fieldRun = host.fieldRunning === focus.key;
+    const running = host.orbState === "running" || fieldRun;
     const send = () => {
         const text = draft.trim();
         if (text && !running) {
             if (!(mark.inField && host.reviseInField(focus.key, text))) {
                 host.liveForm()?.revise(focus, text, mark.request);
             }
+            setDraft("");
         }
     };
     return (
         <>
             {running && <S.Status role="status">Working…</S.Status>}
             <PromptInput draft={draft} setDraft={setDraft} placeholder={`Ask for a change to ${focus.label}`} loading={running} onSend={send}
-                onStop={() => host.liveForm()?.stop()} onClose={onClose} bordered autoFocus readOnly={running} />
+                onStop={() => (fieldRun ? host.stopFieldThread(focus.key) : host.liveForm()?.stop())} onClose={onClose} bordered autoFocus readOnly={running} />
         </>
     );
 }

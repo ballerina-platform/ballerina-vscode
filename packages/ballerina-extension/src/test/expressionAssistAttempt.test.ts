@@ -84,4 +84,16 @@ describe("secrets typed into a value", () => {
         expect(secretInValue('{tokenUrl: "https://idp/token"}')).toBeUndefined();
         expect(secretInValue('{message: "password reset"}')).toBeUndefined();
     });
+
+    it("leaves names that only start with a secret word alone", () => {
+        expect(secretInValue('{privateKeyPath: "/etc/key.pem", secretName: "db", credentialsType: "basic"}')).toBeUndefined();
+        expect(secretInValue('{accessToken: "t", privateKey: "k"}')).toMatch(/^accessToken /);
+    });
+
+    it("leaves a secret the current value already holds alone, and flags a new or changed one", () => {
+        const current = '{timeout: 10, auth: {username: "admin", password: "changeit"}}';
+        expect(secretInValue('{timeout: 30, auth: {username: "admin", password: "changeit"}}', current)).toBeUndefined();
+        expect(secretInValue('{timeout: 30, auth: {username: "admin", password: "other"}}', current)).toMatch(/^password /);
+        expect(secretInValue('{timeout: 30, auth: {username: "admin", password: "changeit"}, apiKey: "k"}', current)).toMatch(/^apiKey /);
+    });
 });

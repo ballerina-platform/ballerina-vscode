@@ -84,7 +84,7 @@ const flagSlot = (path: string, label: string, description: string, on: boolean)
     ({ path, label, description, property: FLAG, value: flag(on), optional: true });
 
 const recordFields = (type: Type, known: string, active: boolean): FormAssistGroup => ({
-    id: "fields", label: "Fields", rowLabel: "Field", min: 0, description: `${FIELDS_ABOUT}${known} Only for a RECORD.`,
+    id: "fields", label: "Fields", rowLabel: "Field", rowField: "field", min: 0, description: `${FIELDS_ABOUT}${known} Only for a RECORD.`,
     item: [
         { key: "name", label: "Name", property: NAME },
         { key: "type", label: "Type", property: TYPE },
@@ -97,13 +97,13 @@ const recordFields = (type: Type, known: string, active: boolean): FormAssistGro
 });
 
 const enumMembers = (type: Type, active: boolean): FormAssistGroup => ({
-    id: "members", label: "Members", rowLabel: "Member", min: 0, description: `${MEMBERS_ABOUT} Only for an ENUM.`,
+    id: "members", label: "Members", rowLabel: "Member", rowField: "member", min: 0, description: `${MEMBERS_ABOUT} Only for an ENUM.`,
     item: [{ key: "name", label: "Name", property: NAME }, { key: "value", label: "Value", property: DEFAULT }],
     rows: active ? type.members.map((member) => ({ name: member.name ?? "", value: member.defaultValue ?? "" })) : [],
 });
 
 const unionMembers = (type: Type, active: boolean): FormAssistGroup => ({
-    id: "unionMembers", label: "Member Types", rowLabel: "Member Type", min: 0,
+    id: "unionMembers", label: "Member Types", rowLabel: "Member Type", rowField: "unionMember", min: 0,
     description: "One row per type the value can be, at least two. Only for a UNION.",
     item: [{ key: "type", label: "Type", property: TYPE }],
     rows: active ? type.members.map((member) => ({ type: typeText(member) })) : [],

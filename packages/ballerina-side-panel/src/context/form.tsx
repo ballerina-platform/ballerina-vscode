@@ -87,6 +87,10 @@ export interface FormContext {
     assistHost?: AssistHostValue;
     /** A form inside another form's field under the same host, e.g. one row of a list; that field is the Copilot's part. */
     partOfParentForm?: boolean;
+    /** Prefixes the form's field keys in the Copilot host, so a nested form's `type` is not the parent form's `type`. */
+    assistPrefix?: string;
+    /** The prefix a form nested in this field takes. */
+    nestedAssistPrefix?: string;
 }
 
 const defaultState: any = {};
@@ -99,6 +103,9 @@ export const Provider: FC<React.PropsWithChildren<FormContext>> = (props) => {
 };
 
 export const useFormContext = () => useContext(Context);
+
+/** A field's key in the Copilot host: its review mark, thread and card. */
+export const useAssistKey = (key: string) => `${useFormContext()?.assistPrefix ?? ""}${key}`;
 
 // A changed value is the user's or Copilot's, so a default never overwrites it.
 export const untouched = (form: FormContext["form"], key: string) => !form.control.getFieldState(key).isDirty;
