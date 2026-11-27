@@ -1918,6 +1918,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 newStack[newStack.length - 2] = newTop;
                 newStack.pop();
                 setStack(newStack);
+                // The closed popup's entry goes with it, so the refetch below reaches the popup that holds the new type's field.
+                setRefetchStates((prev) => prev.slice(0, -1));
             }
             setRefetchForCurrentModal(true);
         }
