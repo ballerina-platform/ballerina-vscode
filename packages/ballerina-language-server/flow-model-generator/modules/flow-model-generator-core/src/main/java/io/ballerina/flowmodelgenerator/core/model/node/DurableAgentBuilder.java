@@ -82,11 +82,6 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
     private static final String MODEL_LABEL = "Model";
     private static final String MODEL_DOC = "The model provider used for the agent's LLM calls";
 
-    private static final String INPUT_TYPE_LABEL = "Input Data Type";
-    private static final String INPUT_TYPE_DOC =
-            "Type of the structured payload the agent is started with. Leave it empty to start the "
-                    + "agent with the query text itself.";
-
     // The name identifies the agent (used to reference it in management and execution), not a
     // function — the generic "Name of the function" doc would be wrong here.
     public static final String NAME_DOC =
@@ -120,7 +115,8 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
                 DurableAgentRunBuilder.INSTRUCTIONS_LABEL, DurableAgentRunBuilder.INSTRUCTIONS_DOC,
                 DurableAgentRunBuilder.INSTRUCTIONS_PLACEHOLDER, "", Property.ValueType.PROMPT, false);
         // Optional: `inputType` defaults to `string` in the module, i.e. the query text is the input.
-        WorkflowBuilder.setInputTypeProperty(this, "", INPUT_TYPE_LABEL, INPUT_TYPE_DOC);
+        WorkflowBuilder.setInputTypeProperty(this, "", DurableAgentRunBuilder.INPUT_TYPE_LABEL,
+                DurableAgentRunBuilder.INPUT_TYPE_DOC);
     }
 
     /**
