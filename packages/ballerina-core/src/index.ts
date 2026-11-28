@@ -118,6 +118,7 @@ export * from "./utils/source-name-utils";
 export * from "./utils/text-array";
 export * from "./utils/optionality-utils";
 export * from "./utils/graphql-sdl";
+export * from "./utils/secret-guard";
 
 // ------ Util Components -------->
 export * from "./components"

@@ -107,10 +107,11 @@ export const describeHeaders = (template: ParameterModel, headers: ParameterMode
     min: 0,
 });
 
-/** The header parameters for these rows: a header already bound keeps its parameter, a new one is made from the template. */
+/** The header parameters for these rows: a header already bound keeps its parameter, a new one is made from the template; a repeated header is bound once. */
 export function applyHeaders(template: ParameterModel, headers: ParameterModel[], rows: Record<string, string>[]): ParameterModel[] {
-    return rows.filter((row) => row.header?.trim()).map((row) => {
-        const header = row.header.trim();
+    const named = rows.map((row) => ({ row, header: (row.header ?? "").replace(/"/g, "").trim() })).filter(({ header }) => header);
+    const unique = named.filter(({ header }, index) => named.findIndex((other) => other.header.toLowerCase() === header.toLowerCase()) === index);
+    return unique.map(({ row, header }) => {
         const param = headers.find((known) => headerOf(known).toLowerCase() === header.toLowerCase())
             ?? { ...cloneDeep(template), httpParamType: "HEADER", name: { ...template.name, value: headerVariable(header) },
                 headerName: { ...template.headerName, value: `"${header}"` } };

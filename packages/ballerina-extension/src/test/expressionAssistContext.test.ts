@@ -16,6 +16,7 @@
  * under the License.
  */
 
+jest.mock("@wso2/ballerina-core", () => jest.requireActual("@wso2/ballerina-core/lib/utils/secret-guard"));
 import { ERROR_HINTS, NEW_NODE_MARKER, NODE_MARKER, buildFormPrompt, describeDiagnostic, isGrounded, shortTypeNames, fitTypeDescription, locateParseError, unmatchedBracket, declaredType, keywordHints, looksLikePlainText, markNode, scopeNames, withoutCascades } from "../features/ai/expression-assist/prompts";
 
 const FLOW = [

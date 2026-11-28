@@ -22,6 +22,7 @@ jest.mock("vscode", () => ({}), { virtual: true });
 jest.mock("../features/project/dependency-lock", () => ({}));
 jest.mock("../utils/config", () => ({}));
 
+jest.mock("@wso2/ballerina-core", () => jest.requireActual("@wso2/ballerina-core/lib/utils/secret-guard"));
 import { candidateImports, lookupTools, newLookupState } from "../features/ai/expression-assist/tools";
 
 describe("candidateImports", () => {

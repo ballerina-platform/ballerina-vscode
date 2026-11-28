@@ -17,8 +17,8 @@
  */
 
 import React, { useMemo } from "react";
-import { CodeContext, FlowNode, LineRange, Property } from "@wso2/ballerina-core";
-import { FormAssist, FormAssistDescription, RunFormAssist, isSensitiveField, useAssistParts } from "@wso2/ballerina-side-panel";
+import { CodeContext, FlowNode, LineRange, Property, isSensitiveField } from "@wso2/ballerina-core";
+import { FormAssist, FormAssistDescription, RunFormAssist, useAssistParts } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AssistLocation, assistFormInForm, continueInChat, formValuesNote, runAssistActions } from "../form-utils";
 import { nodeAssistSchema } from "./schemas";
@@ -28,6 +28,8 @@ import { useAssistTarget } from "../../AIChatAgent/agentScope";
 
 interface NodeFormAssistProps {
     node: FlowNode;
+    // The node as saved, when the form shows Copilot's applied values; a hand-off never puts a saved value back over an edit.
+    saved?: FlowNode;
     location: AssistLocation;
     // The node with the form's current, unsaved values.
     toNode: () => FlowNode;
@@ -140,7 +142,7 @@ function stepNote(node: FlowNode, values: string[]): string {
 }
 
 // Lets a field's Copilot request reach the whole node form; each form only says how to read its values and how to rebuild.
-export function NodeFormAssist({ node, location, toNode, reseed, onClose }: NodeFormAssistProps) {
+export function NodeFormAssist({ node, saved = node, location, toNode, reseed, onClose }: NodeFormAssistProps) {
     const { rpcClient } = useRpcContext();
     const target = useAssistTarget(rpcClient);
     const close = target.close ?? onClose;
@@ -171,7 +173,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
             formId={`${location.fileName}:${location.startLine?.line}:${node.codedata.node}`}
             onContinueInChat={close ? handOff : undefined}
             runAssistActions={(actions, value) => runAssistActions(rpcClient, location.fileName, actions, value)}
-            savedValue={(path) => schema.describe(node).slots.find((slot) => slot.path === path)?.value}
+            savedValue={(path) => schema.describe(saved).slots.find((slot) => slot.path === path)?.value}
         />
     );
 }

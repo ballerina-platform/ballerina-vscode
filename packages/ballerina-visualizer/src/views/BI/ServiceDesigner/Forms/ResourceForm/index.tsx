@@ -172,21 +172,11 @@ export function ResourceForm(props: ResourceFormProps) {
 
 	const handleResponseChange = (response: ReturnTypeModel) => {
 		response.value = "";
-		const updatedFunctionModel = {
-			...functionModel,
-			returnType: response
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Response Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, returnType: response }));
 	};
 
 	const handleConfigChange = (properties: ConfigProperties, value: any) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			properties: { ...functionModel.properties, ...properties }
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Config Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, properties: { ...current.properties, ...properties } }));
 	};
 
 	const handleSave = () => {

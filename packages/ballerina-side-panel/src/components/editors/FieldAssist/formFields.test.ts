@@ -137,7 +137,7 @@ describe("form fields for the Copilot", () => {
     });
 
     it("writes parameter rows as the parameter editor keeps them, keeping an edited parameter", () => {
-        const person = { id: 0, key: "person", value: "Person person", icon: "", identifierEditable: false, identifierRange: { startLine: { line: 1, offset: 2 } }, formValues: { type: "Person", variable: "person" } };
+        const person = { id: 0, key: "person", value: "Person person", icon: "", identifierEditable: false, identifierRange: { startLine: { line: 1, offset: 2 } }, formValues: { type: "Person", variable: "person", required: true } };
         const params = field("parameters", "PARAM_MANAGER", {
             editable: false,
             value: [person],
@@ -151,15 +151,28 @@ describe("form fields for the Copilot", () => {
         expect(describeForm(tree, {}, toProperty).groups[0]).toMatchObject({
             rowField: "parameters",
             rowLabel: "Parameter",
-            rows: [{ type: "Person", variable: "person" }],
+            rows: [{ type: "Person", variable: "person", required: "true" }],
             item: [{ key: "type", property: { types: [{ fieldType: "TYPE" }] } }, { key: "variable" }, { key: "required", property: { optional: true } }],
         });
         const values: Record<string, unknown> = { parameters: [person] };
         writeFields(tree, { parameters: [{ type: "Person", variable: "person" }, { type: "string", variable: "reason", required: "true" }] }, writer(values));
         expect(values.parameters).toMatchObject([
-            { id: 0, key: "person", identifierRange: person.identifierRange, formValues: { type: "Person", variable: "person", required: false } },
+            // A part the row leaves out keeps its value.
+            { id: 0, key: "person", identifierRange: person.identifierRange, formValues: { type: "Person", variable: "person", required: true } },
             { id: 1, key: "reason", value: "string reason", identifierEditable: true, formValues: { type: "string", variable: "reason", required: true } },
         ]);
+    });
+
+    it("keeps a hidden parameter in its place", () => {
+        const hidden = { id: 0, key: "caller", value: "http:Caller caller", icon: "", hidden: true, formValues: { type: "http:Caller", variable: "caller" } };
+        const shown = { id: 1, key: "id", value: "string id", icon: "", formValues: { type: "string", variable: "id" } };
+        const params = field("parameters", "PARAM_MANAGER", {
+            value: [hidden, shown],
+            paramManagerProps: { paramValues: [hidden, shown], formFields: [field("type", "TYPE"), field("variable", "IDENTIFIER")] },
+        } as Partial<FormField>);
+        const values: Record<string, unknown> = { parameters: [hidden, shown] };
+        writeFields(treeFields([params]), { parameters: [{ type: "string", variable: "id" }, { type: "int", variable: "count" }] }, writer(values));
+        expect((values.parameters as { key: string }[]).map((param) => param.key)).toEqual(["caller", "id", ""]);
     });
 
     it("offers a tool's approval as on or off", () => {

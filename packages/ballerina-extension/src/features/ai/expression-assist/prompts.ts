@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ExpressionAssistRequest, FormAssistGroup, FormAssistRequest, FormAssistSlot } from "@wso2/ballerina-core";
+import { ExpressionAssistRequest, FormAssistGroup, FormAssistRequest, FormAssistSlot, isWithheldCell } from "@wso2/ballerina-core";
 import { NIL_RULES } from "../agent/nil-rules";
 
 const SURROUNDING_CODE_RULE = "The surrounding code marks where this value's node is, or where a new node goes. Only the if, else and loop blocks that contain the marker apply: their conditions say what is true where the value runs, so use them to make values and messages specific. Code elsewhere in the function is background; do not copy its values or messages.";
@@ -555,7 +555,9 @@ function groupLines(group: FormAssistGroup): string {
     const fields = group.item.map((field) => `${field.key} (${field.label}${field.property.optional ? ", optional" : ""}): ${field.typeFrom ? `a value of the row's ${field.typeFrom}` : declaredType(field.property)}`).join(", ");
     const rows = group.rows.map((row, index) => `    ${index + 1}. ${JSON.stringify(row)}`);
     const append = group.rows.length ? `    A new row goes after row ${group.rows.length} unless the request names a position.` : "";
-    return [`- ${group.id} (${group.label}, ${limits})${onlyWhen(group.when)}; each row: ${fields}.${about}`, ...rows, append].filter(Boolean).join("\n");
+    const withheld = group.rows.some((row) => Object.values(row).some(isWithheldCell))
+        ? "    A value shown as <withheld N> is a secret that is not shown; keep it exactly as written unless asked to change it." : "";
+    return [`- ${group.id} (${group.label}, ${limits})${onlyWhen(group.when)}; each row: ${fields}.${about}`, ...rows, append, withheld].filter(Boolean).join("\n");
 }
 
 // The values a select or a toggle accepts; empty when the select lists none.

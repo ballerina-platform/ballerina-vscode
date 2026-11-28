@@ -63,6 +63,8 @@ export interface AppliedMark {
     added?: boolean;
     request: string;
     revert: () => void;
+    // What `revert` puts back, worked out against the form as it is; a form change has it, so changes across turns undo together.
+    revertIn?: (form: FormAssistDescription) => FormAssistResponse;
     // Runs once the value is back, however it was put back, e.g. to remove a configurable the change added.
     undone?: () => void;
     label: string;
@@ -102,6 +104,8 @@ export interface AppliedChanges {
     marks: Record<string, AppliedMark>;
     // Puts the fields back, rows within `form`, and removes what the changes created outside the form, e.g. a configurable.
     revert: (keys: string[], form?: FormAssistDescription) => FormAssistResponse;
+    // Where the latest turn moved each earlier row of a list, by its row field.
+    rowMoves?: Record<string, (number | undefined)[]>;
 }
 
 // The button the review card focuses when it shows: Keep after a decision or a new change, the arrow after a step.
@@ -537,14 +541,21 @@ export function markUndone(host: AssistHostValue, key: string, { inField, reques
     }
 }
 
-// Adds a change the field's own Copilot made; a field changed before keeps its first value, so Undo goes back to it.
-export function withFieldChange(current: AppliedChanges | undefined, key: string, mark: AppliedMark): AppliedChanges {
+// Adds a change the field's own Copilot made; a field changed before keeps its first value, so Undo goes back to it and removes what each change created.
+export function withFieldChange(current: AppliedChanges | undefined, key: string, mark: AppliedMark, removeCreated?: void | (() => Promise<void>)): AppliedChanges {
     const older = current?.marks[key];
-    const merged = older ? { ...mark, before: older.before, display: older.display, revert: older.revert, values: older.values && mark.values && { before: older.values.before, after: mark.values.after } } : mark;
+    const putBack = older?.revert ?? mark.revert;
+    const revert = () => {
+        putBack();
+        if (removeCreated) {
+            void removeCreated();
+        }
+    };
+    const merged = older ? { ...mark, before: older.before, display: older.display, values: older.values && mark.values && { before: older.values.before, after: mark.values.after } } : mark;
     return {
         formId: current?.formId ?? "",
         changes: { ...current?.changes, [`field:${key}`]: [key] },
-        marks: { ...current?.marks, [key]: { ...merged, inField: true } },
+        marks: { ...current?.marks, [key]: { ...merged, revert, inField: true } },
         // The form puts back only what it changed; this field's own Undo puts back its value.
         revert: (keys, form) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other]), form) ?? {},
     };
@@ -552,15 +563,7 @@ export function withFieldChange(current: AppliedChanges | undefined, key: string
 
 // Puts a change the field's own Copilot made up for review under the field; its Undo also removes what the value created.
 export function reviewFieldChange(host: AssistHostValue | undefined, key: string, mark: AppliedMark, removeCreated?: void | (() => Promise<void>)) {
-    host?.setApplied((current) => withFieldChange(current, key, {
-        ...mark,
-        revert: () => {
-            mark.revert();
-            if (removeCreated) {
-                void removeCreated();
-            }
-        },
-    }));
+    host?.setApplied((current) => withFieldChange(current, key, mark, removeCreated));
     host?.setReviewKey(key);
     host?.close();
 }

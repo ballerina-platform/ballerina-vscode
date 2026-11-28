@@ -108,7 +108,7 @@ export function AssistShell({ history, replies, loadingLabel, error, withheld, p
             }} />}
             {/* The popover's header already carries Copilot's glyph. */}
             <PromptInput className="copilot-prompt" inputRef={inputRef} glyph={headless} draft={draft} setDraft={setDraft} placeholder={placeholder}
-                loading={loading} onSend={send} onStop={onStop} onClose={onClose} onTab={proposal ? onAccept : undefined} />
+                loading={loading} onSend={send} onStop={onStop} onClose={onClose} onTab={proposal && !loading ? onAccept : undefined} />
         </S.EmbeddedPanel>
     );
 }
@@ -255,7 +255,7 @@ export function PromptInput({ draft, setDraft, loading, onSend, onStop, onClose,
             event.preventDefault();
             event.stopPropagation();
             (loading && onStop ? onStop : onClose)();
-        } else if (event.key === "Tab" && onTab && !draft) {
+        } else if (event.key === "Tab" && !event.shiftKey && onTab && !draft) {
             event.preventDefault();
             onTab();
         }

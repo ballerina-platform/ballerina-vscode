@@ -126,20 +126,37 @@ export function renumbered(key: string, removed: string): string {
 
 // Drops the mark of a row Copilot added and the user removed; Undo All still finds each moved change by its first key.
 export function withoutRow(applied: AppliedChanges, removed: string): AppliedChanges {
-    const marks = Object.entries(applied.marks).filter(([key]) => key !== removed);
-    const firstKeys = Object.fromEntries(marks.map(([key]) => [renumbered(key, removed), key]));
+    const [, group, index] = removed.match(ROW_KEY) ?? [];
+    return group ? moveRows(applied, group, (row) => row === Number(index) ? undefined : row > Number(index) ? row - 1 : row) : applied;
+}
+
+// Moves the marks of one list's rows to where `move` puts each row, dropping those of rows that are gone; Undo All still finds each change by its first key.
+export function moveRows(applied: AppliedChanges, group: string, move: (row: number) => number | undefined): AppliedChanges {
+    const moved = (key: string): string | undefined => {
+        const [, owner, index] = key.match(ROW_KEY) ?? [];
+        if (owner !== group) {
+            return key;
+        }
+        const to = move(Number(index));
+        return to === undefined ? undefined : `${group}-${to}`;
+    };
+    const kept = Object.entries(applied.marks).flatMap(([key, mark]): [string, string, AppliedMark][] => {
+        const to = moved(key);
+        return to === undefined ? [] : [[to, key, mark]];
+    });
+    const firstKeys = Object.fromEntries(kept.map(([to, key]) => [to, key]));
     return {
         ...applied,
-        marks: Object.fromEntries(marks.map(([key, mark]) => [renumbered(key, removed), mark])),
+        marks: Object.fromEntries(kept.map(([to, , mark]) => [to, mark])),
         changes: Object.fromEntries(Object.entries(applied.changes).map(([id, keys]) =>
-            [id, keys.filter((key) => key !== removed).map((key) => renumbered(key, removed))])),
+            [id, keys.flatMap((key) => moved(key) ?? [])])),
         revert: (keys, form) => applied.revert(keys.map((key) => firstKeys[key] ?? key), form),
     };
 }
 
 const FIELD_CONTROLS = "input:not([type='hidden']), textarea, select, vscode-text-field, vscode-text-area, vscode-dropdown";
 
-// Where the focus returns after the last decision: the field's Copilot button, else a plain input; an expression editor opens its helper menu on focus.
+// Where the focus returns after the last decision: the field's Copilot button, else a plain input.
 const FIELD_RETURN = `button[aria-label='Fill this field with Copilot'], ${FIELD_CONTROLS}`;
 
 // After the next layout, so a field whose section the step opens is on the page.

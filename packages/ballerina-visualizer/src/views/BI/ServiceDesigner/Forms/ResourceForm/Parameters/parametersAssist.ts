@@ -39,6 +39,8 @@ interface ParamGroup {
     key: string;
     item: (template: ParameterModel) => FormAssistGroup["item"];
     row: (param: ParameterModel) => Row;
+    // Copilot's row as the group reads it, e.g. a header name without the quotes it may add.
+    read?: (row: Row) => Row;
     write: (param: ParameterModel, row: Row, isNew: boolean) => ParameterModel;
 }
 
@@ -91,6 +93,7 @@ const GROUPS: ParamGroup[] = [
         key: "headerName",
         item: (template) => [{ key: "headerName", label: "Header Name", property: as(template.headerName, "STRING") }, ...typeItems(template)],
         row: (param) => ({ headerName: unquote(param.headerName?.value), ...typeRow(param) }),
+        read: (row) => ({ ...row, headerName: unquote(row.headerName?.trim()) }),
         write: (param, row, isNew) => ({
             ...param,
             headerName: withValue(param.headerName, `"${row.headerName ?? ""}"`),
@@ -133,7 +136,7 @@ export function describeParameters(parameters: ParameterModel[], schemas: Config
 export function applyParameters(parameters: ParameterModel[], schemas: ConfigProperties, groups: Record<string, Row[]>): ParameterModel[] {
     return GROUPS.filter((group) => groups[group.id] && schemas?.[group.template]).reduce((current, group) => {
         const existing = ofType(current, group.paramType);
-        const rows = groups[group.id];
+        const rows = groups[group.id].map((row) => group.read?.(row) ?? row);
         const created = (): ParameterModel => ({ ...cloneDeep(schemas[group.template] as ParameterModel), httpParamType: group.paramType, enabled: true });
         const written = alignRows(existing.map((param) => group.row(param)[group.key]), rows.map((row) => row[group.key] ?? ""))
             .filter((step) => step.after !== undefined)

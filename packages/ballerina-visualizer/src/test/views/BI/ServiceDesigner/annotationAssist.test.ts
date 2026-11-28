@@ -62,5 +62,12 @@ describe("bound headers for the form Copilot", () => {
         expect(kept).toBe(bound);
         expect(added).toMatchObject({ name: { value: "contentType" }, headerName: { value: "\"Content-Type\"" }, type: { value: "string" }, httpParamType: "HEADER" });
     });
+
+    it("binds a header repeated in any case once, and drops quotes Copilot added", () => {
+        const headers = applyHeaders(headerTemplate, [bound], [{ header: "x-trace-id" }, { header: "X-Trace-Id" }, { header: "\"Accept\"" }]);
+        expect(headers).toHaveLength(2);
+        expect(headers[0]).toBe(bound);
+        expect(headers[1]).toMatchObject({ headerName: { value: "\"Accept\"" }, name: { value: "accept" } });
+    });
 });
 

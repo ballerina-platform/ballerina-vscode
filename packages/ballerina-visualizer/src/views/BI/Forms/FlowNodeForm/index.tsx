@@ -2209,6 +2209,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     const nodeAssist = (toNode: () => FlowNode) => (
         <NodeFormAssist
             node={assistSeed?.node ?? node}
+            saved={node}
             location={{ fileName, startLine: targetLineRange.startLine, codedata: (assistSeed?.node ?? node).codedata }}
             toNode={toNode}
             reseed={reseedForm}

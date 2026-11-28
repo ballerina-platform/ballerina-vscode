@@ -75,7 +75,7 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
             const [scope, type, errors, enclosing] = await Promise.all([
                 describeInScope(req),
                 describeExpectedType(req),
-                req.diagnostics ?? (req.mode === "fix" && value ? checkExpression(req, value, {}) : Promise.resolve([])),
+                req.diagnostics ?? (req.mode === "fix" && value ? checkExpression(req, value, {}).catch((): string[] => []) : Promise.resolve([])),
                 describeEnclosing(req),
             ]);
             return {

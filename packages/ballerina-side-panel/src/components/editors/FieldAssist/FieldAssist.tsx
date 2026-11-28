@@ -17,10 +17,9 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse, FormAssistQuestion } from "@wso2/ballerina-core";
+import { AssistFlowChange, ExpressionAssistAction, ExpressionAssistMode, ExpressionAssistResponse, FormAssistQuestion, looksLikeCredential, shouldWithhold } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { S } from "./styles";
-import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
 import { ValueDiff } from "./ChangeReview";
 import { DeclinedCard, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, markedTurns, questionReply, threadRequest } from "./Handoff";

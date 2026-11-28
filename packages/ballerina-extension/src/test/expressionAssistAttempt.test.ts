@@ -20,6 +20,7 @@ const checkExpression = jest.fn();
 jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [], newLookupState: () => ({}) }));
 jest.mock("../features/ai/expression-assist/context", () => ({ checkExpression: (...args: unknown[]) => checkExpression(...args) }));
 
+jest.mock("@wso2/ballerina-core", () => jest.requireActual("@wso2/ballerina-core/lib/utils/secret-guard"));
 import { alwaysNil, cannotDoTool, newAttemptState, recordAttempt, secretInValue } from "../features/ai/expression-assist/attempt";
 
 const site = (ballerinaType: string) => ({

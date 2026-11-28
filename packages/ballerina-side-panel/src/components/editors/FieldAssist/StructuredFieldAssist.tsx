@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { Imports, InputType } from "@wso2/ballerina-core";
+import { Imports, InputType, isSensitiveField } from "@wso2/ballerina-core";
 import { EditorView } from "@codemirror/view";
 import { useAssistKey, useFormContext } from "../../../context";
 import { FormExpressionEditorProps, FormField } from "../../Form/types";
@@ -29,7 +29,6 @@ import { AssistCard, AssistHostContent, AssistHostProvider, AssistHostValue, rev
 import { AssistMark } from "./AssistMark";
 import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, hasAnswer, reviewNote, runValueActions, useFieldAssist } from "./FieldAssist";
 import { stringLiteral, templateBody } from "./fieldKinds";
-import { isSensitiveField } from "./secretGuard";
 
 export const switchesToExpression = (modeSwitcher: ReturnType<typeof useModeSwitcherContext>) =>
     !!modeSwitcher?.isModeSwitcherEnabled && !!modeSwitcher.types?.some((type) => type.fieldType === "EXPRESSION");

@@ -28,7 +28,7 @@ import {
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
 import { DialogFieldAssist, useFieldThread } from "../components/editors/FieldAssist/StructuredFieldAssist";
-import { FormAssistDescription, changesOf, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
+import { FormAssist, FormAssistDescription, changesOf, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
 import { AppliedMark, AssistHeaderButton, AssistHostProvider, AssistHostValue, FormController, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { AssistShell } from "../components/editors/FieldAssist/AssistShell";
@@ -100,6 +100,28 @@ describe("FieldAssist", () => {
         });
         expect(screen.getByTestId("value").textContent).toBe("0.08d * total");
         expect(screen.queryByRole("textbox")).toBeNull();
+    });
+
+    it("keeps the suggestion on Shift+Tab and while a refine runs", async () => {
+        let finish: (response: ExpressionAssistResponse) => void = () => undefined;
+        const assist = jest.fn()
+            .mockResolvedValueOnce({ expression: "total" })
+            .mockReturnValueOnce(new Promise<ExpressionAssistResponse>((resolve) => { finish = resolve; }));
+        start(assist);
+        await ask("the total");
+        await screen.findByText("Insert");
+
+        fireEvent.keyDown(promptBox(), { key: "Tab", shiftKey: true });
+        expect(screen.getByTestId("value").textContent).toBe("");
+
+        await ask("add tax");
+        fireEvent.keyDown(promptBox(), { key: "Tab" });
+        expect(screen.getByTestId("value").textContent).toBe("");
+        await act(async () => finish({ expression: "total * 1.08d" }));
+        await act(async () => {
+            fireEvent.keyDown(promptBox(), { key: "Tab" });
+        });
+        expect(screen.getByTestId("value").textContent).toBe("total * 1.08d");
     });
 
     it("refines the latest suggestion rather than the saved value", async () => {
@@ -507,5 +529,48 @@ describe("field Copilot hand-off to the main Copilot", () => {
         const result = await askHook({ error: "Couldn't find a value that works here: bad", errors: ["bad"] });
         expect(result.current.state.failed).toBeUndefined();
         expect(result.current.state.error).toBe("Couldn't find a value that works here: bad");
+    });
+});
+
+describe("configurables a form turn creates", () => {
+    let host: AssistHostValue;
+    const Probe = () => {
+        host = useAssistHost()!;
+        return null;
+    };
+    const describeForm = (): FormAssistDescription => ({
+        slots: [{ path: "properties.endpoint", label: "Endpoint", value: "", property: { types: [{ fieldType: "EXPRESSION", ballerinaType: "string", selected: true }] } } as never],
+        groups: [],
+    });
+    const declares = { "properties.endpoint": [{ kind: "createConfigurable" as const, name: "endpointUrl", type: "string" }] };
+    const mount = (run: jest.Mock, declare?: () => Promise<() => Promise<void>>) => {
+        const remove = jest.fn(async () => undefined);
+        render(<AssistHostProvider><Probe /><FormAssist describe={describeForm} run={run} onApply={jest.fn()} runAssistActions={declare ?? jest.fn(async () => remove)} /></AssistHostProvider>);
+        return remove;
+    };
+    const send = async (text: string) => act(async () => host.liveForm()!.handOff([text]));
+
+    it("keeps one that an applied value names", async () => {
+        const remove = mount(jest.fn().mockResolvedValue({ values: { "properties.endpoint": "endpointUrl" }, valueActions: declares }));
+        await send("read the endpoint from config");
+        await act(async () => undefined);
+        expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("removes one when the turn applied no value", async () => {
+        const remove = mount(jest.fn().mockResolvedValue({ question: { text: "Which endpoint?", options: [] }, valueActions: declares }));
+        await send("read the endpoint from config");
+        await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+    });
+
+    it("removes one declared while the request was stopped", async () => {
+        const removeLate = jest.fn(async () => undefined);
+        let declared: () => void = () => undefined;
+        const declare = () => new Promise<() => Promise<void>>((resolve) => { declared = () => resolve(removeLate); });
+        mount(jest.fn().mockResolvedValue({ values: { "properties.endpoint": "endpointUrl" }, valueActions: declares }), declare);
+        await send("read the endpoint from config");
+        await act(async () => host.liveForm()!.stop());
+        await act(async () => declared());
+        await waitFor(() => expect(removeLate).toHaveBeenCalledTimes(1));
     });
 });

@@ -36,11 +36,31 @@ const record = (members: Member[]): Type => ({
 describe("type form Copilot schema", () => {
     it("describes a record's name, flags and fields, with the project's types", () => {
         const described = describeType(record([field("id", "string", { docs: "Order \"ID\"", optional: true })]), ["Customer"]);
-        expect(described.slots.map((slot) => slot.path)).toEqual(["name", "kind", "allowAdditionalFields", "isReadOnly", "isPublic"]);
+        expect(described.slots.map((slot) => slot.path)).toEqual(["name", "kind", "allowAdditionalFields", "isReadOnly", "isPublic", "elementType", "arraySize"]);
         const [fields] = described.groups;
         expect(fields.rows).toEqual([{ name: "id", type: "string", optional: "true", defaultValue: "", docs: "\"Order \\\"ID\\\"\"", readonly: "false" }]);
         expect(fields.item.find((item) => item.key === "defaultValue").typeFrom).toBe("type");
         expect(fields.description).toContain("Customer");
+    });
+
+    it("lets a new record become an array", () => {
+        const paths = describeType(record([]))!.slots.map((slot) => slot.path);
+        expect(paths).toEqual(expect.arrayContaining(["elementType", "arraySize"]));
+        expect(describeType(record([]), [], false)!.slots.map((slot) => slot.path)).not.toContain("elementType");
+    });
+
+    it("keeps what a row leaves out", () => {
+        const before = record([field("id", "string", { optional: true, readonly: true, defaultValue: "\"x\"", docs: "The ID" })]);
+        const after = applyToType(before, { groups: { fields: [{ name: "id", type: "string" }] } });
+        expect(after.members[0]).toMatchObject({ optional: true, readonly: true, defaultValue: "\"x\"", docs: "The ID" });
+    });
+
+    it("keeps a union member type left as it was", () => {
+        const http = { kind: "TYPE", type: "http:Response", name: "http:Response", refs: ["r"], imports: { http: "ballerina/http" } } as Member;
+        const union = { ...record([http, { kind: "TYPE", type: "Order", name: "Order", refs: [] } as Member]), codedata: { node: "UNION" } as Type["codedata"] };
+        const after = applyToType(union, { groups: { unionMembers: [{ type: "http:Response" }, { type: "Order" }, { type: "error" }] } });
+        expect(after.members[0]).toBe(http);
+        expect(after.members.map((member) => member.type)).toEqual(["http:Response", "Order", "error"]);
     });
 
     it("has no schema for kinds Copilot can't fill yet", () => {

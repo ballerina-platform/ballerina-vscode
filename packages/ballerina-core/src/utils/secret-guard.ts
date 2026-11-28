@@ -47,3 +47,19 @@ export const looksLikeCredential = (text: string): boolean =>
 /** A value is withheld when it looks like a credential, or when a sensitive field holds a typed literal. */
 export const shouldWithhold = (value: string, sensitive: boolean): boolean =>
     looksLikeCredential(value) || (sensitive && STRING_LITERAL.test(value));
+
+const CODE_LITERAL = /"(?:[^"\\\n]|\\.)*"|`[^`]*`/g;
+// The name a literal is given or compared to, as in `password = "…"`, `token: "…"`, `"api-key": "…"` or `secret == "…"`.
+const ASSIGNED_NAME = /(\w[\w-]*)"?\s*(?:[:=]|[=!]=)\s*(?:\w+\s*)?$/;
+
+/** Source with every literal that looks like a credential, or is assigned to a name for a secret, replaced by `<redacted>`. */
+export function redactSecrets(code: string): string {
+    return code.replace(CODE_LITERAL, (literal, offset: number) => {
+        const name = ASSIGNED_NAME.exec(code.slice(Math.max(0, offset - 80), offset))?.[1];
+        return looksLikeCredential(literal) || isSensitiveField(name) ? `${literal[0]}<redacted>${literal[0]}` : literal;
+    });
+}
+
+// A secret cell in a form's row reaches Copilot as this placeholder; a row that keeps it keeps the value.
+export const withheldCell = (index: number): string => `<withheld ${index}>`;
+export const isWithheldCell = (value: string): boolean => /^<withheld \d+>$/.test(value.trim());

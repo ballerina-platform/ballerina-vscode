@@ -17,7 +17,7 @@
  */
 
 import { Range, Uri, workspace } from "vscode";
-import { Diagnostic, ExpressionAssistRequest, ExpressionProperty, LineRange, SyntaxTreeResponse, TypeField } from "@wso2/ballerina-core";
+import { Diagnostic, ExpressionAssistRequest, ExpressionProperty, LineRange, SyntaxTreeResponse, TypeField, redactSecrets } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { Enclosing, declaredType, describeDiagnostic, fitTypeDescription, markNode, selectedType, shortTypeNames, unmatchedBracket, withoutCascades } from "./prompts";
 import { findPackageRoot } from "../../project/dependency-lock";
@@ -140,9 +140,9 @@ export async function describeEnclosing(site: AssistSite): Promise<Enclosing> {
     if (!range?.startLine || !range?.endLine) {
         return { signature: "", code: "" };
     }
-    // The enclosing function's lines, read from the editor's copy, with the field's node marked.
+    // The enclosing function's lines, read from the editor's copy, with the field's node marked and secrets left out.
     const code = await Promise.resolve(workspace.openTextDocument(Uri.file(site.filePath)))
-        .then((document) => markNode(document.getText(new Range(range.startLine.line, 0, range.endLine.line + 1, 0)), range.startLine.line, site.context.startLine))
+        .then((document) => redactSecrets(markNode(document.getText(new Range(range.startLine.line, 0, range.endLine.line + 1, 0)), range.startLine.line, site.context.startLine)))
         .catch(() => "");
     const tree = await client.getSTByRange({
         documentIdentifier: { uri: Uri.file(site.filePath).toString() },
@@ -166,7 +166,7 @@ const SUBJECT_LINES = 200;
 export async function subjectCode(site: AssistSite, range: LineRange): Promise<string> {
     const document = await workspace.openTextDocument(Uri.file(site.filePath));
     const last = Math.min(range.endLine.line, range.startLine.line + SUBJECT_LINES - 1);
-    const code = document.getText(new Range(range.startLine.line, 0, last + 1, 0));
+    const code = redactSecrets(document.getText(new Range(range.startLine.line, 0, last + 1, 0)));
     return last < range.endLine.line ? `${code}… (${range.endLine.line - last} more lines)` : code;
 }
 

@@ -19,7 +19,7 @@
 import { CreateConfigurableAction, FormAssistSlot } from "@wso2/ballerina-core";
 import { AppliedChanges, AppliedMark, errorLines, offersFix, withFieldChange } from "./AssistHost";
 import { withoutRow } from "./ChangeReview";
-import { Change, FormAssistDescription, appliedChanges, prepareValues } from "./FormAssist";
+import { Change, FormAssistDescription, appliedChanges, changesOf, mergeApplied, prepareValues, withSecretCells, withholdSecrets } from "./FormAssist";
 
 describe("form fix offer", () => {
     const field = (label: string) => ({ label, messages: [`${label} is wrong`] });
@@ -92,6 +92,18 @@ describe("withFieldChange", () => {
         // The form puts back only its own fields; this field's Undo handles its value.
         expect(applied.revert(["role", "expression"])).toEqual({ values: { role: "before" } });
     });
+
+    it("removes what each change created when Undo puts back the first value", () => {
+        const firstRevert = jest.fn();
+        const removeFirst = jest.fn(async () => undefined);
+        const removeSecond = jest.fn(async () => undefined);
+        const first = withFieldChange(undefined, "expression", mark("subtotal", "apiKey", firstRevert), removeFirst);
+        const second = withFieldChange(first, "expression", mark("apiKey", "apiKey2"), removeSecond);
+        second.marks.expression.revert();
+        expect(firstRevert).toHaveBeenCalledTimes(1);
+        expect(removeFirst).toHaveBeenCalledTimes(1);
+        expect(removeSecond).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe("appliedChanges", () => {
@@ -146,5 +158,92 @@ describe("form Copilot value actions", () => {
     it("fails a change that needs a configurable when the form can't declare one", async () => {
         await expect(prepareValues(response, slots)).rejects.toThrow("can't create configurables");
         await expect(prepareValues({ values: { token: "\"x\"" } }, slots)).resolves.toEqual({ values: { token: "\"x\"" } });
+    });
+});
+
+describe("secret row values", () => {
+    const form = {
+        slots: [],
+        groups: [{ id: "headers", label: "Headers", min: 0, item: [{ key: "key", label: "Key" }, { key: "value", label: "Value" }],
+            rows: [{ key: "\"X-Api-Key\"", value: "\"sk-abcdefghijklmnopqrstuvwx\"" }, { key: "\"Accept\"", value: "\"json\"" }] }],
+    } as unknown as FormAssistDescription;
+
+    it("go out as placeholders and come back with their values, wherever the row moved", () => {
+        const { description, hidden, cells } = withholdSecrets(form);
+        expect(hidden).toBe(true);
+        expect(description.groups[0].rows[0].value).toBe("<withheld 1>");
+        expect(description.groups[0].rows[1].value).toBe("\"json\"");
+        const response = { values: {}, groups: { headers: [{ key: "\"X-Trace\"", value: "\"1\"" }, { key: "\"X-Api-Key\"", value: "<withheld 1>" }] } };
+        expect(withSecretCells(response, cells).groups.headers[1].value).toBe("\"sk-abcdefghijklmnopqrstuvwx\"");
+    });
+
+    it("leave a placeholder Copilot made up empty", () => {
+        const { cells } = withholdSecrets(form);
+        const response = { values: {}, groups: { headers: [{ key: "\"X\"", value: "<withheld 7>" }] } };
+        expect(withSecretCells(response, cells).groups.headers[0].value).toBe("");
+    });
+});
+
+describe("row changes across a thread", () => {
+    const row = (name: string) => ({ name });
+    const formOf = (names: string[]) => ({
+        slots: [],
+        groups: [{ id: "headers", label: "Headers", rowField: "header", rowLabel: "Header", min: 0, rows: names.map(row),
+            item: [{ key: "name", label: "Name", property: { types: [{ fieldType: "EXPRESSION", selected: true }] } }] }],
+    }) as unknown as FormAssistDescription;
+    // A form whose rows are what the last apply set.
+    const liveForm = (names: string[]) => {
+        let current = formOf(names);
+        const form = {
+            describe: () => current,
+            apply: jest.fn((response) => { current = formOf(response.groups.headers.map((r: { name: string }) => r.name)); }),
+        };
+        return { form, live: () => form as never, names: () => current.groups[0].rows.map((r) => r.name) };
+    };
+    const turn = (from: string[], to: string[], live: () => never) =>
+        appliedChanges(changesOf({ before: formOf(from), response: { groups: { headers: to.map(row) } } }), "a request", "form", live)!;
+
+    it("puts back a removed row alone, under the row it followed", () => {
+        const { live, names } = liveForm(["a2", "b"]);
+        const applied = turn(["a", "b", "c"], ["a2", "b"], live);
+        applied.marks.headers.revert();
+        expect(names()).toEqual(["a2", "b", "c"]);
+    });
+
+    it("puts back two removed rows in their order", () => {
+        const { live, names } = liveForm(["a"]);
+        const applied = turn(["a", "b", "c"], ["a"], live);
+        applied.marks.headers.revert();
+        expect(names()).toEqual(["a", "b", "c"]);
+    });
+
+    it("puts back every row with Undo All", () => {
+        const { form, live } = liveForm(["a2", "b"]);
+        const applied = turn(["a", "b", "c"], ["a2", "b"], live);
+        expect(applied.revert(Object.keys(applied.marks), form.describe()).groups!.headers.map((r) => r.name)).toEqual(["a", "b", "c"]);
+    });
+
+    it("moves an earlier turn's row mark with its row when a row is added above", () => {
+        const { live, names } = liveForm(["x", "a", "b2", "c"]);
+        const first = turn(["a", "b", "c"], ["a", "b2", "c"], live);
+        const merged = mergeApplied(first, turn(["a", "b2", "c"], ["x", "a", "b2", "c"], live), live)!;
+        expect(merged.marks["header-2"]?.after).toBe("b2");
+        expect(merged.marks["header-1"]).toBeUndefined();
+        merged.marks["header-2"].revert();
+        expect(names()).toEqual(["x", "a", "b", "c"]);
+    });
+
+    it("undoes a row changed in two turns back to its first value", () => {
+        const { live, names } = liveForm(["a", "b3", "c"]);
+        const merged = mergeApplied(turn(["a", "b", "c"], ["a", "b2", "c"], live), turn(["a", "b2", "c"], ["a", "b3", "c"], live), live)!;
+        merged.marks["header-1"].revert();
+        expect(names()).toEqual(["a", "b", "c"]);
+    });
+
+    it("puts back rows removed in two turns", () => {
+        const { live, names } = liveForm(["a"]);
+        const merged = mergeApplied(turn(["a", "b", "c"], ["a", "b"], live), turn(["a", "b"], ["a"], live), live)!;
+        merged.marks.headers.revert();
+        expect(names()).toEqual(["a", "b", "c"]);
     });
 });

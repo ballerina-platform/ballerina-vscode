@@ -305,22 +305,25 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
     const dirtyRef = useRef(dirtyFormMap);
     dirtyRef.current = dirtyFormMap;
     const serviceArtifactRef = useRef<ProjectStructureArtifactResponse>();
+    const updateRef = useRef(0);
     // A change made elsewhere, e.g. by the Copilot chat, can move the service; unsaved edits stay unless the chat took them over.
     useEffect(() => rpcClient.onProjectContentUpdated(async () => {
         const last = serviceArtifactRef.current;
         if (!last || (Object.values(dirtyRef.current).some(Boolean) && !handedOffRef.current)) {
             return;
         }
+        const update = ++updateRef.current;
         const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
         const service = movedService(structure?.projects.flatMap((project) => project.directoryMap[DIRECTORY_MAP.SERVICE] ?? []) ?? [], last);
-        if (!service) {
+        // A later notification answers for this one.
+        if (!service || update !== updateRef.current) {
             return;
         }
         // A notification can come before the project structure has the edit; its stale range holds no service then.
         const { startLine, startColumn, endLine, endColumn } = service.position;
         const lineRange = { startLine: { line: startLine, offset: startColumn }, endLine: { line: endLine, offset: endColumn } };
         const found = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({ filePath: props.filePath, codedata: { lineRange } });
-        if (found?.service) {
+        if (found?.service && update === updateRef.current) {
             handedOffRef.current = false;
             setPosition({ ...service.position });
         }

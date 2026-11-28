@@ -16,9 +16,9 @@
  * under the License.
  */
 
-import { isSensitiveField, looksLikeCredential, shouldWithhold } from "../components/editors/FieldAssist/secretGuard";
+import { isSensitiveField, looksLikeCredential, redactSecrets, shouldWithhold } from "../utils/secret-guard";
 
-describe("secretGuard", () => {
+describe("secret-guard", () => {
     it("recognises fields named for secrets", () => {
         expect(isSensitiveField("Api Key", "apiKey")).toBe(true);
         expect(isSensitiveField("Client Secret")).toBe(true);
@@ -51,5 +51,22 @@ describe("secretGuard", () => {
         expect(shouldWithhold("anthropicApiKey", true)).toBe(false);
         expect(shouldWithhold("\"localhost\"", false)).toBe(false);
         expect(shouldWithhold("\"sk-abcdefghijklmnopqrstuvwx\"", false)).toBe(true);
+    });
+
+    it.each([
+        ["string password = \"hunter2\";", "string password = \"<redacted>\";"],
+        ["configurable string apiKey = \"abc\";", "configurable string apiKey = \"<redacted>\";"],
+        ["http:Client c = check new (url, auth = {token: \"t0k\"});", "http:Client c = check new (url, auth = {token: \"<redacted>\"});"],
+        ["map<string> h = {\"api-key\": \"abc\"};", "map<string> h = {\"api-key\": \"<redacted>\"};"],
+        ["if secret == \"abc\" {", "if secret == \"<redacted>\" {"],
+        ["string p = /* <-- this value's node */ \"sk-ant-api03-abcdefghijklmnopqrstuv\";", "string p = /* <-- this value's node */ \"<redacted>\";"],
+        ["string password = string `pw${n}`;", "string password = string `<redacted>`;"],
+    ])("redacts secrets in %p", (code, redacted) => {
+        expect(redactSecrets(code)).toBe(redacted);
+    });
+
+    it("keeps ordinary literals", () => {
+        const code = "string url = \"https://api.example.com\";\nlog:printInfo(\"Order \" + id, maxTokens = \"100\");\nstring name = \"a\\\"b\";";
+        expect(redactSecrets(code)).toBe(code);
     });
 });

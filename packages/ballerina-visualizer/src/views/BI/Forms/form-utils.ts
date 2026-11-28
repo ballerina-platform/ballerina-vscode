@@ -213,7 +213,7 @@ export async function runAssistActions(
     for (const { name, type, documentation, useFieldValue } of actions) {
         const { flowNode: node } = await diagram.getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
         // One created from a test file belongs to that file.
-        if (fileName.includes("/tests/")) {
+        if (/[\\/]tests[\\/]/.test(fileName)) {
             node.codedata.data = { ...node.codedata.data, filePath: fileName };
         }
         setProperty(node, "variable", name);

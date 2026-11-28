@@ -195,6 +195,10 @@ export function ResourcePath(props: ResourcePathProps) {
 			const nextPath = values[PATH_SLOT] !== undefined ? { ...path, value: values[PATH_SLOT] } : path;
 			setInputValue(nextPath.value ?? "");
 			onChange(nextMethod, nextPath);
+			// A new path is checked when it lands; the same path under another method is checked here.
+			if ((nextPath.value ?? "") === inputValue) {
+				handleBlur(nextMethod);
+			}
 		},
 	});
 

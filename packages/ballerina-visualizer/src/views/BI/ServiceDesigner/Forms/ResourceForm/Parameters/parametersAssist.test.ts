@@ -74,4 +74,11 @@ describe("HTTP parameters for the Copilot", () => {
         expect(header).toMatchObject({ httpParamType: "HEADER", headerName: { value: "\"X-Api-Key\"" }, name: { value: "xApiKey" } });
         expect(headerVariable("Content-Type")).toBe("contentType");
     });
+
+    it("keeps a header Copilot wrote in quotes as the same header", () => {
+        const header = param("header", {}, { name: "xApiKey", headerName: "\"X-Api-Key\"", type: "string" });
+        const [kept] = applyParameters([header], schemas, { headers: [{ headerName: "\"X-Api-Key\"", type: "string" }] });
+        expect(kept.headerName.value).toBe("\"X-Api-Key\"");
+        expect(kept.name.value).toBe("xApiKey");
+    });
 });

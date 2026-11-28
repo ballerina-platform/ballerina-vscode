@@ -116,7 +116,9 @@ const paramsShape: RowShape = {
         const all = asParameters(current);
         const shown = all.filter((param) => !param.hidden);
         const defaults = Object.fromEntries((config?.formFields ?? []).map((child) => [child.key, child.value ?? ""]));
-        const formValues = (row: Row) => Object.fromEntries(paramFields(field).map((child) => [child.key, formValue(child, row)]));
+        // A part the row leaves out keeps the parameter's own value.
+        const formValues = (row: Row) => Object.fromEntries(paramFields(field).filter((child) => row[child.key] !== undefined)
+            .map((child) => [child.key, formValue(child, row)]));
         const written = alignRows(shown.map((param) => text(param.formValues?.[key])), rows.map((row) => row[key] ?? ""))
             .filter((step) => step.after !== undefined)
             .map((step) => {
@@ -124,7 +126,9 @@ const paramsShape: RowShape = {
                     : { id: 0, formValues: defaults, key: "", value: "", icon: "", identifierEditable: true, identifierRange: undefined };
                 return { ...base, formValues: { ...base.formValues, ...formValues(rows[step.after!]) } };
             });
-        return [...written, ...all.filter((param) => param.hidden)]
+        // A hidden parameter keeps its place.
+        all.forEach((param, index) => param.hidden && written.splice(Math.min(index, written.length), 0, param));
+        return written
             .map((param, id) => ({ ...param, id }))
             .map((param) => (config?.handleParameter ? config.handleParameter(param) : param));
     },

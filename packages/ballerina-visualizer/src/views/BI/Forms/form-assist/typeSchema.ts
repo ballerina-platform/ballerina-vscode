@@ -109,15 +109,18 @@ const unionMembers = (type: Type, active: boolean): FormAssistGroup => ({
     rows: active ? type.members.map((member) => ({ type: typeText(member) })) : [],
 });
 
-function kindSlots(type: Type, node: string): FormAssistSlot[] {
-    if (node === "RECORD") {
-        return [
-            flagSlot("allowAdditionalFields", "Allow Additional Fields", "Values may hold fields beyond the ones listed.", !!type.allowAdditionalFields),
-            ...TYPE_FLAGS.map(([key, label, description]) => flagSlot(key, label, description, type.properties?.[key]?.value === "true")),
-        ];
+// A new type can still change kind, so it gets both the record's flags and the array's parts.
+function kindSlots(type: Type, node: string, isNew: boolean): FormAssistSlot[] {
+    const record = [
+        flagSlot("allowAdditionalFields", "Allow Additional Fields", "Values may hold fields beyond the ones listed.", !!type.allowAdditionalFields),
+        ...TYPE_FLAGS.map(([key, label, description]) => flagSlot(key, label, description, type.properties?.[key]?.value === "true")),
+    ];
+    if (node === "RECORD" && !isNew) {
+        return record;
     }
     const array = node === "ARRAY";
     return [
+        ...(node === "RECORD" ? record : []),
         { path: "elementType", label: "Element Type", description: "Only for an ARRAY.", property: TYPE, value: array && type.members[0] ? typeText(type.members[0]) : "", optional: !array },
         { path: "arraySize", label: "Size", description: "A fixed length; leave empty for any length. Only for an ARRAY.", property: SIZE, value: array ? String(type.properties?.arraySize?.value ?? "") : "", optional: true },
     ];
@@ -141,7 +144,7 @@ export function describeType(type: Type, knownTypes: string[] = [], isNew = true
         .filter((group) => isNew || group.rows.length || group.id === KIND_GROUPS[node]);
     return {
         // Outside a record, kindSlots gives the array's slots, which a saved enum or union has no use for.
-        slots: [...identity, ...(isNew || node === "ARRAY" || node === "RECORD" ? kindSlots(type, node) : [])],
+        slots: [...identity, ...(isNew || node === "ARRAY" || node === "RECORD" ? kindSlots(type, node, isNew) : [])],
         // The current kind's rows come first.
         groups: [...groups.filter((group) => group.rows.length), ...groups.filter((group) => !group.rows.length)],
     };
@@ -153,25 +156,28 @@ const importsFor = (typeName: string, imports: Imports = {}): Imports | undefine
     return used.length ? Object.fromEntries(used) : undefined;
 };
 
+// A part the row leaves out keeps the member's own.
 function fieldFrom(base: Member, row: Row, imports?: Imports): Member {
     const type = row.type ?? typeText(base);
     const added = importsFor(type, imports);
+    const given = (key: string) => row[key] !== undefined;
     return {
         ...base,
         name: row.name ?? base.name,
         // An inline record the row left as it was stays a record.
         type: type === typeText(base) ? base.type : type,
-        optional: row.optional === "true",
-        defaultValue: row.defaultValue?.trim() || undefined,
-        docs: row.docs ? stringLiteralText(row.docs) ?? row.docs : "",
-        readonly: row.readonly === "true",
+        optional: given("optional") ? row.optional === "true" : base.optional,
+        defaultValue: given("defaultValue") ? row.defaultValue.trim() || undefined : base.defaultValue,
+        docs: given("docs") ? (row.docs ? stringLiteralText(row.docs) ?? row.docs : "") : base.docs,
+        readonly: given("readonly") ? row.readonly === "true" : base.readonly,
         ...(added ? { imports: { ...base.imports, ...added } } : {}),
     };
 }
 
 // Pairs each row with the member of the same name, so a kept field keeps what the form doesn't show, such as its refs.
-function membersFrom(members: Member[], rows: Row[], toMember: (base: Member, row: Row) => Member, fresh: () => Member): Member[] {
-    return alignRows(members.map((member) => member.name ?? ""), rows.map((row) => row.name ?? ""))
+function membersFrom(members: Member[], rows: Row[], toMember: (base: Member, row: Row) => Member, fresh: () => Member,
+    memberKey = (member: Member) => member.name ?? "", rowKey = (row: Row) => row.name ?? ""): Member[] {
+    return alignRows(members.map(memberKey), rows.map(rowKey))
         .filter((step) => step.after !== undefined)
         .map((step) => toMember(step.before !== undefined ? members[step.before] : fresh(), rows[step.after!]));
 }
@@ -180,15 +186,18 @@ function membersOf(kind: string, base: Type, patch: FormAssistResponse): Member[
     const groups = patch.groups ?? {};
     if (kind === "RECORD" && groups.fields) {
         return membersFrom(base.members, groups.fields, (member, row) => fieldFrom(member, row, patch.imports),
-            () => ({ kind: "FIELD", name: "", type: "string", refs: [], docs: "" }));
+            () => ({ kind: "FIELD", name: "", type: "string", refs: [], docs: "", optional: false, readonly: false }));
     }
     if (kind === "ENUM" && groups.members) {
         return membersFrom(base.members, groups.members,
-            (member, row) => ({ ...member, name: row.name ?? member.name, defaultValue: row.value?.trim() || undefined }),
+            (member, row) => ({ ...member, name: row.name ?? member.name, defaultValue: row.value !== undefined ? row.value.trim() || undefined : member.defaultValue }),
             () => ({ kind: "ENUM_MEMBER", name: "", type: "string", refs: [] }));
     }
     if (kind === "UNION" && groups.unionMembers) {
-        return groups.unionMembers.map((row) => ({ kind: "TYPE", type: row.type, name: row.type, refs: [] as string[], imports: importsFor(row.type, patch.imports) }));
+        // A member type left as it was stays as it is, e.g. an inline record or one with its own imports.
+        const memberOf = (row: Row): Member => ({ kind: "TYPE", type: row.type, name: row.type, refs: [], imports: importsFor(row.type, patch.imports) });
+        return membersFrom(base.members, groups.unionMembers, (member, row) => row.type === typeText(member) ? member : memberOf(row),
+            () => memberOf({ type: "" }), typeText, (row) => row.type ?? "");
     }
     const element = patch.values?.elementType;
     if (kind === "ARRAY" && element) {

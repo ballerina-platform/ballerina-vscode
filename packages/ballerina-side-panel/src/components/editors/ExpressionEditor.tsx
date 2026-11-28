@@ -47,8 +47,10 @@ import {
     Imports,
     InputType,
     isDropDownType,
+    isSensitiveField,
     LineRange,
     RecordTypeField,
+    shouldWithhold,
     SubPanel,
     SubPanelView,
     Type
@@ -63,7 +65,6 @@ import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, reviewNot
 import { AssistCardFrame, reviewFieldChange, reviseInCard, useAssistHost, usePresence } from './FieldAssist/AssistHost';
 import { HostedFieldPanel, replaceEditorText, switchesToExpression, useFieldThread, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
 import { S as AssistStyles } from './FieldAssist/styles';
-import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
 import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressionEditor/utils';
 import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';

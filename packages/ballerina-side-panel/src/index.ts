@@ -38,7 +38,6 @@ export { FieldsFormAssist, FormAssist, useAssistParts } from "./components/edito
 export { AssistMark, SectionChanges } from "./components/editors/FieldAssist/AssistMark";
 export { DialogFieldAssist } from "./components/editors/FieldAssist/StructuredFieldAssist";
 export { FieldAssistContext, configLiteral } from "./components/editors/FieldAssist/FieldAssist";
-export { isSensitiveField } from "./components/editors/FieldAssist/secretGuard";
 export { HandedOffContext } from "./components/editors/FieldAssist/Handoff";
 export { AssistActionEntry, AssistAsk, AssistHeaderButton, AssistHostProvider, AssistOrbProvider, useAssistSource } from "./components/editors/FieldAssist/AssistHost";
 export type { FormAssistContext, FormAssistDescription, FormAssistIntro, RunFormAssist } from "./components/editors/FieldAssist/FormAssist";

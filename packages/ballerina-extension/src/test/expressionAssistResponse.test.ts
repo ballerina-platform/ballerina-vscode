@@ -23,6 +23,7 @@ jest.mock("../features/ai/expression-assist/tools", () => ({ LOOKUP_TOOLS: [] })
 jest.mock("../features/ai/expression-assist/run", () => ({}));
 jest.mock("../features/ai/expression-assist/context", () => ({}));
 
+jest.mock("@wso2/ballerina-core", () => jest.requireActual("@wso2/ballerina-core/lib/utils/secret-guard"));
 import { checkForm, joinCandidates, needsConfigurable, toResponse } from "../features/ai/expression-assist/form";
 import { asDeclared, createConfigurableTool, namedIn } from "../features/ai/expression-assist/configurable";
 import { handOffRequestErrors } from "../features/ai/expression-assist/attempt";

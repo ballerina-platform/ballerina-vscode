@@ -19,7 +19,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
+import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot, isWithheldCell } from "@wso2/ballerina-core";
 import { Enclosing, FORM_SYSTEM_PROMPT, IDENTIFIER, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
 import { AssistSite, checkExpression, describeEnclosing, describeType, stripSemicolon, subjectCode } from "./context";
 import { LookupState, candidateImports, describeInScope, lookupTools, usagesTool } from "./tools";
@@ -83,7 +83,7 @@ async function describeSubject(req: FormAssistRequest): Promise<Enclosing> {
         return describeEnclosing(req);
     }
     const enclosing = await describeEnclosing({ ...req, context: { ...req.context, startLine: req.subjectRange.startLine } });
-    return enclosing.code ? enclosing : { signature: "", code: await subjectCode(req, req.subjectRange) };
+    return enclosing.code ? enclosing : { signature: "", code: await subjectCode(req, req.subjectRange).catch(() => "") };
 }
 
 function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicModel, earlierTries: string): Promise<FormAssistResponse> {
@@ -237,9 +237,9 @@ async function submitCandidate(req: FormAssistRequest, run: FormRunState, names:
     const next = candidate.flowChange
         ? "Call needs_flow_change again with these values fixed, or with none."
         : "Fix and submit again with every value, or call cannot_do if the form cannot hold what was asked.";
-    // A submit and a hand-off sent in one step are one answer: the hand-off carries the submitted values.
-    if (run.verified && run.best && !candidate.errors.length) {
-        run.best = joinCandidates(run.best, candidate);
+    // A submit and a hand-off sent in one step are one answer: the hand-off carries the submitted values, and keeps only its own that compile.
+    if (run.verified && run.best && (!candidate.errors.length || candidate.flowChange)) {
+        run.best = joinCandidates(run.best, candidate.errors.length ? { ...candidate, values: {}, groups: {}, actions: [], configurables: {} } : candidate);
         return "OK";
     }
     return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, [next]);
@@ -366,6 +366,9 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
         });
         rows.forEach((row, index) => group.item.forEach((field) => {
             const value = row[field.key] ?? "";
+            if (isWithheldCell(value)) {
+                return;
+            }
             if (!value.trim() && !field.property.optional) {
                 errors.push(`${id}[${index + 1}].${field.key}: needs a value`);
             }
