@@ -385,7 +385,7 @@ export function DataBrowser(props: DataBrowserProps) {
     const allowed = useAllowedValues(expectedType, valuesOf);
     const sections = [...allowedSection(allowed), ...useSections(rootsOf, create, !!onSubmitForm, expectedType, cloud)];
     const suggestions = useFieldSuggestions(target, sections, childrenOf, categories);
-    const results = useDataSearch(query, sections, childrenOf, categories);
+    const { results, searching } = useDataSearch(query, sections, childrenOf, categories);
     const loaded = isLoaded(categories, query, suggestions, allowed);
     const rows = rowsFor(tree, expectedType);
     // Nested matches name their whole path, so `email` reads as order.customer.email.
@@ -400,7 +400,7 @@ export function DataBrowser(props: DataBrowserProps) {
     const atStart = !query && !group;
     const inGroup = !query && !!group;
     const shownSections = sections.filter((section) => query || (group ? section.title === group : !section.grouped));
-    const valuesMatch = !loaded || shownSections.some((section) => itemsOf(section).length > 0);
+    const valuesMatch = !loaded || searching || shownSections.some((section) => itemsOf(section).length > 0);
     const askCopilot = askCopilotFor(query, valuesMatch, props.onAskCopilot);
     const newFunction = { label: "New Function", run: () => create.function(expectedType) };
     const newRecords = recordActions(records, insert, () => open(NEW_RECORD));

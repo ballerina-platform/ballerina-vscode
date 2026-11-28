@@ -422,34 +422,37 @@ export function useSuggestions(
     return suggestions;
 }
 
+export interface DataSearch {
+    results?: Record<string, DataItem[]>;
+    // True until the nested values have been searched for the current query.
+    searching: boolean;
+}
+
 /** Values under each section that match the query, including record fields and enum members below the top level. */
 export function useDataSearch(
     query: string,
     sections: { title: string; roots: DataItem[] }[],
     childrenOf: (parent: DataItem) => Promise<DataItem[]>,
     source: VisibleType[] | undefined
-): Record<string, DataItem[]> | undefined {
-    const [results, setResults] = useState<Record<string, DataItem[]>>();
+): DataSearch {
+    const [found, setFound] = useState<{ query: string; results: Record<string, DataItem[]>; done: boolean }>();
     const q = query.trim().toLowerCase();
     // The sections change with the field (its allowed values), so a search reruns for them too.
     const sectionsKey = sections.map(({ title, roots }) => `${title}:${roots.map((root) => root.path).join(",")}`).join("|");
 
     useEffect(() => {
         if (!q || !source) {
-            setResults(undefined);
+            setFound(undefined);
             return;
         }
         let cancelled = false;
+        const publish = (entries: [string, DataItem[]][], done: boolean) => !cancelled && setFound({ query: q, results: Object.fromEntries(entries), done });
         const timer = setTimeout(async () => {
-            const entries = await Promise.all(
-                sections.map(async ({ title, roots }): Promise<[string, DataItem[]]> => [
-                    title,
-                    [...roots.filter((root) => matches(root, q)), ...(await descendantsWhere(roots, (item) => matches(item, q), childrenOf))],
-                ])
-            );
-            if (!cancelled) {
-                setResults(Object.fromEntries(entries));
-            }
+            // Top-level matches show at once; nested ones wait on type lookups, which take seconds on a cold language server.
+            const top = sections.map(({ title, roots }): [string, DataItem[]] => [title, roots.filter((root) => matches(root, q))]);
+            publish(top, false);
+            const nested = await Promise.all(sections.map(({ roots }) => descendantsWhere(roots, (item) => matches(item, q), childrenOf)));
+            publish(top.map(([title, items], index) => [title, [...items, ...nested[index]]]), true);
         }, SEARCH_DEBOUNCE_MS);
         return () => {
             cancelled = true;
@@ -457,5 +460,5 @@ export function useDataSearch(
         };
     }, [q, source, sectionsKey]);
 
-    return results;
+    return { results: found?.results, searching: !!q && !(found?.query === q && found.done) };
 }
