@@ -19,6 +19,7 @@
 import { createContext, useContext } from "react";
 import { FlowNode, NodeMetadata } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { HandedOffContext } from "@wso2/ballerina-side-panel";
 import type { AgentEditorView } from "./useAgentEditorController";
 import { findFlowNodeByModuleVarName } from "./utils";
 
@@ -108,8 +109,9 @@ interface AssistTarget {
 
 export function useAssistTarget(rpcClient: BallerinaRpcClient): AssistTarget {
     const scope = useAgentScope();
+    const handedOff = useContext(HandedOffContext);
     if (!scope) {
-        return { handoffContext: async () => [] };
+        return { handoffContext: async () => [], close: handedOff };
     }
     const sets = PARTS[scope.part];
     const subject = [sets, agentTitle(scope.agent)].filter(Boolean).join(" ");

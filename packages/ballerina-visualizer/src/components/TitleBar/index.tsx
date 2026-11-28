@@ -20,7 +20,7 @@ import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { Icon, View } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
+import { AssistHeaderButton, AssistHostProvider, HandedOffContext } from "@wso2/ballerina-side-panel";
 import { BetaSVG } from "../../views/Connectors/Marketplace/BetaSVG";
 import { UndoRedoGroup } from "../UndoRedoGroup";
 import { MACHINE_VIEW } from "@wso2/ballerina-core";
@@ -185,7 +185,11 @@ export function TitleBar(props: TitleBarProps) {
     );
 }
 
-// A full-page view whose TitleBar offers the Copilot for the form inside it.
-export function AssistView({ children }: { children: ReactNode }) {
-    return <AssistHostProvider review="end"><View>{children}</View></AssistHostProvider>;
+// A full-page view whose TitleBar offers the Copilot for the form inside it; onHandedOff means the view reloads on source changes, so its forms may hand requests to the chat.
+export function AssistView({ children, onHandedOff }: { children: ReactNode; onHandedOff?: () => void }) {
+    return (
+        <AssistHostProvider review="end">
+            <HandedOffContext.Provider value={onHandedOff}><View>{children}</View></HandedOffContext.Provider>
+        </AssistHostProvider>
+    );
 }
