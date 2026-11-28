@@ -196,10 +196,14 @@ public abstract class CallBuilder extends NodeBuilder {
         }
     }
 
-    // A check here would have nowhere to send its error: no do clause with on fail and no error return.
     private boolean keepsErrorAt(TemplateContext context, FunctionData functionData) {
-        if (!functionData.returnError() || functionData.inferredReturnType() || context.position() == null
-                || !CHECKED_BY_POSITION.contains(getFunctionNodeKind())) {
+        return functionData.returnError() && !functionData.inferredReturnType()
+                && CHECKED_BY_POSITION.contains(getFunctionNodeKind()) && checkHasNowhereToGo(context);
+    }
+
+    // No do clause with on fail and no error return to take a check's error; false when the position is unknown.
+    protected static boolean checkHasNowhereToGo(TemplateContext context) {
+        if (context.position() == null) {
             return false;
         }
         try {
