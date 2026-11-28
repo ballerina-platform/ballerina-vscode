@@ -42,6 +42,8 @@ afterEach(() => {
     document.body.innerHTML = "";
 });
 
+const MATCHES = [option("string"), option("StringSchema", "imported")];
+
 function setup(query: string, createName?: string) {
     const input = document.createElement("textarea");
     container = document.createElement("div");
@@ -50,11 +52,11 @@ function setup(query: string, createName?: string) {
     const onCreate = jest.fn();
     const onClose = jest.fn();
     root = createRoot(container);
-    act(() => {
+    const show = (options: TypeOption[]) => act(() => {
         root.render(
             <TypePicker
                 query={query}
-                sections={[{ title: "Matches", options: [option("string"), option("StringSchema", "imported")] }]}
+                sections={[{ title: "Matches", options }]}
                 loading={false}
                 createName={createName}
                 input={input}
@@ -64,10 +66,11 @@ function setup(query: string, createName?: string) {
             />
         );
     });
+    show(MATCHES);
     const key = (k: string) => act(() => {
         input.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
     });
-    return { key, onPick, onCreate, onClose };
+    return { key, show, onPick, onCreate, onClose };
 }
 
 describe("TypePicker", () => {
@@ -98,6 +101,46 @@ describe("TypePicker", () => {
         expect(onPick).not.toHaveBeenCalled();
         key("Escape");
         expect(onClose).toHaveBeenCalled();
+    });
+
+    it("goes to the last row with ArrowUp when no row is chosen", () => {
+        const { key, onPick } = setup("");
+        key("ArrowUp");
+        key("Enter");
+        expect(onPick.mock.calls[0][0].item.name).toBe("StringSchema");
+    });
+
+    it("goes to the create row with ArrowUp when it is offered", () => {
+        const { key, onPick, onCreate } = setup("", "Invoice");
+        key("ArrowUp");
+        key("Enter");
+        expect(onCreate).toHaveBeenCalledWith("Invoice");
+        expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it("keeps the row chosen with the arrow keys when more results arrive", () => {
+        const { key, show, onPick } = setup("str");
+        key("ArrowDown");
+        show([option("string"), option("strand", "library"), option("StringSchema", "imported")]);
+        key("Enter");
+        expect(onPick.mock.calls[0][0].item.name).toBe("StringSchema");
+    });
+
+    it("keeps the create row chosen when more results arrive", () => {
+        const { key, show, onPick, onCreate } = setup("str", "str2");
+        key("ArrowUp");
+        show([...MATCHES, option("strand", "library")]);
+        key("Enter");
+        expect(onCreate).toHaveBeenCalledWith("str2");
+        expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it("takes the new best match when the chosen row goes away", () => {
+        const { key, show, onPick } = setup("str");
+        key("ArrowDown");
+        show([option("string")]);
+        key("Enter");
+        expect(onPick.mock.calls[0][0].item.name).toBe("string");
     });
 
     it("highlights the matched part of each name", () => {

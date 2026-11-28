@@ -114,6 +114,9 @@ namespace S {
 }
 
 const CARET_KEYS = new Set(["ArrowLeft", "ArrowRight", "Home", "End"]);
+const CREATE_ROW = "create";
+
+const optionKey = (option: TypeOption) => `${option.source}:${option.module ?? ""}:${option.item.name}`;
 
 function HighlightedName({ name, query }: { name: string; query: string }) {
     const typed = splitTypeQuery(query).name;
@@ -133,12 +136,17 @@ function HighlightedName({ name, query }: { name: string; query: string }) {
 
 export function TypePicker({ query, sections, loading, createName, input, width, onPick, onCreate, onClose }: TypePickerProps) {
     const options = sections.flatMap((section) => section.options);
-    const rowCount = options.length + (createName && onCreate ? 1 : 0);
-    // While typing, Enter takes the best match; with nothing typed it does nothing until an arrow key picks a row.
-    const [active, setActive] = useState(-1);
+    const rowKeys = [...options.map(optionKey), ...(createName && onCreate ? [CREATE_ROW] : [])];
+    const rowCount = rowKeys.length;
+    // The row an arrow key or the pointer chose, by key, so it stays chosen while results arrive.
+    const [chosen, setChosen] = useState<string>();
+    const chosenIndex = chosen === undefined ? -1 : rowKeys.indexOf(chosen);
+    // Otherwise, while typing, Enter takes the best match; with nothing typed it does nothing.
+    const active = chosenIndex >= 0 ? chosenIndex : (query && options.length > 0 ? 0 : -1);
+    const setActive = (index: number) => setChosen(rowKeys[index]);
     const listRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => setActive(query && options.length > 0 ? 0 : -1), [query, options.length]);
+    useEffect(() => setChosen(undefined), [query]);
     useEffect(() => {
         listRef.current?.querySelector("[data-active=true]")?.scrollIntoView({ block: "nearest" });
     }, [active]);
@@ -162,7 +170,7 @@ export function TypePicker({ query, sections, loading, createName, input, width,
         const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
         const accept = (event.key === "Enter" || event.key === "Tab") && active >= 0;
         if (step && rowCount > 0) {
-            setActive((current) => (current + step + rowCount) % rowCount);
+            setActive(active < 0 ? (step > 0 ? 0 : rowCount - 1) : (active + step + rowCount) % rowCount);
         } else if (accept) {
             choose(active);
         } else if (event.key === "Escape") {
@@ -185,7 +193,7 @@ export function TypePicker({ query, sections, loading, createName, input, width,
 
     const row = (option: TypeOption, index: number) => (
         <S.Row
-            key={`${option.source}:${option.module ?? ""}:${option.item.name}`}
+            key={optionKey(option)}
             role="option"
             aria-selected={index === active}
             active={index === active}
