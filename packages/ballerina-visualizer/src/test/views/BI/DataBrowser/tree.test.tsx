@@ -17,12 +17,13 @@
  */
 
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act } from "react-dom/test-utils";
+import { createRoot, Root } from "react-dom/client";
 
 jest.mock("@wso2/ballerina-side-panel", () => ({
     DEFAULT_CHIP_COLOR: { background: "", border: "" },
     HighlightedText: ({ text }: { text: string }) => <>{text}</>,
-    setDraggedInsert: () => undefined,
+    setDraggedInsert: (): void => undefined,
 }));
 jest.mock("@wso2/ui-toolkit", () => ({ Icon: () => <span />, Codicon: () => <span />, Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>, ThemeColors: {} }));
 jest.mock("@wso2/ballerina-rpc-client", () => ({}));
@@ -31,20 +32,39 @@ jest.mock("../../../../views/BI/HelperPaneNew/utils/iconUtils", () => ({ HelperP
 
 import { DataNode, treeKeyDown } from "../../../../views/BI/DataBrowser/tree";
 
+declare global {
+    // eslint-disable-next-line no-var
+    var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 const payload = { path: "payload", name: "payload", type: "OrderInfo", opens: true };
 const city = { path: "payload.city", name: "city", type: "string", opens: false };
 
+let container: HTMLDivElement;
+let root: Root;
+beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+});
+afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+});
+
 function renderTree(onInsert: jest.Mock, fetchFields = jest.fn().mockResolvedValue([city])) {
-    render(
+    act(() => root.render(
         <div role="tree" onKeyDown={treeKeyDown(() => undefined)}>
             <DataNode item={payload} depth={0} onInsert={onInsert} fetchFields={fetchFields} />
         </div>
-    );
-    return { row: screen.getByRole("treeitem"), fetchFields };
+    ));
+    return { row: container.querySelector<HTMLElement>("[role='treeitem']")!, fetchFields };
 }
 
+const click = (element: Element) => element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 // The button shows on hover, and the keyboard skips rows without a layout box; jsdom has neither.
-const insertButton = () => screen.getByLabelText("Insert payload");
+const insertButton = () => container.querySelector<HTMLElement>("[aria-label='Insert payload']");
 beforeAll(() => {
     jest.spyOn(Element.prototype, "getClientRects").mockReturnValue([{}] as unknown as DOMRectList);
 });
@@ -53,7 +73,7 @@ describe("record rows in the Data Browser", () => {
     it("open on click", async () => {
         const onInsert = jest.fn();
         const { row, fetchFields } = renderTree(onInsert);
-        await act(async () => fireEvent.click(row));
+        await act(async () => click(row));
         expect(fetchFields).toHaveBeenCalled();
         expect(row.getAttribute("aria-expanded")).toBe("true");
         expect(onInsert).not.toHaveBeenCalled();
@@ -62,7 +82,7 @@ describe("record rows in the Data Browser", () => {
     it("insert from the Insert button without opening", () => {
         const onInsert = jest.fn();
         const { row } = renderTree(onInsert);
-        fireEvent.click(insertButton());
+        act(() => click(insertButton()!));
         expect(onInsert).toHaveBeenCalledWith("payload");
         expect(row.getAttribute("aria-expanded")).toBe("false");
     });
@@ -70,15 +90,15 @@ describe("record rows in the Data Browser", () => {
     it("insert on Enter", () => {
         const onInsert = jest.fn();
         const { row } = renderTree(onInsert);
-        fireEvent.keyDown(row, { key: "Enter" });
+        act(() => row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
         expect(onInsert).toHaveBeenCalledWith("payload");
     });
 
     it("insert on click when the type turns out to hold nothing to open", async () => {
         const onInsert = jest.fn();
         const { row } = renderTree(onInsert, jest.fn().mockResolvedValue([]));
-        await act(async () => fireEvent.click(row));
+        await act(async () => click(row));
         expect(onInsert).toHaveBeenCalledWith("payload");
-        expect(screen.queryByTitle("Insert")).toBeNull();
+        expect(insertButton()).toBeNull();
     });
 });

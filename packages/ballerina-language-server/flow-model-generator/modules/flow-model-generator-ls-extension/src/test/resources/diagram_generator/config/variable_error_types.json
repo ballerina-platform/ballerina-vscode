@@ -860,6 +860,7 @@
                     "types": [
                       {
                         "fieldType": "ACTION_OR_EXPRESSION",
+                        "ballerinaType": "error?",
                         "selected": true
                       }
                     ],
