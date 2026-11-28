@@ -91,7 +91,12 @@ export function useCreateData(fileName: string, targetLineRange: LineRange, onSu
         }
         const projectPath = await openForm(template, POPUP_IDS.CONFIGURABLES, "New Configurable", async (node) => {
             closeModal(POPUP_IDS.CONFIGURABLES);
-            await saveConfigurable(rpcClient, projectPath, node);
+            try {
+                await saveConfigurable(rpcClient, projectPath, node);
+            } catch (error) {
+                rpcClient.getCommonRpcClient().showErrorMessage({ message: `Couldn't save the configurable. ${error instanceof Error ? error.message : ""}`.trim() });
+                return;
+            }
             onSaved(node.properties.variable.value as string);
         });
     };

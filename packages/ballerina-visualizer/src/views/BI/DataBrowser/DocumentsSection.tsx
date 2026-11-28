@@ -60,9 +60,12 @@ export function DocumentsSection({ target, formTakesPrompts, roots, childrenOf }
     // The chosen field decides; before one is chosen, any prompt field in the form does.
     const show = target ? !!target.expectedType?.includes("ai:Prompt") : formTakesPrompts;
     const [values, setValues] = useState<DataItem[]>([]);
+    // A refresh can rename or retype a value without changing how many there are.
+    const rootsKey = roots.map((root) => `${root.path}:${root.type}`).join(",");
 
     useEffect(() => {
         let cancelled = false;
+        setValues([]);
         if (show) {
             const anySource = (item: DataItem) => DOCUMENT_KINDS.some((kind) => isSourceFor(kind.type)(item));
             descendantsWhere(roots, anySource, childrenOf).then(
@@ -72,7 +75,7 @@ export function DocumentsSection({ target, formTakesPrompts, roots, childrenOf }
         return () => {
             cancelled = true;
         };
-    }, [show, roots.length]);
+    }, [show, rootsKey]);
 
     if (!show) {
         return null;

@@ -187,7 +187,7 @@ export async function assistFormInForm(
 // A new configurable's node; one created from a test file belongs to that file.
 export async function configurableTemplate(rpcClient: BallerinaRpcClient, fileName: string): Promise<FlowNode> {
     const { flowNode } = await rpcClient.getBIDiagramRpcClient().getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
-    if (fileName.includes("/tests/")) {
+    if (/[\\/]tests[\\/]/.test(fileName)) {
         flowNode.codedata.data = { ...flowNode.codedata.data, filePath: fileName };
     }
     return flowNode;

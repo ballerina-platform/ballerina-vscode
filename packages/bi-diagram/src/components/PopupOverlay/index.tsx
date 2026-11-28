@@ -59,9 +59,10 @@ export function PopupOverlay(props: PopupOverlayProps) {
             onWheel={handleWheel}
             style={{
                 position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex,
-                // Stays mounted and fades with the side panel; hidden, it no longer catches clicks.
+                // Stays mounted and fades with the side panel; once it starts closing, clicks pass through.
                 opacity: visible ? 1 : 0,
                 visibility: visible ? "visible" : "hidden",
+                pointerEvents: visible ? "auto" : "none",
                 transition: visible
                     ? "opacity 200ms cubic-bezier(0.23, 1, 0.32, 1)"
                     : "opacity 150ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear 150ms",
