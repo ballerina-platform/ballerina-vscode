@@ -953,6 +953,8 @@ export interface ExpressionAssistRequest {
     canChangeFlow?: boolean;
     /** The user's earlier requests in this field's thread, oldest first; `instruction` is the latest. */
     earlier?: string[];
+    /** Copilot's reply to each of `earlier`, by index, as the thread showed it. */
+    replies?: string[];
     /** The question Copilot asked last; `instruction` answers it. */
     asked?: string;
 }
@@ -1065,6 +1067,8 @@ export interface FormAssistRequest {
     focus?: { key: string; label: string };
     /** The user's earlier messages in this thread, oldest first; `instruction` is the latest. */
     earlier?: string[];
+    /** Copilot's reply to each of `earlier`, by index, as the thread showed it. */
+    replies?: string[];
     /** A suggestion for the focus field that the thread produced but the user has not applied. */
     pending?: string;
     /** The question Copilot asked last; `instruction` answers it. */

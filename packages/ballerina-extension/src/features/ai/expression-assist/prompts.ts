@@ -77,6 +77,10 @@ const askRule = (changes: string) => `ask_user when the request leaves open a ch
   pick one of them by its name alone. When the request or the context picks one, take it.`;
 
 // The user's answer to a question Copilot asked; the same words for the field and the form.
+// Each earlier message with the reply it got, so a follow-up can refer to either.
+const earlierLines = (earlier: string[], replies: string[] = []) =>
+    earlier.map((text, index) => `${index + 1}. ${text.trim()}${replies[index]?.trim() ? `\n   You replied: ${replies[index].trim()}` : ""}`).join("\n");
+
 const askedLine = (asked?: string) => (asked ? `You asked the user: ${asked}\nThe latest message is their answer.` : "");
 
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
@@ -243,7 +247,7 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
-        req.earlier?.length ? `Earlier requests for this field, oldest first (the current value includes their changes, except those marked (not done), (undone) or (explained, nothing changed)):\n${req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n")}` : "",
+        req.earlier?.length ? `Earlier requests for this field and your replies, oldest first (the current value includes their changes, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlierLines(req.earlier, req.replies)}` : "",
         askedLine(req.asked),
     ].filter(Boolean).join("\n");
     return `${context}\n\n${taskLine(req, value)}`;
@@ -499,8 +503,7 @@ function formTask(req: FormAssistRequest): string {
     if (!req.earlier?.length) {
         return `Task: ${req.instruction.trim()}`;
     }
-    const earlier = req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n");
-    return `Earlier messages (the values above include the changes they made, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlier}\n\n`
+    return `Earlier messages and your replies (the values above include the changes they made, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlierLines(req.earlier, req.replies)}\n\n`
         + `Task, the latest message (it may refine the earlier ones): ${req.instruction.trim()}`;
 }
 

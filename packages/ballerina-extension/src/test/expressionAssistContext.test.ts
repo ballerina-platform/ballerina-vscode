@@ -167,6 +167,16 @@ describe("buildFormPrompt", () => {
         expect(prompt).toContain("- properties.type (Type): type = int (before this thread: string)");
     });
 
+    it("gives each earlier message the reply it got, so a follow-up can refer to it", () => {
+        const prompt = buildFormPrompt({
+            node: "TYPE", instruction: "ok add them", slots: [], groups: [],
+            earlier: ["a payment type with card and cash", "can we add anything else? (not done)"],
+            replies: ["Changed Kind, Name and Members.", "Which ones should be added? (UPI, WALLET)"],
+        } as any, "", { signature: "", code: "" });
+        expect(prompt).toContain("1. a payment type with card and cash\n   You replied: Changed Kind, Name and Members.\n"
+            + "2. can we add anything else? (not done)\n   You replied: Which ones should be added? (UPI, WALLET)");
+    });
+
     it("marks a value that applies only under a choice", () => {
         const prompt = buildFormPrompt({
             node: "FORM", instruction: "serve on port 9099", groups: [],

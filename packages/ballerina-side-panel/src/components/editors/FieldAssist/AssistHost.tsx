@@ -88,6 +88,8 @@ export interface FormThread {
     formId: string;
     history: string[];
     marks: Map<number, string>;
+    // Copilot's reply to each turn in `history`, by index, as the thread showed it.
+    replies?: string[];
     reply?: string;
     // What the last turn changed, e.g. "Changed Role and Instructions."
     changed?: string;
@@ -326,9 +328,9 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const [fieldRunning, setFieldRunning] = useState<string>();
     const keptThreads = useRef(new Map<string, Omit<FieldThread, "keep">>());
     const fieldThread = useCallback((key: string): FieldThread => {
-        const kept = keptThreads.current.get(key) ?? { history: [], marks: new Map() };
+        const kept: Omit<FieldThread, "keep"> = keptThreads.current.get(key) ?? { history: [], marks: new Map() };
         keptThreads.current.set(key, kept);
-        return { ...kept, keep: (history) => { kept.history = history; } };
+        return { ...kept, keep: (history, replies) => { kept.history = history; kept.replies = replies; } };
     }, []);
     // A form that went away, e.g. back to the node list, takes its threads along; a rebuilt form re-registers in the same commit.
     useEffect(() => {

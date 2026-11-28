@@ -23,7 +23,7 @@ import { S } from "./styles";
 import { looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { AssistShell } from "./AssistShell";
 import { ValueDiff } from "./ChangeReview";
-import { DeclinedCard, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, markedTurns, threadRequest } from "./Handoff";
+import { DeclinedCard, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUE, QuestionCard, STOPPED, compileFailure, handOffNote, markedTurns, questionReply, threadRequest } from "./Handoff";
 
 export interface FieldAssistInput {
     requestId: string;
@@ -34,6 +34,8 @@ export interface FieldAssistInput {
     valueWithheld?: boolean;
     // The user's earlier requests in this thread, oldest first.
     earlier?: string[];
+    // Copilot's reply to each of `earlier`, by index.
+    replies?: string[];
     // The question Copilot asked last, which `instruction` answers.
     asked?: string;
 }
@@ -46,6 +48,8 @@ export interface Proposal extends ExpressionAssistResponse {
 
 interface AssistState {
     history: string[];
+    // Copilot's reply to each turn in `history`, by index.
+    replies?: string[];
     loading: boolean;
     proposal?: Proposal;
     error?: string;
@@ -109,7 +113,8 @@ export interface FieldThread {
     history: string[];
     // Turns in `history` that changed nothing, by index, with the mark the next request carries.
     marks: Map<number, string>;
-    keep: (history: string[]) => void;
+    replies?: string[];
+    keep: (history: string[], replies?: string[]) => void;
 }
 
 interface UseFieldAssistProps {
@@ -135,10 +140,37 @@ export const SECRET_IN_PROMPT = "This looks like a key or password, so it wasn't
 const turnMark = (response: ExpressionAssistResponse, unchanged: boolean): string | undefined =>
     response.explanation ? EXPLAINED : response.expression && !unchanged ? undefined : NOT_DONE;
 
+// What the thread showed for a turn, as the next request reads Copilot's reply.
+function fieldReply(response: ExpressionAssistResponse, unchanged: boolean): string | undefined {
+    if (response.question) {
+        return questionReply(response.question);
+    }
+    if (unchanged) {
+        return noChange("value");
+    }
+    if (response.expression) {
+        return response.note || "Changed the value.";
+    }
+    return response.explanation ?? response.flowChange?.reason ?? response.error;
+}
+
+// A card opened on a finished turn, e.g. one whose change was reviewed, shows the reply it got, as the form's thread does;
+// a turn that ends while the card is open shows its own result, or the card closes for the review.
+const latestReply = (state: AssistState, openedAt: number) => {
+    const answered = state.proposal || state.question || state.error || state.handoff || state.failed || state.declined !== undefined;
+    return state.reply ?? (answered || state.history.length !== openedAt ? undefined : state.replies?.[openedAt - 1]);
+};
+
+const withReply = (replies: string[] = [], index: number, text?: string) => {
+    const next = [...replies];
+    next[index] = text ?? "";
+    return next;
+};
+
 export function useFieldAssist({ assist, thread, abort, getValue, sensitive = false, handOff, review, continueInChat }: UseFieldAssistProps) {
     const [open, setOpen] = useState(false);
-    const [state, setState] = useState<AssistState>(() => ({ history: thread?.history ?? [], loading: false }));
-    useEffect(() => thread?.keep(state.history), [state.history]);
+    const [state, setState] = useState<AssistState>(() => ({ history: thread?.history ?? [], replies: thread?.replies, loading: false }));
+    useEffect(() => thread?.keep(state.history, state.replies), [state.history, state.replies]);
     const marks = useRef(thread?.marks ?? new Map<number, string>());
     const pending = useRef<string>();
 
@@ -167,7 +199,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
             return false;
         }
         // The thread stays, so a follow-up or a Revise reads against the requests before it, as in the form.
-        setState((prev) => ({ history: prev.history, loading: false }));
+        setState((prev) => ({ history: prev.history, replies: prev.replies, loading: false }));
         // A value that can't land, e.g. a configurable this form can't create, keeps the thread open with the reason.
         Promise.resolve(review(response as Proposal, asked ?? "")).catch((error: Error) => setState((prev) => ({ ...prev, error: error.message })));
         return true;
@@ -196,11 +228,13 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         const asked = instruction ?? (mode === "fix" ? FIX_REQUEST : undefined);
         setState((prev) => ({
             history: asked ? [...prev.history, asked] : prev.history,
+            replies: prev.replies,
             loading: true,
             proposal: prev.proposal,
             withheld,
         }));
-        const turns = { earlier: state.history.length ? markedTurns(state.history, marks.current) : undefined, asked: state.question?.text };
+        const replies = state.history.map((_, index) => state.replies?.[index] ?? "");
+        const turns = { earlier: state.history.length ? markedTurns(state.history, marks.current) : undefined, replies, asked: state.question?.text };
         // Diagnostics can quote the value, so they stay behind with it.
         const request = withheld
             ? { requestId, mode, instruction, value: "", valueWithheld: true, ...turns }
@@ -212,6 +246,9 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         }
         pending.current = undefined;
         const unchanged = endTurn(asked, response, value);
+        if (asked) {
+            setState((prev) => ({ ...prev, replies: withReply(prev.replies, state.history.length, fieldReply(response, unchanged)) }));
+        }
         if (response.editsOtherFields && asked && handOff) {
             setState((prev) => ({ ...prev, loading: false }));
             handOff([...state.history, asked], state.proposal?.expression);
@@ -258,7 +295,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
     const close = () => {
         cancel();
         setOpen(false);
-        setState((prev) => ({ history: prev.history, loading: false }));
+        setState((prev) => ({ history: prev.history, replies: prev.replies, loading: false }));
     };
 
     // The next request goes without the earlier ones; the value and any change under review stay.
@@ -295,7 +332,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         stop: () => {
             marks.current.set(state.history.length - 1, NOT_DONE);
             cancel();
-            setState((prev) => ({ ...prev, loading: false, error: STOPPED }));
+            setState((prev) => ({ ...prev, loading: false, error: STOPPED, replies: withReply(prev.replies, prev.history.length - 1, STOPPED) }));
         },
         canContinue: !!continueInChat,
         toChat,
@@ -319,6 +356,7 @@ interface FieldAssistPanelProps {
 export function FieldAssistPanel({ assist, value, onApply, display = (expression) => expression, currentErrors, embedded, headless }: FieldAssistPanelProps) {
     const { state } = assist;
     const { proposal } = state;
+    const [openedAt] = useState(state.history.length);
     const editing = !!value.trim();
     const errors = editing ? currentErrors?.() ?? [] : [];
     const starters = errors.length ? [FIX_REQUEST] : [];
@@ -347,6 +385,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
     return (
         <AssistShell
             history={state.history}
+            replies={state.replies}
             loadingLabel={state.loading ? "Working…" : undefined}
             error={state.error}
             withheld={state.withheld}
@@ -361,7 +400,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             headless={headless}
             starters={starters}
             onStarter={runStarter}
-            reply={state.reply}
+            reply={latestReply(state, openedAt)}
         >
             {proposal && (
                 <S.Proposal>
