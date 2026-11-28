@@ -71,4 +71,16 @@ describe("StringTemplateEditorConfig literal round trip", () => {
     it("keeps the text when a literal becomes a template", () => {
         expect(config.deserializeValue('"say \\"hi\\""')).toBe('string `say "hi"`');
     });
+
+    it("decodes a unicode escape instead of keeping its backslash", () => {
+        expect(config.serializeValue('"smile \\u{1F600}"')).toBe("smile \u{1F600}");
+        expect(config.deserializeValue('"smile \\u{1F600}"')).toBe("string `smile \u{1F600}`");
+        expect(config.deserializeValue('"a\\tb\\nc"')).toBe("string `a\tb\nc`");
+    });
+
+    it("interpolates a backtick or ${ the template cannot hold as text", () => {
+        expect(config.deserializeValue('"a`b"')).toBe('string `a${"`"}b`');
+        expect(config.deserializeValue('"cost ${x}"')).toBe('string `cost ${"${"}x}`');
+        expect(config.serializeValue('"a`b"')).toBe('a${"`"}b');
+    });
 });

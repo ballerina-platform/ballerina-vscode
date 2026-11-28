@@ -25,6 +25,7 @@ import { tags } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { sql } from "@codemirror/lang-sql";
 import { EditorState } from "@codemirror/state";
+import { stringLiteral, stringLiteralText } from "@wso2/ballerina-core";
 
 
 const customSqlHighlightStyle = HighlightStyle.define([
@@ -90,13 +91,10 @@ function isSingleStringLiteral(value: string): boolean {
     return true;
 }
 
-// The text a string literal holds; a template's content is taken as written, so its escapes are resolved here.
+// A literal's text as template content: escapes decoded, and a backtick or `${` interpolated since a template cannot hold it.
 function literalContent(literal: string): string {
-    try {
-        return JSON.parse(literal);
-    } catch {
-        return literal.slice(1, -1);
-    }
+    const text = stringLiteralText(literal) ?? literal.slice(1, -1);
+    return text.replace(/`|\$\{/g, (part) => `\${${stringLiteral(part)}}`);
 }
 
 export class StringTemplateEditorConfig extends ChipExpressionEditorDefaultConfiguration {
