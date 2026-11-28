@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Utility class to replace generic lang type parameters with their super types.
@@ -32,6 +33,9 @@ import java.util.Set;
 public class TypeParameterReplacer {
 
     private static final Map<String, String> TYPE_PARAMETER_REPLACEMENTS = new HashMap<>();
+    // A map-constrained table cannot have a key constraint, so drop it once MapType is replaced.
+    private static final Pattern MAP_TABLE_KEY_CONSTRAINT =
+            Pattern.compile("(table<map<any\\|error>>) key<[^<>]*>");
 
     static {
         // lang.array type parameter replacements
@@ -93,6 +97,7 @@ public class TypeParameterReplacer {
         for (Map.Entry<String, String> entry : entries) {
             result = result.replace(entry.getKey(), entry.getValue());
         }
+        result = MAP_TABLE_KEY_CONSTRAINT.matcher(result).replaceAll("$1");
 
         return result;
     }

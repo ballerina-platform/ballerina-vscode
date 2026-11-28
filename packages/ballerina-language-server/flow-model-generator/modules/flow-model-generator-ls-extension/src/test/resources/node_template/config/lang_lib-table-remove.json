@@ -1,0 +1,117 @@
+{
+  "source": "data_mapper/main.bal",
+  "position": {
+    "line": 14,
+    "offset": 0
+  },
+  "description": "lang.table remove drops the key constraint from the map-constrained table parameter",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "ballerina",
+    "module": "lang.table",
+    "packageName": "lang.table",
+    "symbol": "remove",
+    "version": "0.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "remove",
+      "description": "Removes a member of a table.\n\nThis removed the member of parameter `t` with key parameter `k` and returns it.\nIt panics if there is no such member.\n\n```ballerina\ntable<record {|readonly int id; string name;|}> key(id) students = table [\n    {id: 1, name: \"Jo\"},\n    {id: 2, name: \"Sam\"}\n];\nstudents.remove(1) ⇒ {\"id\":1,\"name\":\"Jo\"}\nstudents ⇒ [{\"id\":2,\"name\":\"Sam\"}]\nstudents.remove(5) ⇒ panic\n```\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_lang.table_0.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerina",
+      "module": "lang.table",
+      "packageName": "lang.table",
+      "symbol": "remove",
+      "version": "0.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "t": {
+        "metadata": {
+          "label": "T",
+          "description": "the table"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "table<map<any|error>>",
+            "selected": false
+          }
+        ],
+        "placeholder": "table []",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "t"
+        }
+      },
+      "k": {
+        "metadata": {
+          "label": "K",
+          "description": "the key"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "k"
+        }
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "map<any|error>",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "tableMaptype",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}
