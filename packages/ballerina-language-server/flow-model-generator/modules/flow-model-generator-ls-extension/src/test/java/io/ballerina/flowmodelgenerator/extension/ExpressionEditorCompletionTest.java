@@ -39,6 +39,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -142,13 +143,31 @@ public class ExpressionEditorCompletionTest extends AbstractLSTest {
         Assert.assertEquals(inserts, Set.of("'type", "'from", "number"));
     }
 
+    @Test
+    public void testRanksALocalThatShadowsAModuleVariableAsLocal() throws IOException {
+        List<CompletionItem> items = scopeCompletions("shadow.bal", LinePosition.from(7, 4), "EXPRESSION");
+        Map<String, String> sortTexts = items.stream()
+                .filter(item -> List.of("counter", "region", "total").contains(item.getLabel()))
+                .collect(Collectors.toMap(CompletionItem::getLabel, CompletionItem::getSortText));
+        Assert.assertTrue(sortTexts.get("counter").compareTo(sortTexts.get("total")) < 0, sortTexts.toString());
+        Assert.assertTrue(sortTexts.get("region").compareTo(sortTexts.get("total")) < 0, sortTexts.toString());
+        List<String> assignable = scopeCompletions("shadow.bal", LinePosition.from(7, 4), "LV_EXPRESSION").stream()
+                .map(CompletionItem::getLabel).toList();
+        Assert.assertTrue(assignable.containsAll(List.of("counter", "region", "total")), assignable.toString());
+    }
+
     private List<CompletionItem> scopeCompletions(String fieldType) throws IOException {
-        String sourcePath = getSourcePath("scope.bal");
+        return scopeCompletions("scope.bal", LinePosition.from(16, 4), fieldType);
+    }
+
+    private List<CompletionItem> scopeCompletions(String source, LinePosition position, String fieldType)
+            throws IOException {
+        String sourcePath = getSourcePath(source);
         notifyDidOpen(sourcePath);
         JsonObject property = JsonParser.parseString(
                 "{\"types\": [{\"fieldType\": \"%s\", \"selected\": true}]}".formatted(fieldType)).getAsJsonObject();
         ExpressionEditorContext.Info info =
-                new ExpressionEditorContext.Info("", LinePosition.from(16, 4), 0, 0, new JsonObject(), property);
+                new ExpressionEditorContext.Info("", position, 0, 0, new JsonObject(), property);
         JsonObject response = getResponse(new ExpressionEditorCompletionRequest(sourcePath, info,
                 new CompletionContext(CompletionTriggerKind.Invoked)));
         notifyDidClose(sourcePath);
