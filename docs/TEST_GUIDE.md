@@ -167,9 +167,11 @@ BAL_UPDATE_FIXTURES=1 npx jest --config jest.realdata.config.js
 **How to run.**
 ```bash
 cd packages/ballerina-extension
-pnpm run e2e-test-setup     # downloads VSCode + installs the vsix (once)
+pnpm run e2e-test-setup     # downloads VSCode, installs the vsix and Playwright's ffmpeg (once)
 pnpm run e2e-test           # runs the Playwright specs
 ```
+
+The suite records a video of every run, and Playwright records it with its own `ffmpeg`. Without it, the VS Code window stays blank and every test fails at `waitForEvent('domcontentloaded')` after 30 s, with no error about `ffmpeg`. If you skipped `e2e-test-setup`, run `pnpm exec playwright install ffmpeg` once.
 
 **How to add.** Add a Playwright spec under `e2e-test/e2e-playwright-tests/` driving the extension host. Also: an E2E run with `BAL_RECORD_FIXTURES=1` (or the [`capture-fixtures`](../packages/ballerina-extension/scripts/capture-fixtures.js) script) seeds L2 capture fixtures for free.
 

@@ -129,7 +129,7 @@ export async function openPaletteBelow(webview: Frame, nodeText: string): Promis
         for (let attempt = 0; attempt < 3; attempt++) {
             await emptyNodeButton.click({ force: true, timeout: 5000 })
                 .catch(() => emptyNodeButton.dispatchEvent('click', undefined, { timeout: 5000 }).catch(() => undefined));
-            if (await paletteOpens(webview, 5000)) {
+            if (await paletteOpens(webview, 15000)) {
                 await sidePanel.init();
                 return sidePanel;
             }
@@ -158,7 +158,7 @@ export async function openPaletteBelow(webview: Frame, nodeText: string): Promis
             } else {
                 await page.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
             }
-            if (await paletteOpens(webview, 3000)) {
+            if (await paletteOpens(webview, 10000)) {
                 await sidePanel.init();
                 return sidePanel;
             }

@@ -32,6 +32,10 @@ export default function createTests() {
     // Run Integration Tests
     test.describe.serial('Run Integration Tests', {
     }, async () => {
+        // Run Integration cannot start bal from a path with a space in a PowerShell task
+        // (C:\Program Files\Ballerina on the Windows runner). Re-enable with the fix for
+        // https://github.com/wso2/product-integrator/issues/2767.
+        test.skip(process.platform === 'win32', 'Run Integration fails on Windows: wso2/product-integrator#2767');
         initTest(true, true, undefined, undefined, AUTOMATION_PROJECT_TEMPLATE);
 
         test('Click Run button from toolbar', async () => {

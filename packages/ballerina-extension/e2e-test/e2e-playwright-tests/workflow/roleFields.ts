@@ -93,7 +93,9 @@ export async function openNode(canvas: Locator, label: string, formReady: Locato
         } else {
             await node.click({ force: true, timeout: 5000 }).catch(() => undefined);
         }
-        if (await formReady.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
+        // The side panel can open while its form is still loading; on a slower CI runner that
+        // takes more than 5s.
+        if (await formReady.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false)) {
             return;
         }
         await page.page.waitForTimeout(2000);

@@ -1556,7 +1556,7 @@
         "test:reliability": "jest --config jest.reliability.config.js",
         "capture-fixtures": "node scripts/capture-fixtures.js",
         "test:checkpoint": "pnpm run test-compile && node ./out/test/runCheckpointTest.js",
-        "e2e-test-setup": "npx extest get-vscode -c 1.100.0 && npx extest install-vsix -f $(ls vsix/*.vsix)",
+        "e2e-test-setup": "npx extest get-vscode -c 1.100.0 && npx extest install-vsix -f $(ls vsix/*.vsix) && npx playwright install ffmpeg",
         "e2e-test": "pnpm exec playwright test -c e2e-test/playwright.config.js",
         "e2e-test:download-prerelease": "DOWNLOAD_PRERELEASE=true pnpm exec playwright test -c e2e-test/playwright.config.js",
         "lint": "tslint --fix 'src/**/*{.ts,.tsx}'",

@@ -151,9 +151,10 @@ export default function createTests() {
             // panel's connection list for the new entry's text.
             // ProjectExplorer.findItem() only waits 5s per tree level, which
             // can be too short on a slower CI runner while the LS re-indexes
-            // after the save — retry instead of a single attempt.
+            // after the save — retry instead of a single attempt. Three attempts
+            // were not enough on the Windows runner: the entry appeared just after.
             let connectionListed = false;
-            for (let attempt = 0; attempt < 3 && !connectionListed; attempt++) {
+            for (let attempt = 0; attempt < 6 && !connectionListed; attempt++) {
                 connectionListed = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Connections', CONNECTION_NAME])
                     .then(() => true).catch(() => false);
                 if (!connectionListed) {
@@ -169,8 +170,10 @@ export default function createTests() {
         test('Add methods inside a connection', async () => {
             logStep('Add a GET method from the http client');
             await page.page.waitForTimeout(1500);
+            // The new connection's entry in the node panel can stay a loading placeholder for
+            // well over 5s on a slower CI runner.
             const clientEntryVisible = await sidePanel.getLocator().getByText(CONNECTION_NAME, { exact: false }).first()
-                .waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+                .waitFor({ state: 'visible', timeout: 30000 }).then(() => true).catch(() => false);
             if (!clientEntryVisible) {
                 await diagram.clickAddButtonByIndex(1);
             }
@@ -279,7 +282,8 @@ export default function createTests() {
             // The call node renders as "http : get" and links to a separate
             // "httpClient" connector node alongside it — they're not in the
             // same text node, so match the call node's own label.
-            await diagramCanvas.getByText(/http\s*:\s*get/i).first().waitFor({ timeout: 15000 });
+            // On a slower CI runner the save can stay on "Saving..." for more than 15s.
+            await diagramCanvas.getByText(/http\s*:\s*get/i).first().waitFor({ timeout: 60000 });
             logStep('GET action added and shown in the connection');
         });
 

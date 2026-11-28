@@ -71,7 +71,8 @@ jobs:
       matrix:
         os: ${{ fromJson(needs.Prepare.outputs.platforms) }}
         group: ${{ fromJson(needs.Prepare.outputs.groups) }}
-    runs-on: ${{ matrix.os == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+    # Playwright cannot install Chromium on ubuntu-latest (26.04) yet, so the Linux leg stays on 24.04.
+    runs-on: ${{ matrix.os == 'windows' && 'windows-latest' || 'ubuntu-24.04' }}
     # Windows is observed, not enforced: its legs report into the step summary and the
     # e2e-metrics history but never fail the run or fire the chat notification, so a suite
     # whose Windows pass rate is still unknown cannot redden every scheduled run. Flip this
@@ -271,7 +272,9 @@ jobs:
 
       - name: Persist run stats
         id: persist
-        if: ${{ always() && github.repository == 'ballerina-platform/ballerina-vscode' }}
+        # main only: a manual run on a feature branch must not write to the shared
+        # history or notify the team chat (same condition on Notify on failure below).
+        if: ${{ always() && github.repository == 'ballerina-platform/ballerina-vscode' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -332,7 +335,7 @@ jobs:
           fi
 
       - name: Notify on failure
-        if: ${{ always() && (steps.aggregate.outcome == 'failure' || steps.persist.outcome == 'failure' || needs.E2E.result != 'success' || job.status == 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
+        if: ${{ always() && (steps.aggregate.outcome == 'failure' || steps.persist.outcome == 'failure' || needs.E2E.result != 'success' || job.status == 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' && github.ref == 'refs/heads/main' }}
         uses: ./.github/actions/failure-notification
         with:
           title: "Scheduled E2E Tests Failed"
