@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Codicon, FormExpressionEditorRef, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
@@ -32,7 +32,6 @@ import {
     Property,
 } from "@wso2/ballerina-core";
 import { BRANCH_MARKS, newMatchCase, newMatchDefault } from "../form-assist/branches";
-import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
     ExpressionEditor,
@@ -50,8 +49,6 @@ import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 interface MatchFormProps {
-    // Closes the panel once the chat takes the step over.
-    onClose?: () => void;
     fileName: string;
     node: FlowNode;
     targetLineRange: LineRange;
@@ -62,8 +59,8 @@ interface MatchFormProps {
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
     showProgressIndicator?: boolean;
-    // Rebuilds the form from a node the form assist filled.
-    onReseed?: (node: FlowNode) => void;
+    // The form's Copilot, given how to read the form's current node.
+    assist?: (toNode: () => FlowNode) => ReactNode;
 }
 
 export function MatchForm(props: MatchFormProps) {
@@ -78,7 +75,7 @@ export function MatchForm(props: MatchFormProps) {
         resetUpdatedExpressionField,
         subPanelView,
         showProgressIndicator,
-        onReseed,
+        assist,
     } = props;
     const {
         watch,
@@ -472,15 +469,7 @@ export function MatchForm(props: MatchFormProps) {
                 }
             }}
         >
-            {onReseed && (
-                <NodeFormAssist
-                    node={node}
-                    location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
-                    toNode={() => buildNode(getValues())}
-                    reseed={onReseed}
-                    onClose={props.onClose}
-                />
-            )}
+            {assist?.(() => buildNode(getValues()))}
             <div>
             <FormStyles.Row>
                 <ExpressionEditor

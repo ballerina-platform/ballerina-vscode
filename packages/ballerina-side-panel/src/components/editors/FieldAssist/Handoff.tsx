@@ -16,7 +16,6 @@
  * under the License.
  */
 
-
 import React, { createContext, useContext, useEffect, useRef } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
 import { AssistFlowChange, FormAssistQuestion } from "@wso2/ballerina-core";

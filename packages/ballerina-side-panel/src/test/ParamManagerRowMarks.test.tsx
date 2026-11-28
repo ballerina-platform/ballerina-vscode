@@ -20,11 +20,11 @@ jest.mock("@wso2/ballerina-rpc-client", () => ({
     useRpcContext: () => ({ rpcClient: { getVisualizerLocation: async () => ({ view: "BI Diagram" }) } }),
 }));
 
-import React, { useEffect } from "react";
-import { act, fireEvent, screen } from "@testing-library/react";
+import React, { useEffect, useState } from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { FormField } from "../components/Form/types";
 import { renderWithForm } from "./formHarness";
-import { ParamManagerEditor } from "../components/ParamManager/ParamManager";
+import { Parameter, ParamManagerEditor, useHeldParameters } from "../components/ParamManager/ParamManager";
 import { AppliedMark, AssistHostProvider, AssistHostValue, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { CHANGED_FIELD } from "../components/editors/FieldAssist/styles";
 import { SectionChanges } from "../components/editors/FieldAssist/AssistMark";
@@ -56,7 +56,7 @@ function Applied({ keys }: { keys: string[] }) {
     host = useAssistHost()!;
     useEffect(() => {
         host.setApplied({
-            formId: "", request: "add a and b", revert: () => ({}),
+            formId: "", revert: () => ({}),
             changes: Object.fromEntries(keys.map((key) => [`parameters:${key}`, ["parameters", key]])),
             marks: Object.fromEntries(keys.map((key) => [key, added(key)])),
         });
@@ -118,5 +118,29 @@ describe("Copilot marks on parameter rows", () => {
         );
         expect(screen.getByText("2 Changes")).toBeTruthy();
         expect(onReveal).toHaveBeenCalled();
+    });
+});
+
+const row = (key: string): Parameter => ({ id: 0, key, value: key, icon: "", identifierEditable: true, identifierRange: undefined, formValues: { variable: key } });
+
+let shown: Parameter[] = [];
+function Rows({ value, adding }: { value: Parameter[]; adding?: Parameter }) {
+    const [parameters, setParameters] = useState<Parameter[]>(adding ? [adding] : []);
+    useHeldParameters(value, parameters, setParameters);
+    shown = parameters;
+    return null;
+}
+
+describe("rows held from the form value", () => {
+    it("keeps a row being added when the form re-renders the same list", () => {
+        const { rerender } = render(<Rows value={[]} adding={row("payment")} />);
+        rerender(<Rows value={[]} adding={row("payment")} />);
+        expect(shown.map((param) => param.key)).toEqual(["payment"]);
+    });
+
+    it("follows a new list written into the form", () => {
+        const { rerender } = render(<Rows value={[]} />);
+        rerender(<Rows value={[row("a"), row("b")]} />);
+        expect(shown.map((param) => param.key)).toEqual(["a", "b"]);
     });
 });

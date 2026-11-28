@@ -78,11 +78,11 @@ const askRule = (changes: string) => `ask_user when the request leaves open a ch
   or the other values that picks one. Ask one short question with 2 to 4 plain answers, each one of those values. Never
   pick one of them by its name alone. When the request or the context picks one, take it.`;
 
-// The user's answer to a question Copilot asked; the same words for the field and the form.
 // Each earlier message with the reply it got, so a follow-up can refer to either.
 const earlierLines = (earlier: string[], replies: string[] = []) =>
     earlier.map((text, index) => `${index + 1}. ${text.trim()}${replies[index]?.trim() ? `\n   You replied: ${replies[index].trim()}` : ""}`).join("\n");
 
+// The user's answer to a question Copilot asked; the same words for the field and the form.
 const askedLine = (asked?: string) => (asked ? `You asked the user: ${asked}\nThe latest message is their answer.` : "");
 
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
@@ -221,7 +221,7 @@ const PROMPT_FIELD_RULE = "This field is a prompt: write a bare backtick templat
 const STRING_PROMPT = "a prompt: a string template, e.g. string `Summarize this: ${input}`";
 const isStringPrompt = (type?: { fieldType?: string; ballerinaType?: string }) => type?.fieldType === "PROMPT" && type.ballerinaType === "string";
 
-const selectedType = (property: ExpressionAssistRequest["context"]["property"]) =>
+export const selectedType = (property: ExpressionAssistRequest["context"]["property"]) =>
     property.types?.find((type) => type.selected) ?? property.types?.[0];
 
 export const selectedKind = (property: ExpressionAssistRequest["context"]["property"]) => selectedType(property)?.fieldType;
@@ -234,6 +234,7 @@ const namesVariable = (property: ExpressionAssistRequest["context"]["property"])
 export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, expectedType: string, errors: string[], enclosing: Enclosing): string {
     const value = req.context.expression.trim();
     const otherFields = req.form?.fields ?? [];
+    const listed = listedValues(req.context.property);
     const context = [
         req.form?.node ? `Node: ${req.form.node}` : "",
         enclosing.code ? `Surrounding code:\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
@@ -245,7 +246,7 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         `Expected type: ${expectedType || "any"}`,
         namesVariable(req.context.property) ? VARIABLE_TARGET_RULE : "",
         selectedKind(req.context.property) === "PROMPT" ? promptFieldRule(req.context.property) : "",
-        listedValues(req.context.property).length ? `Allowed values, written exactly so; any other is rejected: ${listedValues(req.context.property).join(" | ")}` : "",
+        listed.length ? `Allowed values, written exactly so; any other is rejected: ${listed.join(" | ")}` : "",
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
@@ -316,7 +317,7 @@ export function fitTypeDescription(text: string, limit: number): string {
     return records.map(([head, ...docs]) => [head, ...docs.filter(take)].join("\n")).join("\n");
 }
 
-const IDENTIFIER = /^'?[A-Za-z_]\w*$/;
+export const IDENTIFIER = /^'?[A-Za-z_]\w*$/;
 
 // Whether a refusal cites something the run saw: a compiler error it got, or a name no type it read declares.
 export function isGrounded(run: { errorsSeen: string[]; seen: string[] }, evidence: string, cites: string): boolean {
@@ -346,14 +347,20 @@ export const PARSE_ERROR = /invalid token|missing .* token/;
 const PARSE_CONTEXT = 20;
 
 // A parse error's range points into the expression; the text before it finds the spot, which the model cannot count to.
-export function locateParseError(message: string, start: { line: number; character: number } | undefined, expression: string): string {
+export function locateParseError(message: string, start: Position | undefined, expression: string): string {
     if (!start || !PARSE_ERROR.test(message)) {
         return message;
     }
-    const at = expression.split("\n").slice(0, start.line).reduce((offset, line) => offset + line.length + 1, start.character);
-    const before = expression.slice(Math.max(0, at - PARSE_CONTEXT), at);
-    return before.trim() ? `${message} after '${at > PARSE_CONTEXT ? "…" : ""}${before}'` : message;
+    return message + snippetBefore(expression, offsetOf(expression, start));
 }
+
+const offsetOf = (expression: string, at: Position) => expression.split("\n").slice(0, at.line).reduce((sum, line) => sum + line.length + 1, at.character);
+
+// The text before `at`, as `after '…text'`; empty at the start.
+const snippetBefore = (expression: string, at: number): string => {
+    const before = expression.slice(Math.max(0, at - PARSE_CONTEXT), at);
+    return before.trim() ? ` after '${at > PARSE_CONTEXT ? "…" : ""}${before}'` : "";
+};
 
 const SPAN_LIMIT = 80;
 const OPENERS: Record<string, string> = { "(": ")", "[": "]", "{": "}", "${": "}" };
@@ -368,8 +375,7 @@ export interface CompileDiagnostic {
 
 // One compiler error as the model reads it: what is wrong, the code it is in, and the fix for that code when one is known.
 export function describeDiagnostic({ message, code, range }: CompileDiagnostic, expression: string): { error: string; hint?: string } {
-    const offset = (at: Position) => expression.split("\n").slice(0, at.line).reduce((sum, line) => sum + line.length + 1, at.character);
-    const span = range ? expression.slice(offset(range.start), offset(range.end)).trim() : "";
+    const span = range ? expression.slice(offsetOf(expression, range.start), offsetOf(expression, range.end)).trim() : "";
     const located = span && span.length <= SPAN_LIMIT ? `${message} at \`${span}\`` : locateParseError(message, range?.start, expression);
     return { error: located, hint: span ? diagnosticFix(String(code ?? ""), message, span) : undefined };
 }
@@ -460,10 +466,7 @@ function neverClosed(expression: string, open: Opened[]): string | undefined {
     return unclosed && `'${unclosed.token}'${textBefore(expression, unclosed.at)} is never closed`;
 }
 
-const textBefore = (expression: string, at: number): string => {
-    const before = expression.slice(Math.max(0, at - PARSE_CONTEXT), at);
-    return before.trim() ? ` after '${at > PARSE_CONTEXT ? "…" : ""}${before}'` : " at the start";
-};
+const textBefore = (expression: string, at: number): string => snippetBefore(expression, at) || " at the start";
 
 // Hints for compiler errors Haiku tends to repeat; matched against each error of a failed submit.
 export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
@@ -478,7 +481,7 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
     { test: /operator .* not defined for .*\?'/, hint: "An optional value can be nil: default it before combining, e.g. (x ?: \"\"). A != () check narrows only a local variable, not a field access." },
     { test: /'[^']*\?' does not support (member|optional field) access|missing colon token/, hint: "Ballerina has no ?[ ] or ?.[ ], and an is check does not narrow a field access. Default the optional list, then guard the index." },
     { test: /invalid token '[)\]}]' after/, hint: "That closing bracket has no opening one: delete the one right after the quoted text, or rewrite the value without the extra brackets." },
-    { test: /invalid token|missing .* token/, hint: "This does not parse: check brackets, commas and backticks. Plain text needs double quotes." },
+    { test: PARSE_ERROR, hint: "This does not parse: check brackets, commas and backticks. Plain text needs double quotes." },
     { test: /expected '\(int\|float\|decimal\|string\|boolean\)', found '[^']*\?'/, hint: "A ${...} in a string template cannot hold nil: default it inside, e.g. ${x ?: \"\"}, reading optional fields with ?." },
     { test: /type compatible with mapping constructor expressions not found/, hint: "Either a value inside {...} can still be an error (narrow it, or use check), or ...x spreads a value that is not a mapping. To add a field to a json value use x is map<json> ? x.clone().mergeJson({k: v}) : {value: x, k: v}." },
     { test: /incompatible mapping constructor/, hint: "Cast the mapping to the record you mean: <T>{...}." },
@@ -557,7 +560,7 @@ function groupLines(group: FormAssistGroup): string {
 
 // The values a select or a toggle accepts; empty when the select lists none.
 export function choices(property: FormAssistSlot["property"]): string[] {
-    const type = property.types?.find((option) => option.selected) ?? property.types?.[0];
+    const type = selectedType(property);
     if (type?.fieldType === "FLAG") {
         return ["true", "false"];
     }
@@ -583,7 +586,7 @@ export function listedValues(property: FormAssistSlot["property"]): string[] {
 }
 
 export function declaredType(property: FormAssistSlot["property"]): string {
-    const type = property.types?.find((option) => option.selected) ?? property.types?.[0];
+    const type = selectedType(property);
     const allowed = choices(property);
     if (allowed.length) {
         return `one of ${allowed.map((value) => JSON.stringify(value)).join(" | ")}, written bare`;

@@ -29,27 +29,21 @@ describe("secretGuard", () => {
         expect(isSensitiveField("Author", "author")).toBe(false);
     });
 
-    it("recognises common credential formats and generated keys", () => {
-        expect(looksLikeCredential("sk-ant-api03-abcdefghijklmnopqrstuv")).toBe(true);
-        expect(looksLikeCredential("ghp_abcdefghijklmnopqrstuvwxyz0123")).toBe(true);
-        expect(looksLikeCredential("AKIAABCDEFGHIJKLMNOP")).toBe(true);
-        expect(looksLikeCredential("use 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 here")).toBe(true);
-        expect(looksLikeCredential("ord.customer.firstName + \" \" + ord.customer.lastName")).toBe(false);
-        expect(looksLikeCredential("make it uppercase and trim the spaces")).toBe(false);
-    });
-
-    it("ignores paths, URLs and snake_case names", () => {
-        expect(looksLikeCredential("read /Users/me/projects/order-service1/resources/data.json")).toBe(false);
-        expect(looksLikeCredential("https://api.example.com/v2/customers/orders/pending/items")).toBe(false);
-        expect(looksLikeCredential("check_out_order_items_for_customer_2")).toBe(false);
-    });
-
-    it("catches generated keys", () => {
-        [
-            "5f4dcc3b5aa765d61d8327deb882cf99",
-            "q3Xk9mZ+Lw2pV8rT1yN6bH4sJ0cF7gA5dE2iK9oU3wQ=",
-            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-        ].forEach((key) => expect(looksLikeCredential(`set it to ${key}`)).toBe(true));
+    it.each([
+        ["sk-ant-api03-abcdefghijklmnopqrstuv", true],
+        ["ghp_abcdefghijklmnopqrstuvwxyz0123", true],
+        ["AKIAABCDEFGHIJKLMNOP", true],
+        ["use 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 here", true],
+        ["set it to 5f4dcc3b5aa765d61d8327deb882cf99", true],
+        ["set it to q3Xk9mZ+Lw2pV8rT1yN6bH4sJ0cF7gA5dE2iK9oU3wQ=", true],
+        ["set it to wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", true],
+        ["ord.customer.firstName + \" \" + ord.customer.lastName", false],
+        ["make it uppercase and trim the spaces", false],
+        ["read /Users/me/projects/order-service1/resources/data.json", false],
+        ["https://api.example.com/v2/customers/orders/pending/items", false],
+        ["check_out_order_items_for_customer_2", false],
+    ])("reads %p as a credential: %p", (text, credential) => {
+        expect(looksLikeCredential(text)).toBe(credential);
     });
 
     it("withholds literals in sensitive fields but not references to configurables", () => {

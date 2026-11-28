@@ -16,13 +16,15 @@
  * under the License.
  */
 
-import { CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
+import { CodeContext, CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
 import { FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues, configLiteral } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { URI, Utils } from "vscode-uri";
 
 import { updateNodeProperties } from "../../../utils/bi";
+import { createMiniChatPrompt } from "../../../components/AgentStatusOrb/promptHandoff";
+import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 
 export function createNodeWithUpdatedLineRange(node: FlowNode, targetLineRange: LineRange): FlowNode {
     return {
@@ -182,6 +184,21 @@ export async function assistFormInForm(
     });
 }
 
+// Closing the form loses what the user typed, so a value that differs from the source is kept as their edit.
+const FORM_VALUES = "The form's current values follow. A value that differs from the source is an edit the user made in the form and has not saved yet: keep it as part of this change.";
+
+export const formValuesNote = (values: string[]): string =>
+    values.length ? `${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : "";
+
+// Hands a form Copilot's request to the chat with the form's context, then closes the form.
+export function continueInChat(rpcClient: BallerinaRpcClient, request: string, hidden: (string | undefined)[], close?: () => void, codeContext?: CodeContext): void {
+    const prompt = createMiniChatPrompt(request, { autoSubmit: true, newThread: true, ...(codeContext && { codeContext }), hiddenContext: hidden.filter(Boolean).join("\n") });
+    if (!requestMiniChatOpen(prompt)) {
+        rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
+    }
+    close?.();
+}
+
 // Declares the configurables an accepted AI suggestion needs, here so a moved secret never leaves the editor; resolves to their undo.
 export async function runAssistActions(
     rpcClient: BallerinaRpcClient,
@@ -216,7 +233,7 @@ export async function runAssistActions(
 }
 
 // Deletes configurables the root module declares, with their Config.toml values; each delete moves the rest, so the list is read again.
-export async function removeConfigurables(rpcClient: BallerinaRpcClient, projectPath: string, packageName: string, names: string[]): Promise<void> {
+async function removeConfigurables(rpcClient: BallerinaRpcClient, projectPath: string, packageName: string, names: string[]): Promise<void> {
     const diagram = rpcClient.getBIDiagramRpcClient();
     for (const name of names) {
         const { configVariables } = await diagram.getConfigVariablesV2({ projectPath: "", includeLibraries: false });

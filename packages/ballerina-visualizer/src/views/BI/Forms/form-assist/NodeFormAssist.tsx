@@ -20,9 +20,7 @@ import React, { useMemo } from "react";
 import { CodeContext, FlowNode, LineRange, Property } from "@wso2/ballerina-core";
 import { FormAssist, FormAssistDescription, RunFormAssist, isSensitiveField, useAssistParts } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
-import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
-import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
-import { AssistLocation, assistFormInForm, runAssistActions } from "../form-utils";
+import { AssistLocation, assistFormInForm, continueInChat, formValuesNote, runAssistActions } from "../form-utils";
 import { nodeAssistSchema } from "./schemas";
 import { convertNodePropertyToFormField } from "../../../../utils/node-property-utils";
 import { CONNECTION_TYPE_CONFIGS } from "../../../../components/ConnectionSelector/config";
@@ -68,8 +66,8 @@ async function connectionNote(rpcClient: BallerinaRpcClient, node: FlowNode): Pr
 
 /** Whether the node's form has values or rows the form's Copilot can fill. */
 export function hasNodeFormAssist(node: FlowNode): boolean {
-    const described = nodeAssistSchema(node)?.describe(node);
-    return !!described && (described.groups.length > 0 || described.slots.length > 0);
+    const { slots, groups } = nodeAssistSchema(node).describe(node);
+    return groups.length > 0 || slots.length > 0;
 }
 
 // The form's own parts beside the node's properties, e.g. a custom toggle; a key the node describes stays the node's.
@@ -128,9 +126,6 @@ function stepContext(node: FlowNode, { fileName, startLine }: AssistLocation): C
         : { type: "addition", position: startLine, filePath: fileName };
 }
 
-// Closing the form loses what the user typed, so a value that differs from the source is kept as their edit.
-export const FORM_VALUES = "The form's current values follow. A value that differs from the source is an edit the user made in the form and has not saved yet: keep it as part of this change.";
-
 // Steps a hand-off usually wraps, by the statement the diagram draws them from.
 const STATEMENTS: Record<string, string> = { FAIL: "a fail statement", RETURN: "a return statement", PANIC: "a panic statement" };
 
@@ -141,7 +136,7 @@ function stepNote(node: FlowNode, values: string[]): string {
     const where = node.codedata.isNew
         ? `The ${step} is new and not in the source yet: write it at the given position as part of this change.`
         : `The ${step} is the selected code; keep it as that kind of statement.`;
-    return values.length ? `${where} ${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : where;
+    return [where, formValuesNote(values)].filter(Boolean).join(" ");
 }
 
 // Lets a field's Copilot request reach the whole node form; each form only says how to read its values and how to rebuild.
@@ -152,7 +147,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
     const schema = nodeAssistSchema(node);
     const fillable = useMemo(() => hasNodeFormAssist(node), [node]);
     const parts = useAssistParts();
-    if (!schema || !fillable) {
+    if (!fillable) {
         return null;
     }
     const run: RunFormAssist = async (instruction, description, requestId, context) =>
@@ -165,18 +160,8 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
             ...context,
             ...description,
         });
-    const continueInChat = async (request: string, values: string[], context?: string) => {
-        const prompt = createMiniChatPrompt(request, {
-            autoSubmit: true,
-            newThread: true,
-            codeContext: stepContext(node, location),
-            hiddenContext: [...await target.handoffContext(), stepNote(node, values), context].filter(Boolean).join("\n"),
-        });
-        if (!requestMiniChatOpen(prompt)) {
-            rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
-        }
-        close?.();
-    };
+    const handOff = async (request: string, values: string[], context?: string) =>
+        continueInChat(rpcClient, request, [...await target.handoffContext(), stepNote(node, values), context], close, stepContext(node, location));
     return (
         <FormAssist
             describe={() => withParts(markPicked(markGeneratedName(schema.describe(toNode()), node), node), parts.describe())}
@@ -184,7 +169,7 @@ export function NodeFormAssist({ node, location, toNode, reseed, onClose }: Node
             abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })}
             onApply={(response) => reseed(schema.apply(toNode(), { ...response, ...parts.apply(response) }))}
             formId={`${location.fileName}:${location.startLine?.line}:${node.codedata.node}`}
-            onContinueInChat={close ? continueInChat : undefined}
+            onContinueInChat={close ? handOff : undefined}
             runAssistActions={(actions, value) => runAssistActions(rpcClient, location.fileName, actions, value)}
             savedValue={(path) => schema.describe(node).slots.find((slot) => slot.path === path)?.value}
         />

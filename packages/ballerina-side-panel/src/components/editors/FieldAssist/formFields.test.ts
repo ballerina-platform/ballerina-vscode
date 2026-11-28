@@ -20,6 +20,7 @@ import { ExpressionProperty, PropertyModel } from "@wso2/ballerina-core";
 import { FormField } from "../../Form/types";
 import { assistTypes } from "./fieldKinds";
 import { describeForm, keysWithin, treeFields, writeFields } from "./formFields";
+import { plainText } from "./StructuredFieldAssist";
 
 const field = (key: string, fieldType: string, extra: Partial<FormField> = {}): FormField => ({
     key, label: key, type: fieldType, optional: false, editable: true, enabled: true, documentation: "", value: "",
@@ -203,5 +204,19 @@ describe("form fields for the Copilot", () => {
             field("kept", "TEXTAREA"),
         ]);
         expect(tree.map((entry) => entry.field.key)).toEqual(["kept"]);
+    });
+});
+
+describe("plainText", () => {
+    it("takes the text of a string literal or of a template with nothing interpolated", () => {
+        expect(plainText(`"Review the pull request.\\nThen reply."`)).toBe("Review the pull request.\nThen reply.");
+        expect(plainText("string `Summarize the change.`")).toBe("Summarize the change.");
+        expect(plainText("`Plain template`")).toBe("Plain template");
+    });
+
+    it("refuses a value that needs the flow", () => {
+        expect(plainText("string `Hello ${name}`")).toBeUndefined();
+        expect(plainText("prefix + \" text\"")).toBeUndefined();
+        expect(plainText("order.note")).toBeUndefined();
     });
 });

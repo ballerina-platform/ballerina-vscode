@@ -27,7 +27,6 @@ const COPILOT_ACCENT = "var(--vscode-button-background)";
 const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
 // Suggested answers and starters: an accent edge so they read as buttons.
 const CHOICE_BORDER = `color-mix(in srgb, ${COPILOT_ACCENT} 50%, transparent)`;
-const PANEL_PADDING = 6;
 const ADDED = "var(--vscode-gitDecoration-addedResourceForeground, #81b88b)";
 const REMOVED = "var(--vscode-gitDecoration-deletedResourceForeground, #c74e39)";
 
@@ -70,6 +69,22 @@ const pressable = `
     &:focus-visible {
         outline: 1px solid var(--vscode-focusBorder);
         outline-offset: 1px;
+    }
+`;
+
+// A speech bubble's tail, under the orb's centre.
+const TAIL = `
+    &::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        right: 10px;
+        width: 8px;
+        height: 8px;
+        background: inherit;
+        border-top: inherit;
+        border-left: inherit;
+        transform: rotate(45deg);
     }
 `;
 
@@ -167,22 +182,17 @@ export namespace S {
     `;
 
     // The header's button around the app's Copilot orb, which draws its own sphere, glow and states.
-    export const HeaderOrb = styled.button`
+    export const HeaderOrb = styled(HeaderButton)`
         position: relative;
-        flex-shrink: 0;
         width: 28px;
         height: 28px;
-        padding: 0;
-        border: none;
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
         color: var(--vscode-foreground);
-        background: none;
         animation: ${fade} 180ms ${EASE_OUT};
-        ${pressable}
+        &:hover:not(:disabled) {
+            color: var(--vscode-foreground);
+            background-color: transparent;
+        }
         &:focus-visible {
             outline-offset: 2px;
         }
@@ -236,18 +246,7 @@ export namespace S {
         opacity: ${({ shown }) => (shown ? 1 : 0)};
         transform: ${({ shown }) => (shown ? "none" : "translateY(-4px)")};
         transition: opacity 180ms ${EASE_OUT}, transform 180ms ${EASE_OUT};
-        &::before {
-            content: "";
-            position: absolute;
-            top: -5px;
-            right: 10px;
-            width: 8px;
-            height: 8px;
-            background: inherit;
-            border-top: inherit;
-            border-left: inherit;
-            transform: rotate(45deg);
-        }
+        ${TAIL}
     `;
 
     // Holds the orb and its first-use bubble, which sits outside the orb's button so it can hold its own Dismiss button.
@@ -288,19 +287,7 @@ export namespace S {
         @media (prefers-reduced-motion: reduce) {
             animation-name: ${fade};
         }
-        /* The tail, under the orb's centre. */
-        &::before {
-            content: "";
-            position: absolute;
-            top: -5px;
-            right: 10px;
-            width: 8px;
-            height: 8px;
-            background: inherit;
-            border-top: inherit;
-            border-left: inherit;
-            transform: rotate(45deg);
-        }
+        ${TAIL}
     `;
 
     // The form's thread under the header's Copilot button, above the page and any popup; laid out as the orb's chat.
@@ -503,27 +490,6 @@ export namespace S {
         &[aria-pressed="true"]:not(:hover) {
             color: ${ThemeColors.ON_SURFACE};
             background-color: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
-        }
-    `;
-
-    export const Panel = styled.div`
-        position: relative;
-        margin-top: 6px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: ${PANEL_PADDING}px;
-        border: 1px solid ${FIELD_BORDER};
-        /* Concentric with the field-radius controls inside it. */
-        border-radius: calc(${FIELD_RADIUS} + ${PANEL_PADDING}px);
-        background-color: var(--vscode-editorWidget-background, ${ThemeColors.SURFACE_DIM});
-        /* Set here, not inherited: the side panel's own font would reach the form-level helper only. */
-        font-family: var(--vscode-font-family);
-        font-size: 12px;
-        line-height: 18px;
-        animation: ${rise} 160ms ${EASE_OUT};
-        @media (prefers-reduced-motion: reduce) {
-            animation-name: ${fade};
         }
     `;
 
@@ -803,26 +769,13 @@ export namespace S {
         }
     `;
 
-    export const Send = styled.button`
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        padding: 0;
-        border: none;
+    export const Send = styled(HeaderButton)`
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
         color: var(--vscode-button-foreground);
         background-color: ${COPILOT_ACCENT};
-        ${pressable}
         &:hover:not(:disabled) {
+            color: var(--vscode-button-foreground);
             background-color: var(--vscode-button-hoverBackground);
-        }
-        &:disabled {
-            cursor: default;
-            opacity: 0.4;
         }
     `;
 

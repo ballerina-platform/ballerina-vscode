@@ -19,7 +19,7 @@
 import { Range, Uri, workspace } from "vscode";
 import { Diagnostic, ExpressionAssistRequest, ExpressionProperty, LineRange, SyntaxTreeResponse, TypeField } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
-import { Enclosing, declaredType, describeDiagnostic, fitTypeDescription, markNode, shortTypeNames, unmatchedBracket, withoutCascades } from "./prompts";
+import { Enclosing, declaredType, describeDiagnostic, fitTypeDescription, markNode, selectedType, shortTypeNames, unmatchedBracket, withoutCascades } from "./prompts";
 import { findPackageRoot } from "../../project/dependency-lock";
 import { getProjectTomlValues } from "../../../utils/config";
 
@@ -123,7 +123,7 @@ function inExpression(diagnostic: Diagnostic, at: { line: number; offset: number
     if (codeOf(diagnostic.code).startsWith("BCE0")) {
         return diagnostic.range;
     }
-    const type = (property.types.find((option) => option.selected) ?? property.types[0])?.ballerinaType?.trim() || "any|error";
+    const type = selectedType(property)?.ballerinaType?.trim() || "any|error";
     const shift = at.offset + `${type} __reserved__ = `.length;
     const { start, end } = diagnostic.range;
     const inside = start.line === at.line && end.line === at.line && start.character >= shift && end.character <= shift + expression.length;

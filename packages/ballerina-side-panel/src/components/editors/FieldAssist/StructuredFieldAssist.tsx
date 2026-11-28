@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { Imports } from "@wso2/ballerina-core";
+import { Imports, InputType } from "@wso2/ballerina-core";
 import { EditorView } from "@codemirror/view";
 import { useAssistKey, useFormContext } from "../../../context";
 import { FormExpressionEditorProps, FormField } from "../../Form/types";
@@ -25,10 +25,10 @@ import { useModeSwitcherContext } from "../ModeSwitcherContext";
 import { tokensChangeEffect } from "../MultiModeExpressionEditor/ChipExpressionEditor/CodeUtils";
 import { InputMode } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { assistProperty, getPropertyFromFormField } from "../utils";
-import { AssistCard, AssistHostContent, AssistHostProvider, reviseInCard, useAssistHost, withFieldChange } from "./AssistHost";
+import { AssistCard, AssistHostContent, AssistHostProvider, AssistHostValue, reviewFieldChange, reviseInCard, useAssistHost } from "./AssistHost";
 import { AssistMark } from "./AssistMark";
-import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, reviewNote, runValueActions, useFieldAssist } from "./FieldAssist";
-import { stringLiteral } from "./fieldKinds";
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, hasAnswer, reviewNote, runValueActions, useFieldAssist } from "./FieldAssist";
+import { stringLiteral, templateBody } from "./fieldKinds";
 import { isSensitiveField } from "./secretGuard";
 
 export const switchesToExpression = (modeSwitcher: ReturnType<typeof useModeSwitcherContext>) =>
@@ -83,32 +83,15 @@ export function useStructuredFieldAssist(field: FormField, beforeSwitch?: () => 
         const before = currentValue();
         const removeCreated = await runValueActions(expressionEditor?.runAssistActions, proposal.actions, before);
         write(proposal, false);
-        host?.setApplied((current) => withFieldChange(current, markKey, {
+        reviewFieldChange(host, markKey, {
             before, after: proposal.expression, display: "code", request, label: field.label, note: reviewNote(proposal, before),
             values: { before, after: proposal.expression },
             // The field stays in expression mode, so the earlier value goes back into that editor.
-            revert: () => {
-                replaceEditorText(expressionEditorOf(), before, false);
-                if (removeCreated) {
-                    void removeCreated();
-                }
-            },
-        }));
-        host?.setReviewKey(markKey);
-        host?.close();
+            revert: () => replaceEditorText(expressionEditorOf(), before, false),
+        }, removeCreated);
     };
-    const assist = useFieldAssist({
-        thread: host?.fieldThread(markKey),
-        assist: assistExpression && ((input) => assistExpression({
-            ...input,
-            key,
-            property: { ...getPropertyFromFormField(field), types: modeSwitcher.types.map((type) => ({ ...type, selected: type.fieldType === "EXPRESSION" })) },
-        })),
-        abort: expressionEditor?.abortExpressionAssist,
-        getValue: currentValue,
-        sensitive: isSensitiveField(field.label, key),
-        review: host ? writeForReview : undefined,
-    });
+    const assist = useFieldAssist(formFieldAssist(host, markKey, field, expressionEditor, assistExpression,
+        () => modeSwitcher.types.map((type) => ({ ...type, selected: type.fieldType === "EXPRESSION" })), currentValue, writeForReview));
     const apply = async (proposal: Proposal) => {
         await runValueActions(expressionEditor?.runAssistActions, proposal.actions, currentValue());
         write(proposal);
@@ -122,13 +105,21 @@ const NOT_TEXT = "This field holds plain text, so values from the flow can't go 
 
 /** The text a plain text field holds for a suggested value: a string literal or a template with nothing interpolated. */
 export function plainText(expression: string): string | undefined {
-    const trimmed = expression.trim();
-    const template = /^(?:string\s*)?`([^`]*)`$/.exec(trimmed);
-    if (template) {
-        return template[1].includes("${") ? undefined : template[1];
-    }
-    return stringLiteral(trimmed);
+    const body = templateBody(expression);
+    return body === undefined ? stringLiteral(expression.trim()) : /\$\{|`/.test(body) ? undefined : body;
 }
+
+// The field Copilot's request for a form field, with the field's property offered in `types`.
+const formFieldAssist = (host: AssistHostValue | undefined, markKey: string, field: FormField, expressionEditor: FormExpressionEditorProps | undefined,
+    assistExpression: FormExpressionEditorProps["assistExpression"] | undefined, types: () => InputType[], getValue: () => string,
+    review: (proposal: Proposal, request: string) => void | Promise<void>): Parameters<typeof useFieldAssist>[0] => ({
+    thread: host?.fieldThread(markKey),
+    assist: assistExpression && ((input) => assistExpression({ ...input, key: field.key, property: { ...getPropertyFromFormField(field), types: types() } })),
+    abort: expressionEditor?.abortExpressionAssist,
+    getValue,
+    sensitive: isSensitiveField(field.label, field.key),
+    review: host ? review : undefined,
+});
 
 /** The field Copilot for a plain text field: a suggestion goes in as the text itself and is reviewed under the field. */
 export function usePlainTextFieldAssist(field: FormField) {
@@ -150,26 +141,14 @@ export function usePlainTextFieldAssist(field: FormField) {
         }
         const before = text();
         write(after);
-        host?.setApplied((current) => withFieldChange(current, markKey, {
+        reviewFieldChange(host, markKey, {
             before, after, display: "text", request, label: field.label, note: proposal.note,
             values: { before, after }, revert: () => write(before),
-        }));
-        host?.setReviewKey(markKey);
-        host?.close();
+        });
     };
     const assistExpression = field.editable !== false ? expressionEditor?.assistExpression : undefined;
-    const assist = useFieldAssist({
-        thread: host?.fieldThread(markKey),
-        assist: assistExpression && ((input) => assistExpression({
-            ...input,
-            key,
-            property: { ...getPropertyFromFormField(field), types: [{ fieldType: "EXPRESSION", ballerinaType: "string", selected: true }] },
-        })),
-        abort: expressionEditor?.abortExpressionAssist,
-        getValue: asExpression,
-        sensitive: isSensitiveField(field.label, key),
-        review: host ? writeForReview : undefined,
-    });
+    const assist = useFieldAssist(formFieldAssist(host, markKey, field, expressionEditor, assistExpression,
+        () => [{ fieldType: "EXPRESSION", ballerinaType: "string", selected: true }], asExpression, writeForReview));
     const apply = async ({ expression }: Proposal) => {
         const after = plainText(expression);
         if (after === undefined) {
@@ -195,14 +174,13 @@ export function HostedFieldPanel({ scope, assist, ...panel }: HostedPanel & { sc
         <>
             <AssistCard scope={scope} />
             <AssistHostContent scope={scope}>
-                <FieldAssistPanel assist={{ ...assist, close: () => host.close() }} {...panel} embedded headless />
+                <FieldAssistPanel assist={{ ...assist, close: () => host.close() }} {...panel} />
             </AssistHostContent>
         </>
     );
 }
 
-// Lets Revise on a change this field's Copilot made continue the field's own thread, which holds the requests before it.
-// The request runs from the change card, which shows it working; only an answer the card can't show, e.g. a question, opens the thread.
+// Revise on this field's own change continues its thread from the change card; only an answer the card can't show opens the thread.
 export function useFieldThread(key: string, label: string, assist: ReturnType<typeof useFieldAssist>, hosted: boolean, openThread?: () => void) {
     const host = useAssistHost();
     const latest = useRef({ assist, openThread });
@@ -236,8 +214,7 @@ export function useFieldThread(key: string, label: string, assist: ReturnType<ty
     }, [assist.state.loading]);
 }
 
-const needsThread = ({ proposal, error, reply, handoff, failed, question, declined }: ReturnType<typeof useFieldAssist>["state"]) =>
-    !!(proposal || error || reply || handoff || failed || question || declined);
+const needsThread = (state: ReturnType<typeof useFieldAssist>["state"]) => !!(state.reply || state.declined) || hasAnswer(state);
 
 // A field's Copilot button and its thread in the form's Copilot host; the context also gives an expanded editor the button.
 function useHostedFieldAssist(field: FormField, key: string, assist: ReturnType<typeof useFieldAssist>, panel: HostedPanel) {
@@ -297,18 +274,10 @@ function DialogFieldAssistBody({ field, value, expressionEditor, errors, onApply
     const writeForReview = async (proposal: Proposal, request: string) => {
         const before = latest.current;
         const removeCreated = await write(proposal);
-        host.setApplied((current) => withFieldChange(current, key, {
+        reviewFieldChange(host, key, {
             before, after: proposal.expression, display: "code", request, label: field.label, note: reviewNote(proposal, before),
-            values: { before, after: proposal.expression },
-            revert: () => {
-                onApply(before);
-                if (removeCreated) {
-                    void removeCreated();
-                }
-            },
-        }));
-        host.setReviewKey(key);
-        host.close();
+            values: { before, after: proposal.expression }, revert: () => onApply(before),
+        }, removeCreated);
     };
     const assist = useFieldAssist({
         assist: (input) => expressionEditor.assistExpression({ ...input, key, property: assistProperty({ ...field, value: latest.current }) }),

@@ -35,7 +35,7 @@ const INPUT = {
     useFieldValue: z.boolean().describe("true to keep the field's current value as the configurable's value"),
 };
 
-type Input = { name: string; type: string; documentation: string; useFieldValue: boolean };
+type Input = { [K in keyof typeof INPUT]: z.infer<(typeof INPUT)[K]> };
 
 // A configurable whose type fits the whole value is the value; one that does not is a part of it.
 type Proposal = { action: CreateConfigurableAction; whole: boolean };
@@ -72,10 +72,7 @@ export const asDeclared = (expression: string, named: CreateConfigurableAction[]
     ? `let ${named.map(({ name, type }) => `${type} ${name} = <${type}><any>()`).join(", ")} in (${expression})`
     : expression;
 
-/**
- * Proposes a new configurable for the field's value. Nothing is written here: the editor declares it when the value
- * lands, and moves the field's value there itself, so a secret never reaches the model.
- */
+/** Proposes a configurable for the field's value; the editor declares it and moves the value there, so a secret never reaches the model. */
 export function createConfigurableTool(check: Check, onWhole: (action: CreateConfigurableAction) => void, onPart: (action: CreateConfigurableAction) => void) {
     return tool({
         description: `Declare a new configurable and use it as this field's value. ${PURPOSE}`,

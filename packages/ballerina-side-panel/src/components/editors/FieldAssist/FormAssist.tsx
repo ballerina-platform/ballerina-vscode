@@ -16,13 +16,14 @@
  * under the License.
  */
 
-
 import React, { useEffect, useRef, useState } from "react";
 import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
 import { DeclinedCard, Declined, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUES, compileFailure, handOffNote, markedTurns, questionReply, threadRequest, QuestionCard, STOPPED } from "./Handoff";
-import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
-import { RunAssistActions, SECRET_IN_PROMPT, configLiteral, newRequestId, noChange, runValueActions } from "./FieldAssist";
+import { Icon } from "@wso2/ui-toolkit";
+import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost } from "./AssistHost";
+import { RunAssistActions, SECRET_IN_PROMPT, configLiteral, noChange, runValueActions, usePendingRequest, withReply } from "./FieldAssist";
+import { selectedType, stringLiteral, templateBody } from "./fieldKinds";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
 import { S } from "./styles";
 
@@ -103,32 +104,19 @@ function useFormThread(formId: string) {
             host.formThread.current = { ...current, marks: marksRef.current, ...next };
         }
     };
-    const setHistory = (next: string[]) => {
-        keep({ history: next });
-        setHistoryState(next);
+    const kept = <T,>(key: keyof FormThread, set: (next: T) => void) => (next: T) => {
+        keep({ [key]: next });
+        set(next);
     };
-    const setReplies = (next: string[]) => {
+    const setHistory = kept<string[]>("history", setHistoryState);
+    const setReplies = kept<string[]>("replies", (next) => {
         repliesRef.current = next;
-        keep({ replies: next });
         setRepliesState(next);
-    };
-    const setReplyAt = (index: number, text: string) => {
-        const next = [...repliesRef.current];
-        next[index] = text;
-        setReplies(next);
-    };
-    const setReply = (next?: string) => {
-        keep({ reply: next });
-        setReplyState(next);
-    };
-    const setChanged = (next?: string) => {
-        keep({ changed: next });
-        setChangedState(next);
-    };
-    const setHandoff = (next?: AssistFlowChange) => {
-        keep({ handoff: next });
-        setHandoffState(next);
-    };
+    });
+    const setReplyAt = (index: number, text: string) => setReplies(withReply(repliesRef.current, index, text));
+    const setReply = kept<string | undefined>("reply", setReplyState);
+    const setChanged = kept<string | undefined>("changed", setChangedState);
+    const setHandoff = kept<AssistFlowChange | undefined>("handoff", setHandoffState);
     return { history, setHistory, marksRef, replies, setReplies, setReplyAt, reply, setReply, changed, setChanged, handoff, setHandoff };
 }
 
@@ -145,7 +133,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const focusRef = useRef<AssistFocus>();
     // The field's suggestion handed over with the thread; the first form proposal replaces it.
     const pendingRef = useRef<string>();
-    const pending = useRef<string>();
+    const { pending, cancel, start } = usePendingRequest(abort);
     // What removes each item a value created outside the form, by name, e.g. a configurable.
     const createdRef = useRef(new Map<string, () => Promise<void>>());
     // Each removal edits config.bal, so they run one after another.
@@ -157,20 +145,6 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             removals.current = removals.current.then(remove).catch(() => undefined);
         }
     });
-
-    const cancel = () => {
-        if (pending.current) {
-            abort?.(pending.current);
-            pending.current = undefined;
-        }
-    };
-    useEffect(() => cancel, []);
-    // Marks from another form never carry over.
-    useEffect(() => {
-        if (host?.applied && host.applied.formId !== formId) {
-            host.setApplied(undefined);
-        }
-    }, [formId]);
 
     const reset = () => {
         cancel();
@@ -193,9 +167,12 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         reset();
         hide();
     };
-    // Closing the popover keeps the thread, and so does the form rebuilding itself; a different form starts a new one.
+    // Closing the popover keeps the thread, and so does the form rebuilding itself; a different form starts a new one, and its marks go.
     const formIdRef = useRef(formId);
     useEffect(() => {
+        if (host?.applied && host.applied.formId !== formId) {
+            host.setApplied(undefined);
+        }
         if (formIdRef.current !== formId) {
             formIdRef.current = formId;
             reset();
@@ -280,9 +257,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         const thread = [...earlier, instruction];
         // Turns handed over from a field or a change card come without Copilot's replies.
         const earlierReplies = earlier === history ? earlier.map((_, index) => replies[index] ?? "") : [];
-        cancel();
-        const requestId = newRequestId();
-        pending.current = requestId;
+        const requestId = start();
         setHistory(thread);
         setReplies(earlierReplies);
         setLoading(true);
@@ -317,33 +292,6 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             });
         return true;
     };
-    const submitRef = useRef(submit);
-    submitRef.current = submit;
-    const stopRef = useRef(stop);
-    stopRef.current = stop;
-
-    // Registered once per mount; the latest submit and describe are read through refs.
-    const describeRef = useRef(describe);
-    describeRef.current = describe;
-    const onApplyRef = useRef(onApply);
-    onApplyRef.current = onApply;
-    const handToChatRef = useRef<(request: string, context: string) => void>();
-    useEffect(() => host?.registerForm({
-        parts: () => describeParts(describeRef.current()),
-        handOff: (messages, focus, pending) => {
-            focusRef.current = focus;
-            pendingRef.current = pending;
-            const earlier = messages.slice(0, -1);
-            marksRef.current = new Map();
-            setHistory(earlier);
-            submitRef.current(messages[messages.length - 1], earlier);
-        },
-        revise: (focus, instruction, earlier) => submitRef.current(instruction, earlier ? [earlier] : [], focus),
-        stop: () => stopRef.current(),
-        describe: () => describeRef.current(),
-        apply: (response) => onApplyRef.current(response),
-        continueInChat: onContinueInChat && ((request, context) => handToChatRef.current?.(request, context)),
-    }), [host?.registerForm, !!onContinueInChat]);
 
     const offeredActions = (): FormAssistAction[] => [...(host?.assistActions() ?? new Map())]
         .map(([id, action]) => ({ id, label: action.label, description: action.description }));
@@ -351,9 +299,8 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const applyChanges = (next: Proposal, changes: Change[], request: string) => {
         onApply(next.response);
         if (host) {
-            host.refocus.current = !!document.activeElement?.closest(".copilot-prompt");
             host.reveal.current = changes.flatMap(({ field, row }) => [field, row?.field]).filter((key): key is string => !!key);
-            const latest = appliedChanges(changes, request, next.response.note, formId, host.liveForm, removeCreated);
+            const latest = appliedChanges(changes, request, formId, host.liveForm, removeCreated);
             host.setApplied((current) => mergeApplied(current?.formId === formId ? current : undefined, latest));
         }
         // Another form opens once this one holds the values it was told about.
@@ -364,7 +311,25 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         onContinueInChat?.(request, describeValues(withholdSecrets(describe()).description), context);
         close();
     };
-    handToChatRef.current = handToChat;
+    // Registered once per mount; the latest callbacks are read through the ref.
+    const latest = useRef({ submit, stop, describe, onApply, handToChat });
+    latest.current = { submit, stop, describe, onApply, handToChat };
+    useEffect(() => host?.registerForm({
+        parts: () => describeParts(latest.current.describe()),
+        handOff: (messages, focus, pending) => {
+            focusRef.current = focus;
+            pendingRef.current = pending;
+            const earlier = messages.slice(0, -1);
+            marksRef.current = new Map();
+            setHistory(earlier);
+            latest.current.submit(messages[messages.length - 1], earlier);
+        },
+        revise: (focus, instruction, earlier) => latest.current.submit(instruction, earlier ? [earlier] : [], focus),
+        stop: () => latest.current.stop(),
+        describe: () => latest.current.describe(),
+        apply: (response) => latest.current.onApply(response),
+        continueInChat: onContinueInChat && ((request, context) => latest.current.handToChat(request, context)),
+    }), [host?.registerForm, !!onContinueInChat]);
     const continueInChat = ({ request, reason }: AssistFlowChange) => handToChat(request, handOffNote(history, `It goes beyond the form because: ${reason}`));
     const shell = (
         <AssistShell
@@ -381,7 +346,6 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             proposal={handoff}
             keepInView={!host?.formShown}
             hint={intro.hint}
-            embedded
             starters={focusRef.current ? undefined : intro.starters}
         >
             <ChangeSummary formId={formId} text={changed} onUndone={() => setChanged(UNDONE)} />
@@ -392,7 +356,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     );
     return (
         host?.formShown
-            ? <AssistDock closing={host.closing} onClose={hide} onClear={reset}>{shell}</AssistDock>
+            ? <AssistDock onClear={reset}>{shell}</AssistDock>
             : <AssistHostContent scope={FORM_SCOPE}>{shell}</AssistHostContent>
     );
 }
@@ -406,8 +370,6 @@ function ChangeSummary({ formId, text, onUndone }: { formId: string; text?: stri
     const applied = host?.applied?.formId === formId ? host.applied : undefined;
     const undo = () => {
         if (host) {
-            // The thread stays the place to ask next, so its input keeps the focus through the form's rebuild.
-            host.refocus.current = true;
             undoAll(host);
         }
         onUndone();
@@ -415,7 +377,11 @@ function ChangeSummary({ formId, text, onUndone }: { formId: string; text?: stri
     return (
         <S.ChangeSummary>
             <span>{text}</span>
-            {host && liveChangeCount(applied) > 0 && <UndoAllButton onClick={undo} />}
+            {host && liveChangeCount(applied) > 0 && (
+                <S.HeaderButton type="button" title="Undo All" aria-label="Undo All" onClick={undo}>
+                    <Icon name="bi-undo" sx={{ fontSize: "14px", width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
+                </S.HeaderButton>
+            )}
         </S.ChangeSummary>
     );
 }
@@ -433,7 +399,7 @@ export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistAction
             host.claimDock(owner);
         }
     }, [host?.dockOwner]);
-    if (!(host?.fieldCount || host?.sourceCount) || host.dockOwner !== owner) {
+    if (!host?.partCount || host.dockOwner !== owner) {
         return null;
     }
     const describe = () => hostDescription(host);
@@ -445,8 +411,7 @@ export function FieldsFormAssist({ run, abort, onContinueInChat, runAssistAction
 const hostFormId = ({ slots, groups }: FormAssistDescription) =>
     [...slots.map((slot) => slot.path), ...groups.map((group) => group.id)].sort().join(",");
 
-// Every source in the host, the first winning a shared key; a field on screen describes itself as its editor fills it,
-// unless a source offers it as rows, and fields that only a nested editor holds (an open row) are added.
+// The first source wins a shared key; a field on screen describes itself unless a source offers it as rows.
 function hostDescription(host: AssistHostValue): FormAssistDescription {
     const { slots, groups } = describeSources(host.fieldSources());
     host.assistFields().forEach((field, path) => {
@@ -511,8 +476,7 @@ export function useAssistParts() {
     };
 }
 
-// An editor on screen writes its own value, so text and template fields keep their quoting and modes; the rest goes to
-// the first source that describes it.
+// An editor on screen writes its own value, keeping its quoting and mode; the rest goes to the first source that describes it.
 function applyToHost(host: AssistHostValue, response: FormAssistResponse) {
     let imports = response.imports;
     const values: Record<string, string> = {};
@@ -600,8 +564,6 @@ export interface Change {
     mark?: "+" | "−";
     before: string;
     display?: ValueDisplay;
-    source?: string;
-    sample?: boolean;
     // Puts the value back as it was before the change.
     revert?: FormAssistResponse;
     // Copilot's value as the field shows it, and both values as expressions.
@@ -631,27 +593,9 @@ const fieldKey = (path: string) => path.replace(/^properties\./, "");
 
 const LITERAL = /^(-?\d+(\.\d+)?[dfDF]?|"(?:[^"\\]|\\.)*"|true|false|\(\)|\[\]|\{\})$/;
 
-const namesOrTypes = (slot: FormAssistSlot) => ["TYPE", "IDENTIFIER"].includes(selectedKind(slot));
-
-const selectedKind = (slot: FormAssistSlot) => (slot.property.types?.find((option) => option.selected) ?? slot.property.types?.[0])?.fieldType ?? "";
-
 // Fields whose value is a name, a type or a choice, which read as they are.
 const PLAIN_KINDS = ["SINGLE_SELECT", "MULTIPLE_SELECT", "FLAG", "IDENTIFIER", "TYPE"];
 const TEXT_KINDS = ["PROMPT", "TEXT", "STRING", "RAW_TEMPLATE"];
-
-// A template or string literal as its text, as the field shows it; anything else as it is.
-function asText(value: string): string {
-    const trimmed = value.trim();
-    const template = /^(?:string\s*)?`([\s\S]*)`$/.exec(trimmed);
-    if (template) {
-        return template[1];
-    }
-    try {
-        return /^"(?:[^"\\]|\\.)*"$/.test(trimmed) ? JSON.parse(trimmed) : value;
-    } catch {
-        return value;
-    }
-}
 
 // One of the field's listed choices, from any of its modes: a select may be offered in Expression mode to the form's Copilot.
 const choiceOf = (slot: FormAssistSlot, value: string) => (slot.property.types ?? [])
@@ -660,9 +604,9 @@ const choiceOf = (slot: FormAssistSlot, value: string) => (slot.property.types ?
 
 // A value as its field shows it: a choice by its label, a flag as On or Off, text without its quotes.
 function shown(slot: FormAssistSlot, value: string): string {
-    const type = slot.property.types?.find((option) => option.selected) ?? slot.property.types?.[0];
+    const type = selectedType(slot.property);
     if (TEXT_KINDS.includes(type?.fieldType ?? "")) {
-        return asText(value);
+        return templateBody(value) ?? stringLiteral(value.trim()) ?? value;
     }
     if (type?.fieldType === "FLAG" && /^(true|false)$/.test(value.trim())) {
         return value.trim() === "true" ? "On" : "Off";
@@ -671,7 +615,7 @@ function shown(slot: FormAssistSlot, value: string): string {
 }
 
 function displayOf(slot: FormAssistSlot, value: string): ValueDisplay | undefined {
-    const kind = selectedKind(slot);
+    const kind = selectedType(slot.property)?.fieldType ?? "";
     if (TEXT_KINDS.includes(kind)) {
         return "text";
     }
@@ -700,9 +644,6 @@ function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal)
         label: slot.label,
         before: shown(slot, slot.value),
         display: displayOf(slot, slot.value),
-        // A type, a name or a literal has no source worth naming; a type or a name is never a sample.
-        source: namesOrTypes(slot) || LITERAL.test(value.trim()) ? undefined : response.sources?.[slot.path],
-        sample: !namesOrTypes(slot) && response.samples?.includes(slot.path),
         revert: { values: { [slot.path]: slot.value } },
         after: shown(slot, value),
         values: { before: slot.value, after: value },
@@ -775,7 +716,7 @@ function changedSummary(changes: Change[]): string | undefined {
 }
 
 // Undo puts back every value the turn set; a form another action opened keeps what it created.
-export function appliedChanges(changes: Change[], request: string, note: string | undefined, formId: string, live: () => FormController | undefined,
+export function appliedChanges(changes: Change[], request: string, formId: string, live: () => FormController | undefined,
     remove?: (names: string[]) => void): AppliedChanges | undefined {
     const undoable = changes.filter((change) => change.revert);
     if (!undoable.length) {
@@ -789,7 +730,7 @@ export function appliedChanges(changes: Change[], request: string, note: string 
         remove?.(names.filter((name) => undoable.every((change) => undone.has(change) || !change.creates?.includes(name))));
     };
     const mark = (change: Change, revert: () => void): AppliedMark => ({
-        before: change.before, display: change.display, added: change.mark === "+", sample: change.sample, request, source: change.source, revert,
+        before: change.before, display: change.display, added: change.mark === "+", request, revert,
         undone: () => undo([change]),
         label: change.label, after: change.after, values: change.values, note: change.note,
     });
@@ -810,7 +751,7 @@ export function appliedChanges(changes: Change[], request: string, note: string 
         return picked.reduce<FormAssistResponse>((all, change) => mergeReverts([all,
             change.row && form ? revertRow(change.id, change.row, afterRevert(form, all)) : change.revert!]), {});
     };
-    return { formId, changes: changeKeys, request, note, marks, revert };
+    return { formId, changes: changeKeys, marks, revert };
 }
 
 const afterRevert = (form: FormAssistDescription, revert: FormAssistResponse): FormAssistDescription =>

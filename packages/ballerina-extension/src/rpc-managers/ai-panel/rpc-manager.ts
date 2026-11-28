@@ -143,7 +143,8 @@ import { submitFeedback as submitFeedbackUtil } from "../../features/ai/utils/fe
 import { sendGenerationDiscardTelemetry } from "../../features/ai/utils/generation-response";
 import { getLLMDiagnosticArrayAsString } from "../../features/natural-programming/utils";
 import { enhancePrompt as enhancePromptService } from "../../features/ai/service/prompt-enhancement/promptEnhancement";
-import { abortExpressionAssist, assistExpression } from "../../features/ai/expression-assist";
+import { assistExpression } from "../../features/ai/expression-assist";
+import { abortAssist } from "../../features/ai/expression-assist/run";
 import { assistForm } from "../../features/ai/expression-assist/form";
 import { StateMachine, updateView } from "../../stateMachine";
 import { isInDevant, isInWI } from "../../utils";
@@ -527,7 +528,7 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     abortExpressionAssist(params: AbortExpressionAssistRequest): void {
-        abortExpressionAssist(params.requestId);
+        abortAssist(params.requestId);
     }
 
     async assistForm(params: FormAssistRequest): Promise<FormAssistResponse> {

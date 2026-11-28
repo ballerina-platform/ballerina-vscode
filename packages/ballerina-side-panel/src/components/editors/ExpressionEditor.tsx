@@ -31,7 +31,7 @@ import {
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
 import { assistProperty, buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
-import { literalText, stringLiteral } from './FieldAssist/fieldKinds';
+import { literalText, stringLiteral, templateBody } from './FieldAssist/fieldKinds';
 import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
@@ -60,7 +60,7 @@ import ModeSwitcher from '../ModeSwitcher';
 import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
 import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, reviewNote, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
-import { AssistCardFrame, ValueDisplay, reviseInCard, useAssistHost, usePresence, withFieldChange } from './FieldAssist/AssistHost';
+import { AssistCardFrame, reviewFieldChange, reviseInCard, useAssistHost, usePresence } from './FieldAssist/AssistHost';
 import { HostedFieldPanel, replaceEditorText, switchesToExpression, useFieldThread, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
 import { S as AssistStyles } from './FieldAssist/styles';
 import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
@@ -388,13 +388,9 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
 
 // A prompt holds text: a template keeps its text, a string literal becomes text, and any other value an interpolation.
 const promptText = (expression: string): string => {
-    const trimmed = expression.trim();
-    const template = /^(?:string\s*)?`([\s\S]*)`$/.exec(trimmed);
-    if (template) {
-        return template[1];
-    }
-    const text = stringLiteral(trimmed);
-    return text === undefined ? `\${${trimmed}}` : text.replace(/\$\{/g, "${\"${\"}").replace(/`/g, "${\"`\"}");
+    const body = templateBody(expression);
+    const text = stringLiteral(expression.trim());
+    return body ?? (text === undefined ? `\${${expression.trim()}}` : text.replace(/\$\{/g, "${\"${\"}").replace(/`/g, "${\"`\"}"));
 };
 
 const ASSISTED_MODES = [InputMode.EXP, InputMode.TEMPLATE, InputMode.PROMPT, InputMode.RECORD, InputMode.SQL];
@@ -452,10 +448,6 @@ const proposalText = (inputMode: InputMode, expression: string, sanitizedExpress
     return inputMode === InputMode.TEMPLATE && sanitizedExpression ? sanitizedExpression(expression) : expression;
 };
 
-// The expanded editor's code editor when the helper was opened over it; a prompt there has none, so the field's own is used.
-const expandedEditor = (from: HTMLElement | null): HTMLElement | null =>
-    from?.closest("[data-expanded-editor]")?.querySelector<HTMLElement>(".cm-editor") ?? null;
-
 interface ExpressionFieldAssistProps {
     field: FormField;
     fieldKey: string;
@@ -511,9 +503,6 @@ function otherParts(parts: string[] | undefined, label: string): string[] | unde
     const others = parts?.filter((part) => part !== label);
     return others?.length ? others : undefined;
 }
-
-// An expression shows as code, as the editor shows it; text as prose.
-const reviewDisplay = (inputMode: InputMode): ValueDisplay | undefined => (inputMode === InputMode.EXP ? "code" : undefined);
 
 // Wires the AI helper to one field: which modes take it, where the panel shows, and how a proposal lands in the editor.
 function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
@@ -616,7 +605,8 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
             return;
         }
         // A template field edits the text inside the backticks; a text field, the text inside the quotes.
-        const target = expandedEditor(assistTarget.current);
+        // The expanded editor's code editor when the helper was opened over it; a prompt there has none, so the field's own is used.
+        const target = assistTarget.current?.closest("[data-expanded-editor]")?.querySelector<HTMLElement>(".cm-editor");
         replaceEditorText(target ?? fieldRef.current?.querySelector(".cm-editor"), display(proposal.expression), focus);
         if (expanded && !target) {
             setExpandedRevision((revision) => revision + 1);
@@ -629,24 +619,18 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         // A configurable the value names is declared as it lands; Undo removes it with the value.
         const removeCreated = await runValueActions(props.runAssistActions, proposal.actions, before);
         await applyProposal({ ...proposal, actions: undefined }, false);
-        host?.setApplied((current) => withFieldChange(current, markKey, {
+        reviewFieldChange(host, markKey, {
             before: display(before),
             after: display(proposal.expression),
-            display: reviewDisplay(inputMode),
+            // An expression shows as code, as the editor shows it; text as prose.
+            display: inputMode === InputMode.EXP ? "code" : undefined,
             request,
             label: field.label,
             note: reviewNote(proposal, before),
             handoff: proposal.flowChange,
             values: { before, after: proposal.expression },
-            revert: () => {
-                void applyProposal({ expression: before }, false);
-                if (removeCreated) {
-                    void removeCreated();
-                }
-            },
-        }));
-        host?.setReviewKey(markKey);
-        host?.close();
+            revert: () => void applyProposal({ expression: before }, false),
+        }, removeCreated);
         if (expanded) {
             assist.close();
         }
@@ -662,7 +646,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     ) : presence.shown && (
         // Only the expanded editor has no host; its card sits under the editor, as in the panel.
         <AssistCardFrame closing={presence.closing} gap headless onClose={assist.close}>
-            <FieldAssistPanel assist={assist} value={watch(key) ?? ""} onApply={replaceWithProposal} display={display} currentErrors={() => errorsRef.current} embedded headless />
+            <FieldAssistPanel assist={assist} value={watch(key) ?? ""} onApply={replaceWithProposal} display={display} currentErrors={() => errorsRef.current} />
         </AssistCardFrame>
     );
     const fix = (errorMessages: string[]) => {
@@ -1076,17 +1060,15 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 // 112px min-width: both columns size to the longer label, which is normally Expression.
                 <SkeletonBase height="24px" width="140px" style={{ borderRadius: 'var(--vscode-cornerRadius-medium, 6px)' }} />
             ) : (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    {/* List and map editors have no toolbar of their own, so the helper's button sits in the field's header. */}
-                    <HeaderAssistButton inputMode={inputMode} disabled={readOnly} />
-                    <ModeSwitcher
-                        fieldKey={field.key}
-                        value={modeSwitcherContext.inputMode}
-                        isRecordTypeField={modeSwitcherContext.isRecordTypeField}
-                        onChange={modeSwitcherContext.onModeChange}
-                        types={modeSwitcherContext.types}
-                    />
-                </span>
+                <ModeSwitcher
+                    fieldKey={field.key}
+                    value={modeSwitcherContext.inputMode}
+                    isRecordTypeField={modeSwitcherContext.isRecordTypeField}
+                    onChange={modeSwitcherContext.onModeChange}
+                    types={modeSwitcherContext.types}
+                    // List and map editors have no toolbar of their own, so the helper's button sits in the field's header.
+                    assist={<HeaderAssistButton inputMode={inputMode} disabled={readOnly} />}
+                />
             )}
         </S.FieldInfoSection>
     ) : null;
