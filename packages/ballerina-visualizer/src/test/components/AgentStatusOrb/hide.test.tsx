@@ -241,6 +241,21 @@ describe("AgentStatusOrb hide", () => {
         expect(miniChat()).toBeNull();
     });
 
+    it("leaves a prompt to the chat panel on a view with no room for the orb, and never replays it on the mini chat", () => {
+        render(true);
+        const prompt = createMiniChatPrompt("Add a listener on port 8081");
+
+        let handled = true;
+        act(() => {
+            handled = requestMiniChatOpen(prompt);
+        });
+
+        expect(handled).toBe(false);
+        render(false);
+        expect(orb()).not.toBeNull();
+        expect(miniChat()).toBeNull();
+    });
+
     it("does not open anything for statuses that were never hidden", () => {
         rpc.notify({ ...IDLE, state: "running" });
         rpc.notify(IDLE);

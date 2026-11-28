@@ -155,12 +155,16 @@ export namespace S {
         }
     `;
 
-    // Pinned to the card's top-left, beside the right-aligned bubbles, so it stays put while the thread scrolls.
+    // At the end of the thread's top row, opposite the toggle for earlier turns.
     export const ClearThread = styled(HeaderButton)`
-        position: absolute;
-        top: 8px;
-        left: 8px;
-        z-index: 1;
+        margin-left: auto;
+    `;
+
+    export const ThreadBar = styled.div`
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 24px;
     `;
 
     // The header's button around the app's Copilot orb, which draws its own sphere, glow and states.
@@ -264,10 +268,16 @@ export namespace S {
         align-items: center;
         gap: 6px;
         padding: 6px 6px 6px 12px;
-        border: 1px solid var(--vscode-editorHoverWidget-border, ${FIELD_BORDER});
+        border: 1px solid ${COPILOT_ACCENT};
         border-radius: 12px;
         background-color: var(--vscode-editorHoverWidget-background, ${ThemeColors.SURFACE_DIM});
         box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+        /* The orb's accent glow; a glow only tints a light ground, so light themes keep the plain shadow. */
+        body.vscode-dark &,
+        body.vscode-high-contrast & {
+            box-shadow: 0 0 18px color-mix(in srgb, ${COPILOT_ACCENT} 32%, transparent),
+                0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+        }
         color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
         font-family: var(--vscode-font-family);
         font-size: 13px;
@@ -327,7 +337,7 @@ export namespace S {
             min-height: 0;
             overflow-y: auto;
         }
-        & .copilot-history {
+        & .copilot-thread {
             max-height: none;
             overflow-y: visible;
         }
@@ -528,15 +538,51 @@ export namespace S {
     `;
 
     // A long thread scrolls inside the card, which keeps the field and the prompt in view.
+    export const Thread = styled.div`
+        display: flex;
+        flex-direction: column;
+        gap: inherit;
+        max-height: 200px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        /* A scrollbar shows only while scrolling on macOS, so the side with more to read fades out. */
+        --fade-top: 0px;
+        --fade-bottom: 0px;
+        &[data-more-above="true"] {
+            --fade-top: 24px;
+        }
+        &[data-more-below="true"] {
+            --fade-bottom: 24px;
+        }
+        mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent);
+    `;
+
     export const History = styled.div`
         display: flex;
         flex-direction: column;
         align-items: flex-end;
         gap: 8px;
         padding: 2px 2px 0;
-        max-height: 160px;
-        overflow-y: auto;
-        overscroll-behavior: contain;
+    `;
+
+    export const EarlierToggle = styled(HeadLink)`
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 20px;
+        padding: 0 2px;
+        font-weight: normal;
+    `;
+
+    // Copilot's reply to an earlier turn, quieter than the latest one.
+    export const EarlierReply = styled.div`
+        align-self: flex-start;
+        max-width: 85%;
+        padding: 0 2px;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        font-size: 12px;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
     `;
 
     // As in the Copilot orb's chat.

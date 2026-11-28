@@ -42,6 +42,8 @@ export async function getWebview(viewName: string, page: ExtendedPage) {
 
             webview = await switchToIFrame(viewName, page.page);
             if (webview) {
+                // Marks the form Copilot hint as seen (HINT_USED_KEY in AssistHost.tsx), so its bubble can't cover form controls.
+                await webview.evaluate(() => localStorage.setItem("wso2.copilot.formChangeApplied", "1"));
                 return webview;
             }
             // If webview is falsy, treat it as a failed attempt

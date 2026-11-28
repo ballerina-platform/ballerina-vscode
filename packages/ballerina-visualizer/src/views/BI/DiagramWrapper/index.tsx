@@ -349,7 +349,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         setFunctionModel(undefined);
     };
 
-    const handleEdit = (fileUri?: string, position?: NodePosition) => {
+    const handleEdit = async (fileUri?: string, position?: NodePosition) => {
         const isTestFunction = parentCodedata?.sourceCode.includes("@test:Config");
         const isAIEvaluation = isTestFunction && parentCodedata?.sourceCode.includes('"evaluations"');
 
@@ -432,7 +432,9 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             position: position || currentPosition,
             artifactType,
         };
-        rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: context });
+        // A tool's flow opened from an agent passes that agent on to the tool's page.
+        const { agentMetadata } = await rpcClient.getVisualizerLocation();
+        rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { ...context, agentMetadata } });
     };
 
     let isAutomation = parentMetadata?.kind === "Function" && parentMetadata?.label === "main";

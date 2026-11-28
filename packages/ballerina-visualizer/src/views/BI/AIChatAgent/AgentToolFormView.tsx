@@ -16,15 +16,15 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { NodePosition } from "@wso2/ballerina-core";
+import { FlowNode, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { BrowserViewContent } from "../DataBrowser";
-import { View } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 import { AgentToolForm } from "./AgentToolForm";
+import { AgentScopeProvider, scopeOf } from "./agentScope";
 
 const FormContainer = styled.div`
     display: flex;
@@ -39,12 +39,31 @@ interface AgentToolFormViewProps {
     functionName?: string;
     position?: NodePosition;
     inClass: boolean;
+    // The agent the page was opened from; a tool shared by several agents gets that one's context.
+    agent?: FlowNode;
 }
 
 export function AgentToolFormView(props: AgentToolFormViewProps) {
-    const { projectPath, documentUri, functionName, position, inClass } = props;
+    const { projectPath, documentUri, functionName, inClass, agent } = props;
     const { rpcClient } = useRpcContext();
     const [filePath, setFilePath] = useState(documentUri);
+    const [position, setPosition] = useState(props.position);
+    const [loads, setLoads] = useState(0);
+    const handedOffRef = useRef(false);
+
+    // Once Copilot takes a request into the project, the form reloads the tool from source until it is edited here again.
+    useEffect(() => functionName ? rpcClient.onProjectContentUpdated(async () => {
+        if (!handedOffRef.current) {
+            return;
+        }
+        const response = await rpcClient.getBIDiagramRpcClient().getFunctionNode({ functionName, fileName: documentUri, projectPath });
+        const range = response?.functionDefinition?.codedata?.lineRange;
+        if (range) {
+            setPosition({ startLine: range.startLine.line, startColumn: range.startLine.offset, endLine: range.endLine.line, endColumn: range.endLine.offset });
+            setLoads((count) => count + 1);
+        }
+    }) : undefined, [documentUri, functionName, projectPath, rpcClient]);
+    const editedHere = () => { handedOffRef.current = false; };
 
     useEffect(() => {
         if (!documentUri) {
@@ -66,22 +85,25 @@ export function AgentToolFormView(props: AgentToolFormViewProps) {
     };
 
     return (
-        <View>
+        <AssistView onHandedOff={() => { handedOffRef.current = true; }}>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Agent Tool" subtitle="Build a tool that can be used by AI agents" />
             <BrowserViewContent padding>
-                <FormContainer>
-                    {filePath && <AgentToolForm
-                        filePath={filePath}
-                        projectPath={projectPath}
-                        editContext={functionName ? { functionName, inClass, lineRange: lineRange as any } : undefined}
-                        isPublic={!functionName}
-                        nestedForm
-                        onSave={goBack}
-                        onBack={goBack}
-                    />}
+                <FormContainer onKeyDownCapture={editedHere} onPointerDownCapture={editedHere}>
+                    <AgentScopeProvider value={scopeOf(agent, "TOOL")}>
+                        {filePath && <AgentToolForm
+                            key={loads}
+                            filePath={filePath}
+                            projectPath={projectPath}
+                            editContext={functionName ? { functionName, inClass, lineRange: lineRange as any } : undefined}
+                            isPublic={!functionName}
+                            nestedForm
+                            onSave={goBack}
+                            onBack={goBack}
+                        />}
+                    </AgentScopeProvider>
                 </FormContainer>
             </BrowserViewContent>
-        </View>
+        </AssistView>
     );
 }

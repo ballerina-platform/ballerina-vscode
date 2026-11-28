@@ -17,16 +17,20 @@
  */
 
 
-import React, { useEffect, useRef } from "react";
+import React, { createContext, useContext, useEffect, useRef } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
 import { AssistFlowChange, FormAssistQuestion } from "@wso2/ballerina-core";
 import { S } from "./styles";
 
+// What a full-page form that reloads itself calls once Copilot takes its request into the project, instead of closing.
+export const HandedOffContext = createContext<(() => void) | undefined>(undefined);
+
 // `focus` is off where another control holds the focus, e.g. a change card's Keep.
 export function HandoffCard({ flowChange, onContinue, onDismiss, focus = true }: { flowChange: AssistFlowChange; onContinue?: (flowChange: AssistFlowChange) => void; onDismiss: () => void; focus?: boolean }) {
+    const applying = useContext(HandedOffContext) ? "Applying makes the changes in the project." : "Applying closes this form and makes the changes in the project.";
     return (
         <OutsideFormCard title="Changes Required Outside This Form" reason={flowChange.reason} focusApply={focus}
-            note="Applying closes this form and makes the changes in the project. Unsaved values in this form are included."
+            note={onContinue ? `${applying} Unsaved values in this form are included.` : ""}
             onApply={onContinue && (() => onContinue(flowChange))} onCancel={onDismiss} />
     );
 }
@@ -47,7 +51,7 @@ function OutsideFormCard({ title, reason, note, focusApply, onApply, onCancel }:
                 {title}
             </S.HandoffTitle>
             <div>{reason}</div>
-            <S.Muted>{note}</S.Muted>
+            {note && <S.Muted>{note}</S.Muted>}
             {onApply && (
                 <S.HandoffActions>
                     <S.Primary ref={apply} type="button" onClick={onApply}>Apply in Project</S.Primary>
@@ -93,6 +97,8 @@ export const compileFailure = (errors: string[]) => `No value compiled. The clos
 export const NOT_DONE = "(not done)";
 export const EXPLAINED = "(explained, nothing changed)";
 export const UNDONE = "(undone)";
+// A question as the next request reads Copilot's reply: the text with the choices it offered.
+export const questionReply = ({ text, options }: FormAssistQuestion) => (options?.length ? `${text} (${options.join(", ")})` : text);
 // The thread as the next request reads it: a turn that changed nothing carries its mark.
 export const markedTurns = (history: string[], marks: Map<number, string>) =>
     history.map((text, index) => marks.has(index) ? `${text} ${marks.get(index)}` : text);

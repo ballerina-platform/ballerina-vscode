@@ -609,10 +609,10 @@ export const isMiniChatShortcut = (
 
 /**
  * Ask the ambient Copilot surface to open with a contextual prompt.
- * Returns false only when the orb has not mounted, allowing a full-panel fallback.
+ * Returns false when the orb has not mounted or the view hides it, allowing a full-panel fallback.
  */
 export function requestMiniChatOpen(prompt: MiniChatPrompt): boolean {
-    if (miniChatOpenListeners.size === 0) {
+    if (miniChatOpenListeners.size === 0 || orbSuppressCount > 0) {
         return false;
     }
     miniChatOpenListeners.forEach((listener) => listener(prompt));

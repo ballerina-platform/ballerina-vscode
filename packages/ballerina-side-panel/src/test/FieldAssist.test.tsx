@@ -28,9 +28,10 @@ import {
     useFieldAssist,
 } from "../components/editors/FieldAssist/FieldAssist";
 import { DialogFieldAssist, useFieldThread } from "../components/editors/FieldAssist/StructuredFieldAssist";
-import { FormAssistDescription, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
+import { FormAssistDescription, changesOf, keepUnsavedEdits } from "../components/editors/FieldAssist/FormAssist";
 import { AppliedMark, AssistHeaderButton, AssistHostProvider, AssistHostValue, FormController, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
+import { AssistShell } from "../components/editors/FieldAssist/AssistShell";
 
 interface HarnessProps {
     initial: string;
@@ -358,6 +359,21 @@ describe("hand-off values", () => {
     });
 });
 
+describe("a form's changes", () => {
+    const proposal = (saved: string, value: string) => ({
+        response: { values: { description: value } },
+        before: { slots: [{ path: "description", label: "Description", value: saved, property: { types: [] } }], groups: [] } as unknown as FormAssistDescription,
+    });
+
+    it("leave out a value that differs only in surrounding whitespace", () => {
+        expect(changesOf(proposal("Adds two numbers.\n", "Adds two numbers."))).toEqual([]);
+    });
+
+    it("list a value whose text changed", () => {
+        expect(changesOf(proposal("Adds two numbers.\n", "Adds two integers."))).toHaveLength(1);
+    });
+});
+
 describe("undone changes", () => {
     it("mark the request that made them in the field's thread, so the next request does not bring them back", () => {
         const thread = { history: ["10% of the subtotal", "round it"], marks: new Map<number, string>(), keep: jest.fn() };
@@ -400,6 +416,56 @@ describe("field threads in a host", () => {
         fireEvent.click(screen.getByText("open"));
 
         expect(screen.queryByText("the text hello world")).toBeNull();
+    });
+});
+
+describe("a field thread's replies", () => {
+    it("go with the next request, so a follow-up can refer to them", async () => {
+        const assist = jest.fn(async (input: FieldAssistInput): Promise<ExpressionAssistResponse> =>
+            input.earlier ? { expression: "\"UPI\"" } : { question: { text: "Which method?", options: ["UPI", "WALLET"] } });
+        render(<Harness initial="" assist={assist} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("a payment method");
+        await ask("the first one");
+
+        expect(assist.mock.calls[1][0]).toMatchObject({ earlier: ["a payment method (not done)"], replies: ["Which method? (UPI, WALLET)"] });
+    });
+
+    it("show the latest reply when the card opens again after a review, and not while the review takes over", async () => {
+        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "1", note: "Sets it to one." }));
+        render(<Harness initial="" assist={assist} review={jest.fn()} />);
+        fireEvent.click(screen.getByText("open"));
+        await ask("one");
+        expect(screen.queryByText("Sets it to one.")).toBeNull();
+
+        fireEvent.click(screen.getByText("open"));
+        fireEvent.click(screen.getByText("open"));
+        expect(screen.getByText("Sets it to one.")).toBeTruthy();
+    });
+});
+
+describe("a thread's earlier turns", () => {
+    const Thread = ({ history }: { history: string[] }) => (
+        <AssistShell history={history} replies={["Changed Name.", "Which ones? (UPI, WALLET)"]} placeholder="Ask" onSubmit={() => true} onClose={() => undefined} />
+    );
+
+    it("fold behind one row, and show with Copilot's replies when opened", () => {
+        render(<Thread history={["name it Payment", "can we add anything else?", "ok add them"]} />);
+        expect(screen.queryByText("name it Payment")).toBeNull();
+        expect(screen.getByText("ok add them")).toBeTruthy();
+
+        fireEvent.click(screen.getByRole("button", { name: "Show 4 Earlier Messages" }));
+        expect(screen.getByText("name it Payment")).toBeTruthy();
+        expect(screen.getByText("Which ones? (UPI, WALLET)")).toBeTruthy();
+    });
+
+    it("fold again once the next request is in", () => {
+        const view = render(<Thread history={["name it Payment", "can we add anything else?"]} />);
+        fireEvent.click(screen.getByRole("button", { name: "Show 2 Earlier Messages" }));
+        view.rerender(<Thread history={["name it Payment", "can we add anything else?", "ok add them"]} />);
+
+        expect(screen.queryByText("name it Payment")).toBeNull();
+        expect(screen.getByRole("button", { name: "Show 4 Earlier Messages" }).getAttribute("aria-expanded")).toBe("false");
     });
 });
 

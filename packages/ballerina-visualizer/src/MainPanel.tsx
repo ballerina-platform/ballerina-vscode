@@ -984,6 +984,7 @@ const MainPanel = () => {
                                     functionName={value?.identifier}
                                     position={value?.position}
                                     inClass={value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION}
+                                    agent={value?.agentMetadata?.agent}
                                 />
                             );
                             break;

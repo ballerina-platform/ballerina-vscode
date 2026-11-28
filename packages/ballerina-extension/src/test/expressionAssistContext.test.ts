@@ -167,6 +167,16 @@ describe("buildFormPrompt", () => {
         expect(prompt).toContain("- properties.type (Type): type = int (before this thread: string)");
     });
 
+    it("gives each earlier message the reply it got, so a follow-up can refer to it", () => {
+        const prompt = buildFormPrompt({
+            node: "TYPE", instruction: "ok add them", slots: [], groups: [],
+            earlier: ["a payment type with card and cash", "can we add anything else? (not done)"],
+            replies: ["Changed Kind, Name and Members.", "Which ones should be added? (UPI, WALLET)"],
+        } as any, "", { signature: "", code: "" });
+        expect(prompt).toContain("1. a payment type with card and cash\n   You replied: Changed Kind, Name and Members.\n"
+            + "2. can we add anything else? (not done)\n   You replied: Which ones should be added? (UPI, WALLET)");
+    });
+
     it("marks a value that applies only under a choice", () => {
         const prompt = buildFormPrompt({
             node: "FORM", instruction: "serve on port 9099", groups: [],
@@ -174,6 +184,14 @@ describe("buildFormPrompt", () => {
                 when: [{ path: "configureListener", values: ["Custom Listener"] }] }],
         } as any, "", { signature: "", code: "" });
         expect(prompt).toContain("- port (Port): int = 9090 (only when configureListener is \"Custom Listener\")");
+    });
+
+    it("sends a change to code the form does not hold outside the form, only for a form that edits that code", () => {
+        const code = "function f() {\n}\n";
+        const req = { node: "FORM", instruction: "x", slots: [], groups: [] } as any;
+        const range = { startLine: { line: 0, offset: 0 }, endLine: { line: 1, offset: 1 } };
+        expect(buildFormPrompt({ ...req, subjectRange: range }, "", { signature: "", code })).toContain("call needs_flow_change, never cannot_do");
+        expect(buildFormPrompt(req, "", { signature: "", code })).not.toContain("call needs_flow_change, never cannot_do");
     });
 
     it("marks a row value that may stay empty", () => {

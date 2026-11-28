@@ -77,6 +77,10 @@ const askRule = (changes: string) => `ask_user when the request leaves open a ch
   pick one of them by its name alone. When the request or the context picks one, take it.`;
 
 // The user's answer to a question Copilot asked; the same words for the field and the form.
+// Each earlier message with the reply it got, so a follow-up can refer to either.
+const earlierLines = (earlier: string[], replies: string[] = []) =>
+    earlier.map((text, index) => `${index + 1}. ${text.trim()}${replies[index]?.trim() ? `\n   You replied: ${replies[index].trim()}` : ""}`).join("\n");
+
 const askedLine = (asked?: string) => (asked ? `You asked the user: ${asked}\nThe latest message is their answer.` : "");
 
 export const SYSTEM_PROMPT = `You write one Ballerina expression for a single field in a low-code integration editor.
@@ -243,7 +247,7 @@ export function buildUserPrompt(req: ExpressionAssistRequest, scope: string, exp
         `Current value: ${req.valueWithheld ? "(withheld: it looks like a secret, so it is not shown)" : value || "(empty)"}`,
         errors.length ? `Current errors:\n${errors.map((e) => `- ${e}`).join("\n")}` : "",
         `In scope:\n${scope || "(nothing)"}`,
-        req.earlier?.length ? `Earlier requests for this field, oldest first (the current value includes their changes, except those marked (not done), (undone) or (explained, nothing changed)):\n${req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n")}` : "",
+        req.earlier?.length ? `Earlier requests for this field and your replies, oldest first (the current value includes their changes, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlierLines(req.earlier, req.replies)}` : "",
         askedLine(req.asked),
     ].filter(Boolean).join("\n");
     return `${context}\n\n${taskLine(req, value)}`;
@@ -475,6 +479,9 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
     { test: /redeclared symbol|already (defined|declared)/, hint: "That name is already in use here. Pick a different, descriptive name and submit again; a taken name is never a reason for cannot_do." },
 ];
 
+// A form that edits a definition holds only part of its code; the rest changes outside the form.
+const SUBJECT_CODE_RULE = "The code above is what this form edits, and its Values hold only part of it. A request that needs any other part of that code to change is a change outside this form: call needs_flow_change, never cannot_do.";
+
 // A form's values and groups as the model reads them; the declared type stands in, and type_info expands a record.
 export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing, records: Record<string, string> = {}): string {
     const context = [
@@ -485,6 +492,7 @@ export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
         req.pending && req.focus ? `Suggested so far for ${req.focus.label}, not applied: ${req.pending}\nIt may have combined ${req.focus.label}'s current value with the new check. If the task moves it elsewhere, e.g. into a new branch, take only what the earlier request added, and keep ${req.focus.label} as it was.` : "",
         enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
+        req.subjectRange && enclosing.code ? SUBJECT_CODE_RULE : "",
         req.slots.length ? `Values:\n${req.slots.map((slot) => slotLine(slot, records[slot.path])).join("\n")}` : "",
         req.groups.length ? `Repeatable groups:\n${req.groups.map(groupLines).join("\n")}` : "",
         req.shown?.length ? `Also on this form, read-only here (answer questions about them; a request to change them is a flow change):\n${req.shown.map((line) => `- ${line}`).join("\n")}` : "",
@@ -499,8 +507,7 @@ function formTask(req: FormAssistRequest): string {
     if (!req.earlier?.length) {
         return `Task: ${req.instruction.trim()}`;
     }
-    const earlier = req.earlier.map((text, index) => `${index + 1}. ${text.trim()}`).join("\n");
-    return `Earlier messages (the values above include the changes they made, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlier}\n\n`
+    return `Earlier messages and your replies (the values above include the changes they made, except those marked (not done), (undone) or (explained, nothing changed)):\n${earlierLines(req.earlier, req.replies)}\n\n`
         + `Task, the latest message (it may refine the earlier ones): ${req.instruction.trim()}`;
 }
 

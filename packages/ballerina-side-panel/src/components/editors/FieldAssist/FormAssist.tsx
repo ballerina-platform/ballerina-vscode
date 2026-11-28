@@ -20,7 +20,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FormAssistAction, AssistFlowChange, FormAssistGroup, FormAssistQuestion, FormAssistResponse, FormAssistSlot, alignRows } from "@wso2/ballerina-core";
 import { AssistShell } from "./AssistShell";
-import { DeclinedCard, Declined, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUES, compileFailure, handOffNote, markedTurns, threadRequest, QuestionCard, STOPPED } from "./Handoff";
+import { DeclinedCard, Declined, EXPLAINED, HandoffCard, NOT_DONE, NO_VALID_VALUES, compileFailure, handOffNote, markedTurns, questionReply, threadRequest, QuestionCard, STOPPED } from "./Handoff";
 import { AppliedChanges, AppliedMark, AssistDock, AssistHostValue, liveChangeCount, undoAll, AssistFocus, AssistHostContent, FORM_SCOPE, FormController, FormThread, ValueDisplay, errorLines, useAssistHost, UndoAllButton } from "./AssistHost";
 import { RunAssistActions, SECRET_IN_PROMPT, configLiteral, newRequestId, noChange, runValueActions } from "./FieldAssist";
 import { isSensitiveField, looksLikeCredential, shouldWithhold } from "./secretGuard";
@@ -36,6 +36,8 @@ export interface FormAssistDescription {
 export interface FormAssistContext {
     focus?: AssistFocus;
     earlier?: string[];
+    // Copilot's reply to each of `earlier`, by index.
+    replies?: string[];
     pending?: string;
     // The question Copilot asked last, which the instruction answers.
     asked?: string;
@@ -92,6 +94,9 @@ function useFormThread(formId: string) {
     const [reply, setReplyState] = useState<string | undefined>(saved?.reply);
     const [changed, setChangedState] = useState<string | undefined>(saved?.changed);
     const [handoff, setHandoffState] = useState<AssistFlowChange | undefined>(saved?.handoff);
+    // Read through the ref too, since a turn's reply lands after the request that started it.
+    const repliesRef = useRef<string[]>(saved?.replies ?? []);
+    const [replies, setRepliesState] = useState(repliesRef.current);
     const keep = (next: Partial<FormThread>) => {
         if (host) {
             const current = host.formThread.current?.formId === formId ? host.formThread.current : { formId, history: [] };
@@ -101,6 +106,16 @@ function useFormThread(formId: string) {
     const setHistory = (next: string[]) => {
         keep({ history: next });
         setHistoryState(next);
+    };
+    const setReplies = (next: string[]) => {
+        repliesRef.current = next;
+        keep({ replies: next });
+        setRepliesState(next);
+    };
+    const setReplyAt = (index: number, text: string) => {
+        const next = [...repliesRef.current];
+        next[index] = text;
+        setReplies(next);
     };
     const setReply = (next?: string) => {
         keep({ reply: next });
@@ -114,14 +129,14 @@ function useFormThread(formId: string) {
         keep({ handoff: next });
         setHandoffState(next);
     };
-    return { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff };
+    return { history, setHistory, marksRef, replies, setReplies, setReplyAt, reply, setReply, changed, setChanged, handoff, setHandoff };
 }
 
 // Takes over a field's request when it reaches other fields, and shows the whole form's changes in the panel's popover.
 export function FormAssist({ describe, run, abort, onApply, formId = "", intro = NODE_INTRO, onContinueInChat, runAssistActions, savedValue }: FormAssistProps) {
     const host = useAssistHost();
     const open = host?.scope === FORM_SCOPE;
-    const { history, setHistory, marksRef, reply, setReply, changed, setChanged, handoff, setHandoff } = useFormThread(formId);
+    const { history, setHistory, marksRef, replies, setReplies, setReplyAt, reply, setReply, changed, setChanged, handoff, setHandoff } = useFormThread(formId);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>();
     const [declined, setDeclined] = useState<Declined>();
@@ -163,6 +178,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         pendingRef.current = undefined;
         marksRef.current = new Map();
         setHistory([]);
+        setReplies([]);
         setLoading(false);
         setError(undefined);
         setDeclined(undefined);
@@ -193,6 +209,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const stop = () => {
         cancel();
         marksRef.current.set(history.length - 1, NOT_DONE);
+        setReplyAt(history.length - 1, STOPPED);
         setLoading(false);
         setError(STOPPED);
     };
@@ -205,24 +222,30 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         if (mark) {
             marksRef.current.set(thread.length - 1, mark);
         }
+        const say = (text: string) => setReplyAt(thread.length - 1, text);
         if (response.question) {
+            say(questionReply(response.question));
             setQuestion(response.question);
             return true;
         }
         if (response.explanation) {
+            say(response.explanation);
             setReply(response.explanation);
             return true;
         }
         const decline = declineOf(response, !!onContinueInChat);
         if (decline) {
+            say(decline.reason);
             setDeclined(decline);
             return true;
         }
         // A reply whose values all match the form changes nothing, however it is worded.
         const changes = changesOf(next);
         if (response.error || (!response.flowChange && changes.length === 0)) {
+            const failure = response.error ?? noChange("form");
             marksRef.current.set(thread.length - 1, NOT_DONE);
-            setError(response.error ?? noChange("form"));
+            say(failure);
+            setError(failure);
             return true;
         }
         // The values go straight into the form, which saves nothing until Save; the thread stays open for the next request.
@@ -230,7 +253,9 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
             applyChanges(next, changes, thread[thread.length - 1] ?? "");
         }
         const summary = changedSummary(changes);
-        setChanged([summary, response.note, response.skipped].filter(Boolean).join(" ") || undefined);
+        const done = [summary, response.note, response.skipped].filter(Boolean).join(" ");
+        setChanged(done || undefined);
+        say([done, response.flowChange?.reason].filter(Boolean).join(" "));
         // Work outside the form closes it, so the user confirms before the main Copilot takes it over.
         if (response.flowChange) {
             setHandoff(response.flowChange);
@@ -253,10 +278,13 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         const focus = aimed ?? focusRef.current;
         const asked = question?.text;
         const thread = [...earlier, instruction];
+        // Turns handed over from a field or a change card come without Copilot's replies.
+        const earlierReplies = earlier === history ? earlier.map((_, index) => replies[index] ?? "") : [];
         cancel();
         const requestId = newRequestId();
         pending.current = requestId;
         setHistory(thread);
+        setReplies(earlierReplies);
         setLoading(true);
         setError(undefined);
         setDeclined(undefined);
@@ -265,7 +293,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
         setChanged(undefined);
         setWithheld(hidden);
         const errors = errorLines(host?.formErrors);
-        run(instruction, description, requestId, { focus, earlier: markedTurns(earlier, marksRef.current), asked, pending: pendingRef.current, errors })
+        run(instruction, description, requestId, { focus, earlier: markedTurns(earlier, marksRef.current), replies: earlierReplies, asked, pending: pendingRef.current, errors })
             .then((response) => pending.current === requestId ? prepareValues(response, origin, runAssistActions, createdRef.current) : response)
             .catch((failure: Error): FormAssistResponse => ({ error: failure.message }))
             .then((response) => {
@@ -341,6 +369,7 @@ export function FormAssist({ describe, run, abort, onApply, formId = "", intro =
     const shell = (
         <AssistShell
             history={history}
+            replies={replies}
             loadingLabel={loading ? "Working…" : undefined}
             error={error}
             reply={reply}
@@ -682,11 +711,11 @@ function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal)
     };
 }
 
-function changesOf(proposal: Proposal): Change[] {
+export function changesOf(proposal: Proposal): Change[] {
     const { response, before } = proposal;
     const slots = Object.entries(response.values ?? {}).flatMap(([path, value]): Change[] => {
         const slot = before.slots.find((known) => known.path === path);
-        return slot && slot.value !== value ? [slotChange(slot, value, proposal)] : [];
+        return slot && slot.value.trim() !== value.trim() ? [slotChange(slot, value, proposal)] : [];
     });
     const groups = Object.entries(response.groups ?? {}).flatMap(([id, rows]) => {
         const group = before.groups.find((known) => known.id === id);
