@@ -77,6 +77,26 @@ describe("chips in a read-only editor", () => {
         place.remove();
     });
 
+    it("turn into text or go away in an editable prompt editor, and report it", () => {
+        const schema = createChipSchema();
+        const doc = schema.node("doc", null, [schema.node("paragraph", null, [schema.text("Hi "), schema.node("chip", { text: "${name}" }), schema.text(" and "), schema.node("chip", { text: "${age}" })])]);
+        const place = document.createElement("div");
+        document.body.appendChild(place);
+        const gone = jest.fn();
+        const view = new PMView(place, { state: PMState.create({ doc, plugins: [createChipPlugin(schema, undefined, gone)] }) });
+        const chips = () => { const found: string[] = []; view.state.doc.descendants((node) => { if (node.type.name === "chip") found.push(node.attrs.text); }); return found; };
+        fire(place.querySelector(".pm-chip")!, "dblclick");
+        expect(chips()).toEqual(["${age}"]);
+        expect(view.state.doc.textContent).toBe("Hi ${name} and ${age}");
+        expect(gone).toHaveBeenCalledTimes(1);
+        fire(place.querySelector(".pm-chip-remove")!, "mousedown");
+        expect(chips()).toEqual([]);
+        expect(view.state.doc.textContent).toBe("Hi ${name} and");
+        expect(gone).toHaveBeenCalledTimes(2);
+        view.destroy();
+        place.remove();
+    });
+
     it("keep their text in a read-only expression editor", () => {
         const view = new EditorView({ state: EditorState.create({ doc: "Hi name", extensions: [EditorView.editable.of(false)] }), parent: document.body });
         const chips = Decoration.set([createChip("name", TokenType.VARIABLE, 3, 7, view).range(3, 7)]);

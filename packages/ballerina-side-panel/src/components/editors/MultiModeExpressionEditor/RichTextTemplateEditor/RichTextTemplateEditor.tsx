@@ -595,7 +595,8 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
         if (!editorRef.current) return;
 
         const sanitizedValue = configuration.serializeValue(value);
-        const chipPlugin = createChipPlugin(chipSchema, handleChipClick);
+        const chipPlugin = createChipPlugin(chipSchema, handleChipClick, () => setHelperPaneState(prev =>
+            prev.clickedChipPos === undefined ? prev : { ...prev, isOpen: false, clickedChipPos: undefined, clickedChipNode: undefined }));
         const xmlTagPlugin = createXMLTagDecorationPlugin();
 
         // Plugin to close helper pane when cursor moves (only for chip-click-opened panes)

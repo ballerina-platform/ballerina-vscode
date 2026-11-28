@@ -417,7 +417,9 @@ const chipAt = (view: any, target: EventTarget | null) => {
 
 export function createChipPlugin(
     schema: Schema,
-    onChipClick?: (event: MouseEvent, chipPos: number, chipNode: any) => void
+    onChipClick?: (event: MouseEvent, chipPos: number, chipNode: any) => void,
+    // A chip that is removed or turned into text no longer anchors whatever its click opened.
+    onChipGone?: () => void
 ) {
     return new Plugin<ChipPluginState>({
         key: chipPluginKey,
@@ -507,6 +509,7 @@ export function createChipPlugin(
                     event.preventDefault();
                     const end = chip.pos + chip.node.nodeSize;
                     view.dispatch((view.state.tr as any).delete(chipRemovalStart(view.state.doc, chip.pos, end), end));
+                    onChipGone?.();
                     view.focus();
                     return true;
                 },
@@ -519,6 +522,7 @@ export function createChipPlugin(
                     const { text } = chip.node.attrs;
                     const tr = (view.state.tr as any).replaceWith(chip.pos, chip.pos + chip.node.nodeSize, view.state.schema.text(text));
                     view.dispatch(tr.setSelection(TextSelection.create(tr.doc, chip.pos, chip.pos + text.length)));
+                    onChipGone?.();
                     view.focus();
                     return true;
                 },
