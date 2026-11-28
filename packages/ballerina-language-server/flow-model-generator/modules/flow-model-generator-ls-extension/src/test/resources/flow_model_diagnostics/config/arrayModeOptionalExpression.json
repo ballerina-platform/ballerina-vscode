@@ -1,0 +1,243 @@
+{
+  "source": "function4.bal",
+  "description": "Test per-element diagnostics when an optional array param is switched from expression to array mode",
+  "flowNode": {
+    "id": "31",
+    "metadata": {
+      "label": "processOptionalNames",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/pasindufernando_null_0.1.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "symbol": "processOptionalNames",
+      "version": "0.1.0",
+      "isNew": true,
+      "lineRange": {
+        "startLine": {
+          "line": 3,
+          "offset": 16
+        },
+        "endLine": {
+          "line": 3,
+          "offset": 16
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "names": {
+        "metadata": {
+          "label": "Names"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "string[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string[]?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "names"
+        },
+        "modified": true,
+        "value": "[var1, var2]",
+        "defaultValue": "()"
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "id": "35267",
+    "metadata": {
+      "label": "processOptionalNames",
+      "description": ""
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "processOptionalNames",
+      "version": "0.0.0",
+      "lineRange": {
+        "fileName": "function4.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 16
+        },
+        "endLine": {
+          "line": 3,
+          "offset": 51
+        }
+      },
+      "sourceCode": "processOptionalNames([var1, var2]);"
+    },
+    "returning": false,
+    "properties": {
+      "view": {
+        "metadata": {
+          "label": "View",
+          "description": "Function definition location"
+        },
+        "types": [
+          {
+            "fieldType": "VIEW",
+            "selected": true
+          }
+        ],
+        "value": {
+          "fileName": "function4.bal",
+          "startLine": {
+            "line": 0,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 1,
+            "offset": 1
+          }
+        },
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "names": {
+        "metadata": {
+          "label": "Names"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "string[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string[]?",
+            "selected": false
+          }
+        ],
+        "value": [
+          {
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "var1",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "diagnostics": {
+              "hasDiagnostics": true,
+              "diagnostics": [
+                {
+                  "severity": "ERROR",
+                  "message": "undefined symbol 'var1'"
+                }
+              ]
+            }
+          },
+          {
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "var2",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "diagnostics": {
+              "hasDiagnostics": true,
+              "diagnostics": [
+                {
+                  "severity": "ERROR",
+                  "message": "undefined symbol 'var2'"
+                }
+              ]
+            }
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "names"
+        },
+        "defaultValue": "()"
+      }
+    },
+    "diagnostics": {
+      "hasDiagnostics": true
+    },
+    "flags": 0
+  }
+}
