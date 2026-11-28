@@ -886,7 +886,7 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
                     .stepOut()
                 .value(node == null ? "" : node.toSourceCode().strip())
                 .type()
-                    .fieldType(Property.ValueType.TEXT)
+                    .fieldType(Property.ValueType.EXPRESSION)
                     .selected(true)
                     .stepOut()
                 .editable();

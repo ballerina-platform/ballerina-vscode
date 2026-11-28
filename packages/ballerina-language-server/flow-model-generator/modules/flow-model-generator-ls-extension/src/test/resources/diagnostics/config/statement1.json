@@ -1,0 +1,32 @@
+{
+  "description": "A valid statement has no diagnostics",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "localVar = localVar + 1.0;",
+    "startLine": {
+      "line": 12,
+      "offset": 0
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "EXPRESSION"
+    },
+    "property": {
+      "metadata": {
+        "label": "Statement",
+        "description": "Ballerina statement"
+      },
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "selected": true
+        }
+      ],
+      "value": "localVar = localVar + 1.0;",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}

@@ -163,7 +163,7 @@
             },
             "types": [
               {
-                "fieldType": "TEXT",
+                "fieldType": "EXPRESSION",
                 "selected": true
               }
             ],

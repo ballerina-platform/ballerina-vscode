@@ -21,10 +21,12 @@ package io.ballerina.flowmodelgenerator.core.expressioneditor.services;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.KeptImports;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import org.eclipse.lsp4j.Diagnostic;
 
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -54,6 +56,9 @@ public abstract class DiagnosticsRequest extends DebouncedExpressionEditorReques
             throw new IllegalArgumentException("Property cannot be null");
         }
 
+        if (context.isNodeKind(List.of(NodeKind.EXPRESSION))) {
+            return new StatementDiagnosticsRequest(context);
+        }
         Property.ValueType fieldType = property.propertyType().fieldType();
         return switch (fieldType) {
             case EXPRESSION, SQL_QUERY, RECORD_MAP_EXPRESSION, PROMPT -> new ExpressionDiagnosticsRequest(context);

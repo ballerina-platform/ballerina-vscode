@@ -483,7 +483,7 @@
                     },
                     "types": [
                       {
-                        "fieldType": "TEXT",
+                        "fieldType": "EXPRESSION",
                         "selected": true
                       }
                     ],
@@ -548,7 +548,7 @@
                     },
                     "types": [
                       {
-                        "fieldType": "TEXT",
+                        "fieldType": "EXPRESSION",
                         "selected": true
                       }
                     ],
