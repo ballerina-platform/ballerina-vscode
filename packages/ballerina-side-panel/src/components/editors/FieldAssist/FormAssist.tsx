@@ -711,11 +711,11 @@ function slotChange(slot: FormAssistSlot, value: string, { response }: Proposal)
     };
 }
 
-function changesOf(proposal: Proposal): Change[] {
+export function changesOf(proposal: Proposal): Change[] {
     const { response, before } = proposal;
     const slots = Object.entries(response.values ?? {}).flatMap(([path, value]): Change[] => {
         const slot = before.slots.find((known) => known.path === path);
-        return slot && slot.value !== value ? [slotChange(slot, value, proposal)] : [];
+        return slot && slot.value.trim() !== value.trim() ? [slotChange(slot, value, proposal)] : [];
     });
     const groups = Object.entries(response.groups ?? {}).flatMap(([id, rows]) => {
         const group = before.groups.find((known) => known.id === id);
