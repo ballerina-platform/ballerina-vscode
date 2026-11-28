@@ -52,6 +52,10 @@ interface CommonFunction {
 }
 
 // A short, task-grouped set; everything else is one search or the function browser away.
+// Unlike string, int and float, these langlib prefixes are not predeclared.
+const ARRAY: Imports = { array: "ballerina/lang.array" };
+const VALUE: Imports = { value: "ballerina/lang.value" };
+
 const COMMON_FUNCTIONS: { group: string; items: CommonFunction[] }[] = [
     {
         group: "Text",
@@ -86,18 +90,18 @@ const COMMON_FUNCTIONS: { group: string; items: CommonFunction[] }[] = [
     {
         group: "List",
         items: [
-            { name: "array:length", type: "int" },
-            { name: "array:indexOf", type: "int?" },
-            { name: "array:reverse", type: "any[]" },
-            { name: "array:slice", type: "any[]" },
+            { name: "array:length", imports: ARRAY, type: "int" },
+            { name: "array:indexOf", imports: ARRAY, type: "int?" },
+            { name: "array:reverse", imports: ARRAY, type: "any[]" },
+            { name: "array:slice", imports: ARRAY, type: "any[]" },
         ],
     },
     {
         group: "JSON",
         items: [
-            { name: "value:toJsonString", type: "string", keywords: ["stringify", "serialize"] },
-            { name: "value:fromJsonString", type: "json|error", keywords: ["parse", "deserialize"] },
-            { name: "value:toString", type: "string" },
+            { name: "value:toJsonString", imports: VALUE, type: "string", keywords: ["stringify", "serialize"] },
+            { name: "value:fromJsonString", imports: VALUE, type: "json|error", keywords: ["parse", "deserialize"] },
+            { name: "value:toString", imports: VALUE, type: "string" },
         ],
     },
 ];
@@ -186,6 +190,7 @@ export function FunctionsSection(props: FunctionsSectionProps) {
 
     // Agent tools and the function being edited stay out of the default list; search still finds the tools.
     useEffect(() => {
+        let current = true;
         const diagram = rpcClient.getBIDiagramRpcClient();
         // The language server can refuse completion where a form's code does not exist yet; the list then stays empty.
         Promise.all([
@@ -202,6 +207,9 @@ export function FunctionsSection(props: FunctionsSectionProps) {
             }).catch((): undefined => undefined),
             rpcClient.getVisualizerLocation(),
         ]).then(([completions, search, location]) => {
+            if (!current) {
+                return;
+            }
             const agentTools = new Set(collectLabels(search?.categories?.find((c) => c.metadata?.label === AGENT_TOOLS)?.items));
             setProjectFunctions(
                 (completions ?? [])
@@ -211,6 +219,9 @@ export function FunctionsSection(props: FunctionsSectionProps) {
                     .map((fn) => ({ ...fn, tool: agentTools.has(fn.name) }))
             );
         });
+        return () => {
+            current = false;
+        };
     }, [fileName, targetLineRange.startLine.line, targetLineRange.startLine.offset]);
 
     const addLibraryFunction = async (item: HelperPaneCompletionItem, into: InsertTarget | null): Promise<CompletionInsertText> => {
