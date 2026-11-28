@@ -252,6 +252,10 @@ describe("describeDiagnostic", () => {
     it("narrows json, names the nil side of an operator, and checks an error before a default", () => {
         expect(describeDiagnostic({ code: "BCE2066", range: at(0, 23), message: "incompatible types: expected 'string', found '(boolean|int|float|decimal|string|json[]|map<json>)'" }, "check body.contact.mail").hint)
             .toBe("check body.contact.mail is json: narrow it, e.g. let json|error value = body.contact.mail in value is string ? value : \"\".");
+        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 10), message: "incompatible types: expected 'Order', found '(json|error)'" }, "body.order").hint)
+            .toBe("body.order is json: convert it to Order with check (check body.order).cloneWithType().");
+        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 16), message: "incompatible types: expected 'decimal', found '(boolean|int|float|decimal|string|json[]|map<json>)'" }, "check body.total").hint)
+            .toBe("check body.total is json: convert it to decimal with check (check body.total).cloneWithType().");
         expect(describeDiagnostic({ code: "BCE2070", range: at(0, 22), message: "operator '+' not defined for 'string' and 'string?'" }, "a + \" \" + order?.note").hint)
             .toBe("order?.note can be nil: write (order?.note ?: \"\").");
         expect(describeDiagnostic({ code: "BCE2642", range: at(0, 21), message: "operator '?:' cannot be applied to type '(string|error)'" }, "f(order).trim() ?: \"\"").hint)
