@@ -239,7 +239,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
             return;
         }
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && !e.defaultPrevented) {
+            if (e.key === "Escape" && !e.defaultPrevented && !e.isComposing) {
                 e.preventDefault();
                 handleMinimize();
             }
