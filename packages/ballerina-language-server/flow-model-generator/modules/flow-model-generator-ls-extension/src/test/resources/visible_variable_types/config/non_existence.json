@@ -6,6 +6,28 @@
       "name": "Module Variables",
       "types": [
         {
+          "name": "LOINC",
+          "type": {
+            "name": "string",
+            "typeName": "string",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        },
+        {
+          "name": "MAX_RETRIES",
+          "type": {
+            "name": "int",
+            "typeName": "int",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false
+          }
+        },
+        {
           "name": "moduleInput",
           "type": {
             "name": "Input",

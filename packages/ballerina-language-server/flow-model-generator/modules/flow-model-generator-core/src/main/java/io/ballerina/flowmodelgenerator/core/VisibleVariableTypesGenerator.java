@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
+import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.ErrorTypeSymbol;
 import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MapTypeSymbol;
@@ -92,10 +93,10 @@ public class VisibleVariableTypesGenerator {
 
         List<Symbol> symbols = semanticModel.visibleSymbols(document, position);
         for (Symbol symbol : symbols) {
-            if (symbol.kind() == SymbolKind.VARIABLE) {
+            if (isValueSymbol(symbol)) {
                 VariableSymbol variableSymbol = (VariableSymbol) symbol;
                 String name = variableSymbol.getName().orElse("");
-                Type type = fromTypeSymbol(variableSymbol.typeDescriptor());
+                Type type = fromTypeSymbol(declaredType(variableSymbol));
 
                 // Skip the object types
                 TypeSymbol typeSymbol = variableSymbol.typeDescriptor();
@@ -141,6 +142,15 @@ public class VisibleVariableTypesGenerator {
         }
 
         return gson.toJsonTree(categories).getAsJsonArray();
+    }
+
+    private static boolean isValueSymbol(Symbol symbol) {
+        return symbol.kind() == SymbolKind.VARIABLE || symbol.kind() == SymbolKind.CONSTANT;
+    }
+
+    // A constant's own type is its value, such as "8480-6"; show the type its value belongs to instead.
+    private static TypeSymbol declaredType(VariableSymbol symbol) {
+        return symbol instanceof ConstantSymbol constant ? constant.broaderTypeDescriptor() : symbol.typeDescriptor();
     }
 
     private Type fromTypeSymbol(TypeSymbol typeSymbol) {
