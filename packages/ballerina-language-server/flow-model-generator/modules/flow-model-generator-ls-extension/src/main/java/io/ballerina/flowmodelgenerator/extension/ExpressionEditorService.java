@@ -164,7 +164,7 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                 langServer.getTextDocumentService()));
     }
 
-    // Same as completion() but not debounced, for callers that look up several expressions at once.
+    // Same as completion() without the server delay; the field debounces its own keystrokes.
     @JsonRequest
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completionNow(
             ExpressionEditorCompletionRequest request) {

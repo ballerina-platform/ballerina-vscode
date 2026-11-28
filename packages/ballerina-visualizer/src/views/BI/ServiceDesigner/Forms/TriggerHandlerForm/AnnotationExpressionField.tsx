@@ -50,6 +50,7 @@ import { ConfigureRecordPage } from "../../../HelperPaneNew/Views/RecordConfigMo
 import DynamicModal from "../../../../../components/Modal";
 import { EXPRESSION_EXTRACTION_REGEX } from "../../../../../constants";
 import { calculateExpressionOffsets, convertBalCompletion, removeDuplicateDiagnostics, updateLineRange } from "../../../../../utils/bi";
+import { createRequestGate } from "../../../../../utils/request-gate";
 
 /**
  * The react-hook-form field key every leaf binds to. Each leaf renders its own isolated
@@ -120,6 +121,8 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
         const [completions, setCompletions] = useState<CompletionItem[]>([]);
         const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
         const prevCompletionFetchText = useRef<string>("");
+        // completionNow is not cancelled by a newer request, so only the newest response may publish.
+        const completionsGate = useRef(createRequestGate()).current;
 
         // Latest diagnostics for the field, kept so revalidate() can resolve synchronously and so the
         // typing-time debounce and the save-time gate agree on a single source.
@@ -310,6 +313,7 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                     setFilteredCompletions([]);
                     return [];
                 }
+                const request = completionsGate.begin();
                 let expressionCompletions: CompletionItem[] = [];
                 const { parentContent, currentContent } = expression
                     .slice(0, offset)
@@ -344,6 +348,9 @@ export const AnnotationExpressionField = forwardRef<AnnotationExpressionFieldHan
                             converted.push(convertBalCompletion(completion));
                         }
                     });
+                    if (!completionsGate.isCurrent(request)) {
+                        return converted;
+                    }
                     setCompletions(converted);
                     expressionCompletions = triggerCharacter
                         ? converted

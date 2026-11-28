@@ -426,6 +426,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     const prevCompletionFetchText = useRef<string>("");
     const [completions, setCompletions] = useState<CompletionItem[]>([]);
     const completionsRef = useRef<CompletionItem[]>([]);
+    // completionNow is not cancelled by a newer request, so only the newest response may publish.
+    const completionsGate = useRef(createRequestGate()).current;
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const [types, setTypes] = useState<CompletionItem[]>([]);
     // The last fetched list, set only together with typesCacheKeyRef so the two always describe the same fetch.
@@ -1175,6 +1177,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             offset: number,
             triggerCharacter?: string
         ) => {
+            const request = completionsGate.begin();
             let expressionCompletions: CompletionItem[] = [];
             const { parentContent, currentContent } = value
                 .slice(0, offset)
@@ -1221,6 +1224,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         convertedCompletions.push(convertBalCompletion(completion));
                     }
                 });
+                if (!completionsGate.isCurrent(request)) {
+                    return convertedCompletions;
+                }
                 setCompletions(convertedCompletions);
 
                 if (triggerCharacter) {
