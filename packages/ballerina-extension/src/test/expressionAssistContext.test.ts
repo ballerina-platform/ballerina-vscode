@@ -186,6 +186,14 @@ describe("buildFormPrompt", () => {
         expect(prompt).toContain("- port (Port): int = 9090 (only when configureListener is \"Custom Listener\")");
     });
 
+    it("sends a change to code the form does not hold outside the form, only for a form that edits that code", () => {
+        const code = "function f() {\n}\n";
+        const req = { node: "FORM", instruction: "x", slots: [], groups: [] } as any;
+        const range = { startLine: { line: 0, offset: 0 }, endLine: { line: 1, offset: 1 } };
+        expect(buildFormPrompt({ ...req, subjectRange: range }, "", { signature: "", code })).toContain("call needs_flow_change, never cannot_do");
+        expect(buildFormPrompt(req, "", { signature: "", code })).not.toContain("call needs_flow_change, never cannot_do");
+    });
+
     it("marks a row value that may stay empty", () => {
         const prompt = buildFormPrompt({
             node: "FORM", instruction: "add a limit parameter", slots: [],

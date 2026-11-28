@@ -479,6 +479,9 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
     { test: /redeclared symbol|already (defined|declared)/, hint: "That name is already in use here. Pick a different, descriptive name and submit again; a taken name is never a reason for cannot_do." },
 ];
 
+// A form that edits a definition holds only part of its code; the rest changes outside the form.
+const SUBJECT_CODE_RULE = "The code above is what this form edits, and its Values hold only part of it. A request that needs any other part of that code to change is a change outside this form: call needs_flow_change, never cannot_do.";
+
 // A form's values and groups as the model reads them; the declared type stands in, and type_info expands a record.
 export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing: Enclosing, records: Record<string, string> = {}): string {
     const context = [
@@ -489,6 +492,7 @@ export function buildFormPrompt(req: FormAssistRequest, scope: string, enclosing
         req.errors?.length ? `Current errors:\n${req.errors.map((error) => `- ${error}`).join("\n")}` : "",
         req.pending && req.focus ? `Suggested so far for ${req.focus.label}, not applied: ${req.pending}\nIt may have combined ${req.focus.label}'s current value with the new check. If the task moves it elsewhere, e.g. into a new branch, take only what the earlier request added, and keep ${req.focus.label} as it was.` : "",
         enclosing.code ? `Surrounding code, as saved (where it differs from the Values below, the values are the form's newer state and win):\n${enclosing.code}` : enclosing.signature ? `Inside: ${enclosing.signature}` : "",
+        req.subjectRange && enclosing.code ? SUBJECT_CODE_RULE : "",
         req.slots.length ? `Values:\n${req.slots.map((slot) => slotLine(slot, records[slot.path])).join("\n")}` : "",
         req.groups.length ? `Repeatable groups:\n${req.groups.map(groupLines).join("\n")}` : "",
         req.shown?.length ? `Also on this form, read-only here (answer questions about them; a request to change them is a flow change):\n${req.shown.map((line) => `- ${line}`).join("\n")}` : "",
