@@ -46,9 +46,9 @@ describe("always-nil check", () => {
 });
 
 const call = (flowCheck: boolean) => {
-    const run: { declined?: string; called?: Set<string> } = {};
+    const run: Parameters<typeof cannotDoTool>[0] = { errorsSeen: [], seen: [] };
     const tool = cannotDoTool(run, "test", flowCheck);
-    return { run, refuse: (reason: string) => tool.execute!({ reason }, { toolCallId: "t", messages: [] }) };
+    return { run, refuse: (reason: string) => tool.execute!({ reason, evidence: "missing_name", cites: "email" }, { toolCallId: "t", messages: [] }) };
 };
 
 describe("refusal with a flow change on offer", () => {

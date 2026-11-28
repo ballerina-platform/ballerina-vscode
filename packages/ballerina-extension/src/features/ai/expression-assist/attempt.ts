@@ -21,7 +21,7 @@ import type { FormAssistQuestion } from "@wso2/ballerina-core";
 import { z } from "zod";
 import { AssistSite, Diagnosed, checkExpression, diagnoseExpression } from "./context";
 import { ERROR_HINTS, PARSE_ERROR, isGrounded, keywordHints, looksLikePlainText } from "./prompts";
-import { LookupState, newLookupState } from "./tools";
+import { LookupState, newLookupState, undefinedFunctionHints } from "./tools";
 
 // Three compiles that still fail mean the model is guessing; stopping keeps a bad run short.
 const MAX_FAILED_SUBMITS = 3;
@@ -123,6 +123,29 @@ export async function alwaysNil(site: AssistSite, expression: string, imports: R
     return errors.length === 0;
 }
 
+// A value checked as the field checks it: compiler errors, a value that is always nil, and the real names for a made-up function.
+export async function checkSlot(site: AssistSite, expression: string, imports: Record<string, string>, names: string[], run: LookupState): Promise<CheckedValue> {
+    const checked = await checkValue(site, expression, imports, names);
+    if (!checked.errors.length && await alwaysNil(site, checked.expression, imports)) {
+        return { ...checked, errors: [ALWAYS_NIL] };
+    }
+    return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
+}
+
+// A refusal, no submit, or a best try that does not compile; undefined when the best try compiles.
+export function failureOf({ declined, best }: { declined?: string; best?: Attempt }, noValue: string, noFit: string) {
+    if (declined) {
+        return { error: declined, declined: true };
+    }
+    if (!best) {
+        return { error: noValue };
+    }
+    // A value that does not compile would only move the error into the field.
+    return best.errors.length > 0 ? { error: `${noFit}: ${best.errors[0]}`, errors: best.errors } : undefined;
+}
+
+export const IMPORTS = z.record(z.string(), z.string()).optional().describe("Modules to import, prefix to module id, e.g. {\"time\": \"ballerina/time\"}");
+
 // What a hand-off to the main Copilot carries; the field and the form ask for it the same way.
 export const FLOW_CHANGE_INPUT = {
     reason: z.string().describe("One plain sentence for a non-programmer that says what has to change outside this form, with no code words"),
@@ -163,15 +186,16 @@ const UNGROUNDED = "Not accepted: cite a compiler error that a submit returned i
 
 type Refusal = { reason: string; evidence?: z.infer<typeof GROUNDS.evidence>; cites?: string };
 
-export function cannotDoTool(run: { declined?: string; called?: Set<string> }, description: string, flowCheck = false, grounding?: { errorsSeen: string[]; seen: string[] }) {
+// A refusal must rest on something the run saw, so a request that can work is never declined with an invented reason.
+export function cannotDoTool(run: Pick<AttemptState<Attempt>, "declined" | "called" | "errorsSeen" | "seen">, description: string, flowCheck = false) {
     return tool({
         description,
-        inputSchema: z.object(grounding ? { reason: REASON, ...GROUNDS } : { reason: REASON }) as z.ZodType<Refusal>,
+        inputSchema: z.object({ reason: REASON, ...GROUNDS }) as z.ZodType<Refusal>,
         execute: async ({ reason, evidence, cites = "" }) => {
             if (flowCheck && evidence !== "off_topic" && firstCall(run, "cannot_do")) {
                 return FLOW_QUESTION;
             }
-            if (grounding && !isGrounded(grounding, evidence, cites.trim())) {
+            if (!isGrounded(run, evidence, cites.trim())) {
                 return UNGROUNDED;
             }
             run.declined = reason;
@@ -180,13 +204,8 @@ export function cannotDoTool(run: { declined?: string; called?: Set<string> }, d
     });
 }
 
-// A refusal the form makes must rest on something the run saw, so a request that can work is never declined with an invented reason.
-export function groundedCannotDoTool(run: AttemptState<Attempt>, description: string, flowCheck = false) {
-    return cannotDoTool(run, description, flowCheck, run);
-}
-
 // A question back to the user, when the request leaves open a choice that changes the result.
-export function askUserTool(run: { question?: FormAssistQuestion }, description: string) {
+export function askUserTool(run: { question?: FormAssistQuestion }, description = "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead.") {
     return tool({
         description,
         inputSchema: z.object({

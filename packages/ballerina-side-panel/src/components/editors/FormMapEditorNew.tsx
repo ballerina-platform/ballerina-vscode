@@ -347,19 +347,17 @@ export const FormMapEditorNew = (props: FormFieldEditorProps & {
                     </div>
                     {modeSwitcherContext?.isModeSwitcherEnabled && (
                         <S.FieldInfoSection>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                {assist.button}
-                                <ModeSwitcher
-                                    fieldKey={props.field.key}
-                                    value={modeSwitcherContext.inputMode}
-                                    isRecordTypeField={modeSwitcherContext.isRecordTypeField}
-                                    onChange={(value) => {
-                                        handleModeSwitchValueChange();
-                                        modeSwitcherContext.onModeChange(value);
-                                    }}
-                                    types={modeSwitcherContext.types}
-                                />
-                            </span>
+                            <ModeSwitcher
+                                fieldKey={props.field.key}
+                                value={modeSwitcherContext.inputMode}
+                                isRecordTypeField={modeSwitcherContext.isRecordTypeField}
+                                onChange={(value) => {
+                                    handleModeSwitchValueChange();
+                                    modeSwitcherContext.onModeChange(value);
+                                }}
+                                types={modeSwitcherContext.types}
+                                assist={assist.button}
+                            />
                         </S.FieldInfoSection>
                     )}
                 </div>

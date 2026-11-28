@@ -23,7 +23,6 @@ import { useAssistHost } from "./AssistHost";
 
 interface AssistShellProps {
     history: string[];
-    // Copilot's reply to each turn in `history`, by index; the latest turn's reply shows below the thread instead.
     replies?: string[];
     loadingLabel?: string;
     error?: string;
@@ -36,13 +35,10 @@ interface AssistShellProps {
     // The current proposal, shown as children; Tab accepts it.
     proposal?: object;
     onAccept?: () => void;
-    // Inside the Copilot popover, which supplies the card and keeps the draft across scopes.
-    embedded?: boolean;
     // The card has no header, so the prompt carries Copilot's glyph.
     headless?: boolean;
-    // What Copilot can do here, shown until the first prompt.
     hint?: string;
-    // Ready-made requests shown with the hint; a click puts one in the prompt to edit.
+    // A click puts one in the prompt to edit.
     starters?: string[];
     // Runs a starter at once instead of putting it in the prompt; returns true when it did.
     onStarter?: (starter: string) => boolean;
@@ -52,23 +48,20 @@ interface AssistShellProps {
     reply?: string;
     // Off where the thread is pinned in view already, so it never pulls the form away from what changed.
     keepInView?: boolean;
-    // Starts the thread over; offered once there are requests to clear.
     onClear?: () => void;
     children?: React.ReactNode;
 }
 
-const DIALOG = { role: "dialog", "aria-label": "Copilot" };
-
 // The popover keeps the draft, so it survives a switch between a field and the whole form.
-function useDraft(embedded?: boolean): [string, (draft: string) => void] {
+function useDraft(): [string, (draft: string) => void] {
     const host = useAssistHost();
     const local = useState("");
-    return embedded && host ? [host.draft, host.setDraft] : local;
+    return host ? [host.draft, host.setDraft] : local;
 }
 
 // The helper's frame: what was asked, progress, messages, the proposal passed as children, and the prompt.
-export function AssistShell({ history, replies, loadingLabel, error, withheld, placeholder, onSubmit, onClose, proposal, onAccept, embedded, headless, hint, starters, onStarter, onStop, reply, keepInView = true, onClear, children }: AssistShellProps) {
-    const [draft, setDraft] = useDraft(embedded);
+export function AssistShell({ history, replies, loadingLabel, error, withheld, placeholder, onSubmit, onClose, proposal, onAccept, headless, hint, starters, onStarter, onStop, reply, keepInView = true, onClear, children }: AssistShellProps) {
+    const [draft, setDraft] = useDraft();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const loading = !!loadingLabel;
@@ -98,16 +91,15 @@ export function AssistShell({ history, replies, loadingLabel, error, withheld, p
         }
     };
 
-    const Frame = embedded ? S.EmbeddedPanel : S.Panel;
     const empty = !history.length && !loading && !error && !proposal;
     return (
-        <Frame ref={panelRef} className="copilot-panel" {...(embedded ? {} : DIALOG)}>
+        <S.EmbeddedPanel ref={panelRef} className="copilot-panel">
             <ThreadView history={history} replies={replies} loadingLabel={loadingLabel} error={error} reply={reply} withheld={withheld} onClear={onClear} inputRef={inputRef} />
             {!loading && children}
-            {embedded && empty && hint && (
+            {empty && hint && (
                 <S.Note>{hint}</S.Note>
             )}
-            {empty && <Starters starters={starters} afterHint={!!(embedded && hint)} onPick={(starter) => {
+            {empty && <Starters starters={starters} afterHint={!!hint} onPick={(starter) => {
                 if (onStarter?.(starter)) {
                     return;
                 }
@@ -115,9 +107,9 @@ export function AssistShell({ history, replies, loadingLabel, error, withheld, p
                 inputRef.current?.focus();
             }} />}
             {/* The popover's header already carries Copilot's glyph. */}
-            <PromptInput className="copilot-prompt" inputRef={inputRef} glyph={!embedded || headless} draft={draft} setDraft={setDraft} placeholder={placeholder}
+            <PromptInput className="copilot-prompt" inputRef={inputRef} glyph={headless} draft={draft} setDraft={setDraft} placeholder={placeholder}
                 loading={loading} onSend={send} onStop={onStop} onClose={onClose} onTab={proposal ? onAccept : undefined} />
-        </Frame>
+        </S.EmbeddedPanel>
     );
 }
 
@@ -169,7 +161,12 @@ function ThreadView({ history, replies, loadingLabel, error, reply, withheld, on
             <S.Thread ref={scrollRef} className="copilot-thread" onScroll={measure} data-more-above={more.above} data-more-below={more.below}>
                 {history.length > 0 && (
                     <S.History>
-                        {earlierOpen && <EarlierTurns turns={earlier} replies={replies} />}
+                        {earlierOpen && earlier.map((text, index) => (
+                            <React.Fragment key={index}>
+                                <S.Bubble>{text}</S.Bubble>
+                                {replies?.[index] && <S.EarlierReply>{replies[index]}</S.EarlierReply>}
+                            </React.Fragment>
+                        ))}
                         <S.Bubble key={history.length} ref={latestRef}>{history[history.length - 1]}</S.Bubble>
                     </S.History>
                 )}
@@ -216,19 +213,6 @@ function ThreadBar({ earlier, replies = [], open, onToggle, onClear, loading, in
                 </S.ClearThread>
             )}
         </S.ThreadBar>
-    );
-}
-
-function EarlierTurns({ turns, replies = [] }: { turns: string[]; replies?: string[] }) {
-    return (
-        <>
-            {turns.map((text, index) => (
-                <React.Fragment key={index}>
-                    <S.Bubble>{text}</S.Bubble>
-                    {replies[index] && <S.EarlierReply>{replies[index]}</S.EarlierReply>}
-                </React.Fragment>
-            ))}
-        </>
     );
 }
 
@@ -300,16 +284,11 @@ export function PromptInput({ draft, setDraft, loading, onSend, onStop, onClose,
 const CENTERED_ICON = { display: "flex", alignItems: "center", justifyContent: "center", width: "16px" };
 
 function SendButton({ loading, ready, onSend, onStop }: { loading: boolean; ready: boolean; onSend: () => void; onStop?: () => void }) {
-    if (loading && onStop) {
-        return (
-            <S.Send type="button" title="Stop (Esc)" aria-label="Stop" onClick={onStop}>
-                <Codicon name="debug-stop" sx={{ ...CENTERED_ICON, fontSize: "12px" }} iconSx={{ fontSize: "12px" }} />
-            </S.Send>
-        );
-    }
+    const stop = loading && !!onStop;
+    const size = stop ? "12px" : "14px";
     return (
-        <S.Send type="button" title="Send (Enter)" aria-label="Send" disabled={!ready || loading} onClick={onSend}>
-            <Codicon name="arrow-up" sx={{ ...CENTERED_ICON, fontSize: "14px" }} iconSx={{ fontSize: "14px" }} />
+        <S.Send type="button" title={stop ? "Stop (Esc)" : "Send (Enter)"} aria-label={stop ? "Stop" : "Send"} disabled={!stop && (!ready || loading)} onClick={stop ? onStop : onSend}>
+            <Codicon name={stop ? "debug-stop" : "arrow-up"} sx={{ ...CENTERED_ICON, fontSize: size }} iconSx={{ fontSize: size }} />
         </S.Send>
     );
 }

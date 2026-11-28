@@ -389,6 +389,6 @@ const propertySchema: NodeAssistSchema = {
 
 const SCHEMAS: Record<string, NodeAssistSchema> = { IF: ifSchema, MATCH: matchSchema, FORK: forkSchema };
 
-export function nodeAssistSchema(node: FlowNode): NodeAssistSchema | undefined {
+export function nodeAssistSchema(node: FlowNode): NodeAssistSchema {
     return SCHEMAS[node.codedata.node] ?? propertySchema;
 }

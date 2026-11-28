@@ -19,6 +19,7 @@
 import { cloneDeep } from "lodash";
 import { alignRows, ConfigProperties, ExpressionProperty, FormAssistGroup, ParameterModel, PropertyModel } from "@wso2/ballerina-core";
 import { HTTP_ENUM_TYPES } from "../../../utils";
+import { headerVariable } from "../../TriggerHandlerForm/annotationAssist";
 
 type Row = Record<string, string>;
 type HttpParamType = "QUERY" | "HEADER" | "PAYLOAD";
@@ -50,12 +51,6 @@ const httpType = (property: PropertyModel | undefined) =>
 const unquote = (value = "") => value.replace(/^"|"$/g, "");
 
 const withValue = (property: PropertyModel | undefined, value: string): PropertyModel => ({ ...property, value });
-
-// The variable the header editor derives from a header name, e.g. X-Api-Key → xApiKey.
-export const headerVariable = (header: string) => {
-    const camel = header.replace(/[-.]([a-zA-Z])/g, (_, c: string) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, "");
-    return camel.charAt(0).toLowerCase() + camel.slice(1);
-};
 
 const defaultValueOf = (param: ParameterModel) => (param.defaultValue as PropertyModel | undefined);
 

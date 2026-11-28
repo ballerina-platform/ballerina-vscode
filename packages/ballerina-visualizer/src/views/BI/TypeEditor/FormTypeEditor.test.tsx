@@ -114,11 +114,6 @@ describe("FormTypeEditor Copilot", () => {
         expect(container.textContent).toContain("Describe the type you need.");
     });
 
-    it("offers the new-type Copilot when a form's Type field opens it without a type", async () => {
-        await renderEditor(undefined);
-        expect(container.textContent).toContain("Describe the type you need.");
-    });
-
     it("keeps a saved type's Copilot to its contents", async () => {
         await renderEditor(ORDER);
         expect(container.textContent).toContain("Describe the change.");

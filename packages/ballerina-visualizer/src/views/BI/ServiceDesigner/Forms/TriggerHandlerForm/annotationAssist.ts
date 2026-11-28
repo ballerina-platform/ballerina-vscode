@@ -87,10 +87,10 @@ export const describeParams = (params: [string, ParameterModel][]): FormAssistSl
 export const HEADERS_GROUP = "httpHeaders";
 
 const headerOf = (param: ParameterModel) => String(param.headerName?.value ?? "").replace(/"/g, "");
-// As the header editor names a new header's parameter: Content-Type -> contentType.
-const parameterNameOf = (header: string) => {
-    const name = header.replace(/[-.]([a-zA-Z])/g, (_, c: string) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, "");
-    return name.charAt(0).toLowerCase() + name.slice(1);
+// The variable the header editor derives from a header name, e.g. X-Api-Key → xApiKey.
+export const headerVariable = (header: string) => {
+    const camel = header.replace(/[-.]([a-zA-Z])/g, (_, c: string) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, "");
+    return camel.charAt(0).toLowerCase() + camel.slice(1);
 };
 
 /** The individually bound headers, one row each, by header name and the type it is read as. */
@@ -112,7 +112,7 @@ export function applyHeaders(template: ParameterModel, headers: ParameterModel[]
     return rows.filter((row) => row.header?.trim()).map((row) => {
         const header = row.header.trim();
         const param = headers.find((known) => headerOf(known).toLowerCase() === header.toLowerCase())
-            ?? { ...cloneDeep(template), httpParamType: "HEADER", name: { ...template.name, value: parameterNameOf(header) },
+            ?? { ...cloneDeep(template), httpParamType: "HEADER", name: { ...template.name, value: headerVariable(header) },
                 headerName: { ...template.headerName, value: `"${header}"` } };
         return row.type?.trim() ? { ...param, type: { ...param.type, value: row.type.trim() } } : param;
     });

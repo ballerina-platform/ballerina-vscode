@@ -20,10 +20,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { ExpressionProperty, AssistFlowChange, CreateConfigurableAction, FormAssistQuestion, FormAssistRequest, FormAssistResponse, FormAssistSlot } from "@wso2/ballerina-core";
-import { Enclosing, FORM_SYSTEM_PROMPT, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
-import { AssistSite, checkExpression, describeEnclosing, describeScope, describeType, stripSemicolon, subjectCode } from "./context";
-import { LookupState, candidateImports, lookupTools, projectFunctions, undefinedFunctionHints, usagesTool } from "./tools";
-import { ALWAYS_NIL, alwaysNil, askUserTool, attemptFeedback, AttemptState, CheckedValue, checkValue, explainTool, FLOW_CHANGE_INPUT, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt, secretInValue } from "./attempt";
+import { Enclosing, FORM_SYSTEM_PROMPT, IDENTIFIER, buildFormPrompt, choices, scopeNames, selectedKind } from "./prompts";
+import { AssistSite, checkExpression, describeEnclosing, describeType, stripSemicolon, subjectCode } from "./context";
+import { LookupState, candidateImports, describeInScope, lookupTools, usagesTool } from "./tools";
+import { askUserTool, attemptFeedback, AttemptState, cannotDoTool, checkSlot, explainTool, failureOf, FLOW_CHANGE_INPUT, handOffRequestErrors, IMPORTS, newAttemptState, recordAttempt, secretInValue } from "./attempt";
 import { asDeclared, createFormConfigurableTool, namedIn } from "./configurable";
 import { runAssist, withEscalation } from "./run";
 import { AnthropicModel } from "../utils/ai-client";
@@ -31,7 +31,6 @@ import { AnthropicModel } from "../utils/ai-client";
 // A form needs more compile rounds than one field: several values can fail at once.
 const MAX_STEPS = 8;
 const TIMEOUT_MS = 30_000;
-const IDENTIFIER = /^'?[A-Za-z_][A-Za-z0-9_]*$/;
 const NO_FLOW = "A type has no flow. Values that belong together go in a field with an inline record type, e.g. record {| string city; string zip; |}. "
     + "Submit that, or call cannot_do.";
 
@@ -65,13 +64,15 @@ type FormRunState = AttemptState<FormCandidate> & {
 };
 
 const newFormRun = (): FormRunState => ({ ...newAttemptState<FormCandidate>(), tries: [], configurables: [] });
+const answered = (run: FormRunState) => !!(run.declined || run.question || run.explanation);
+const slotAt = (req: FormAssistRequest, path: string) => req.slots.find((slot) => slot.path === path);
 
 // A run that ended on compiler errors, and no answer that needs the user, goes to a stronger model with what was tried.
 export function assistForm(req: FormAssistRequest): Promise<FormAssistResponse> {
     return withEscalation(
         (run, model, earlierTry) => runForm(req, run, model, earlierTry),
         newFormRun,
-        (run) => run.finished && !run.verified && !run.declined && !run.question && !run.explanation,
+        (run) => run.finished && !run.verified && !answered(run),
         ({ tries }) => `Its submits and their compiler errors:\n${tries.map((attempt, index) => `${index + 1}. ${attempt}`).join("\n") || "(no submits)"}\nFind values that compile.`,
     );
 }
@@ -91,13 +92,7 @@ function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicMode
         timeoutMs: TIMEOUT_MS,
         model,
         prepare: async () => {
-            const [variables, functions, enclosing, records] = await Promise.all([
-                describeScope(req),
-                projectFunctions(req),
-                describeSubject(req),
-                recordTypes(req),
-            ]);
-            const scope = [variables, functions].filter(Boolean).join("\n");
+            const [scope, enclosing, records] = await Promise.all([describeInScope(req), describeSubject(req), recordTypes(req)]);
             const prompt = buildFormPrompt(req, scope, enclosing, records) + earlierTries;
             run.seen.push(prompt);
             return {
@@ -107,7 +102,7 @@ function runForm(req: FormAssistRequest, run: FormRunState, model: AnthropicMode
                 maxSteps: MAX_STEPS,
                 maxOutputTokens: 2048,
                 // A stalled run ends on its compiler error; a decline here would need an invented reason.
-                done: () => run.verified || run.stalled || !!run.declined || !!run.question || !!run.explanation,
+                done: () => run.verified || run.stalled || answered(run),
             };
         },
         finish: () => {
@@ -126,14 +121,9 @@ export function toResponse({ best, declined, question, explanation, verified }: 
     if (explanation && !verified) {
         return { explanation };
     }
-    if (declined) {
-        return { error: declined, declined: true };
-    }
-    if (!best) {
-        return { error: "Couldn't fill this form. Try describing it differently." };
-    }
-    if (best.errors.length > 0) {
-        return { error: `Couldn't find values that work here: ${best.errors[0]}`, errors: best.errors };
+    const failure = failureOf({ declined, best }, "Couldn't fill this form. Try describing it differently.", "Couldn't find values that work here");
+    if (failure) {
+        return failure;
     }
     return {
         values: best.values,
@@ -158,8 +148,7 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
                     .describe("Slot path to one Ballerina expression, written exactly as source; only the listed slot paths"),
                 groups: z.record(z.string(), z.array(z.record(z.string(), z.string()))).optional()
                     .describe("Group id to its full new row list; each row maps item keys to expressions"),
-                imports: z.record(z.string(), z.string()).optional()
-                    .describe("Modules to import, prefix to module id, e.g. {\"time\": \"ballerina/time\"}"),
+                imports: IMPORTS,
                 actions: z.array(z.object({
                     id: z.string(),
                     request: z.string().describe("What to fill in the form the action opens, as the user would ask it"),
@@ -188,12 +177,12 @@ function buildTools(req: FormAssistRequest, run: FormRunState, names: string[]) 
             }),
             // Values for paths this form lacks belong to the new node, which the request already describes.
             execute: async ({ reason, request, values = {}, imports = {} }) => req.node.startsWith("TYPE") ? NO_FLOW : submitCandidate(req, run, names, {
-                values: Object.fromEntries(Object.entries(values).filter(([path]) => req.slots.some((slot) => slot.path === path))),
+                values: Object.fromEntries(Object.entries(values).filter(([path]) => slotAt(req, path))),
                 groups: {}, imports, actions: [], note: "", flowChange: { reason, request }, errors: handOffRequestErrors(request),
             }),
         }),
-        ask_user: askUserTool(run, "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead."),
-        cannot_do: groundedCannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node.", !req.node.startsWith("TYPE")),
+        ask_user: askUserTool(run),
+        cannot_do: cannotDoTool(run, "Use when the request cannot work for this form: cite the compiler error, the missing name, or that it is not about this node.", !req.node.startsWith("TYPE")),
         explain: explainTool(run,
             "Only to say what this node or one of its current values means or does; it changes nothing. Never for what to add, change or suggest, even when asked as a question: submit those.",
             "One to three plain sentences; the first one answers the question asked, with no lead-in about what the node is. For \"explain this\", "
@@ -295,15 +284,6 @@ function unknownPathError(req: FormAssistRequest, path: string): string {
 }
 
 // Checks every value with its own property into candidate.errors, each prefixed with where it is; returns the hints.
-// A value checked as the field checks it: compiler errors, a value that is always nil, and the real names for a made-up function.
-async function checkSlot(site: AssistSite, expression: string, imports: Record<string, string>, names: string[], run: LookupState): Promise<CheckedValue> {
-    const checked = await checkValue(site, expression, imports, names);
-    if (!checked.errors.length && await alwaysNil(site, checked.expression, imports)) {
-        return { ...checked, errors: [ALWAYS_NIL] };
-    }
-    return { ...checked, hints: [...checked.hints, ...await undefinedFunctionHints(site, checked.errors, expression, run)] };
-}
-
 export async function checkForm(req: FormAssistRequest, candidate: FormCandidate, names: string[], run: LookupState, proposed: CreateConfigurableAction[]): Promise<string[]> {
     const checks: Promise<void>[] = [];
     const errors: string[] = [];
@@ -319,17 +299,11 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
         if (!expression.trim()) {
             return;
         }
-        if (kind === "TYPE") {
-            // A type has no plain-text or keyword fallback, so it skips checkValue.
-            guarded(where, checkExpression(siteFor(req, property), expression, candidate.imports)
-                .then((found) => { errors.push(...found.map((error) => `${where}: ${error}`)); }));
-        } else if (kind === "IDENTIFIER") {
-            if (!IDENTIFIER.test(expression)) {
-                errors.push(`${where}: a name has letters, digits and _ only`);
-                return;
-            }
-            // The language server also rejects keywords and names already in use, as the name field does.
-            guarded(where, checkExpression(siteFor(req, property), expression, {})
+        if (kind === "IDENTIFIER" && !IDENTIFIER.test(expression)) {
+            errors.push(`${where}: a name has letters, digits and _ only`);
+        } else if (kind === "TYPE" || kind === "IDENTIFIER") {
+            // No plain-text or keyword fallback, so it skips checkValue; for a name the language server also rejects keywords and names in use.
+            guarded(where, checkExpression(siteFor(req, property), expression, kind === "TYPE" ? candidate.imports : {})
                 .then((found) => { errors.push(...found.map((error) => `${where}: ${error}`)); }));
         } else if (kind === "SINGLE_SELECT" || kind === "FLAG") {
             const allowed = choices(property);
@@ -350,7 +324,7 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
         }
     };
     for (const [path, expression] of Object.entries(candidate.values)) {
-        const slot = req.slots.find((known) => known.path === path);
+        const slot = slotAt(req, path);
         if (slot) {
             check(path, slotProperty(req, candidate.values, slot), expression, (value) => { candidate.values[path] = value; });
         } else {
@@ -362,7 +336,7 @@ export async function checkForm(req: FormAssistRequest, candidate: FormCandidate
         .forEach((id) => errors.push(`${id}: set properties.${id} as one value or the ${id} rows, not both; leave the rows out when a variable holds the list`));
     // The form can't be saved with a required value empty, so a submit that leaves one is not done, unless the chat takes
     // the step over or the value does not apply to the choices this answer leaves.
-    const valueOf = (path: string) => candidate.values[path] ?? req.slots.find((slot) => slot.path === path)?.value ?? "";
+    const valueOf = (path: string) => candidate.values[path] ?? slotAt(req, path)?.value ?? "";
     const applies = (slot: FormAssistSlot) => (slot.when ?? []).every(({ path, values }) => values.includes(valueOf(path)));
     // A request asked from one field leaves the fields it does not touch as they are, even when one is still empty.
     const checked = (slot: FormAssistSlot) => !req.focus || slot.path in candidate.values;
@@ -410,7 +384,7 @@ const ofType = (property: ExpressionProperty, ballerinaType = ""): ExpressionPro
 
 // A slot whose type another slot names takes the new value of that slot, else its current one.
 const slotProperty = (req: FormAssistRequest, values: Record<string, string>, slot: FormAssistSlot): ExpressionProperty =>
-    slot.typeFrom ? ofType(slot.property, values[slot.typeFrom] ?? req.slots.find((known) => known.path === slot.typeFrom)?.value) : slot.property;
+    slot.typeFrom ? ofType(slot.property, values[slot.typeFrom] ?? slotAt(req, slot.typeFrom)?.value) : slot.property;
 
 // A record slot shows its fields, so a request for one of them sets the record; a long one loses docs first.
 const RECORD_SLOT_LIMIT = 1200;

@@ -1115,7 +1115,23 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                                 setShowSidePanel(false);
                                 resetNodeSelectionStates();
                             }
-                            reselectNode(model.flowModel.nodes);
+                            const currentSelectedNode = selectedNodeRef.current;
+                            if (
+                                currentSelectedNode &&
+                                // A node being created is not in this model: its line range is the
+                                // insertion point, which matches whatever already starts there.
+                                !currentSelectedNode.codedata?.isNew &&
+                                typeof currentSelectedNode?.properties?.variable?.value === "string"
+                            ) {
+                                const updatedSelectedNode = searchNodesByStartLine(model.flowModel.nodes, currentSelectedNode?.codedata.lineRange.startLine);
+                                if (updatedSelectedNode
+                                        && updatedSelectedNode.codedata?.node === currentSelectedNode.codedata?.node
+                                        // Kept while its source is unchanged, so a write elsewhere leaves its form's values.
+                                        && !isEqual(updatedSelectedNode.codedata, currentSelectedNode.codedata)) {
+                                    selectedNodeRef.current = updatedSelectedNode;
+                                    setSelectedNodeId(updatedSelectedNode.id);
+                                }
+                            }
                             updateAgentModelTypes(model?.flowModel);
                             setModel(model.flowModel);
                             const eventStartNode = model.flowModel.nodes.find((node) => node.codedata.node === "EVENT_START");
@@ -1337,20 +1353,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             }
         }
         return undefined;
-    };
-
-    // The open node as the refreshed model has it; kept while its source is unchanged, so a write elsewhere (a new configurable) leaves its form's values.
-    const reselectNode = (nodes: FlowNode[]) => {
-        const current = selectedNodeRef.current;
-        // A node being created is not in this model: its line range is the insertion point, which matches whatever already starts there.
-        if (!current || current.codedata?.isNew || typeof current.properties?.variable?.value !== "string") {
-            return;
-        }
-        const updated = searchNodesByStartLine(nodes, current.codedata.lineRange.startLine);
-        if (updated && updated.codedata?.node === current.codedata?.node && !isEqual(updated.codedata, current.codedata)) {
-            selectedNodeRef.current = updated;
-            setSelectedNodeId(updated.id);
-        }
     };
 
     const flattenNodes = (nodes: FlowNode[]): FlowNode[] => {

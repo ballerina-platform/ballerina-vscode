@@ -35,7 +35,7 @@ function Field() {
     const { register } = useInsertTarget(inserted, field);
     useEffect(() => {
         host.setApplied({
-            formId: "", request: "take 10% off", revert: () => ({}),
+            formId: "", revert: () => ({}),
             changes: { "expression:Expression": ["expression"], "variable:Name": ["variable"] },
             marks: { expression: mark("Expression"), variable: mark("Name") },
         });

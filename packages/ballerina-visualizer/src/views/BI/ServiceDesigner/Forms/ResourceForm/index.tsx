@@ -23,13 +23,14 @@ import { ResourcePath, verbs } from './ResourcePath/ResourcePath';
 import { ResourceResponse } from './ResourceResponse/ResourceResponse';
 import styled from '@emotion/styled';
 import { getDefaultResponse, HTTP_METHOD } from '../../utils';
-import { ConfigProperties, FunctionModel, ParameterModel, HttpPayloadContext, LinePosition, PropertyModel, ReturnTypeModel, ProjectStructureArtifactResponse } from '@wso2/ballerina-core';
+import { ConfigProperties, FunctionModel, ParameterModel, HttpPayloadContext, PropertyModel, ReturnTypeModel, ProjectStructureArtifactResponse } from '@wso2/ballerina-core';
 import { Parameters } from './Parameters/Parameters';
 import { FieldsFormAssist, PanelContainer, RunFormAssist } from '@wso2/ballerina-side-panel';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { assistFormInForm } from '../../../Forms/form-utils';
 import { ResourceConfig } from './ResourceConfig/ResourceConfig';
 import { AssistSubject } from '../../../Forms/ArtifactForm';
+import { FILE_START, useEndOfFile } from '../../../../../hooks/useEndOfFile';
 
 const PARAMETER_KIND: Record<string, string> = { QUERY: "Query parameter", HEADER: "Header", PAYLOAD: "Payload" };
 
@@ -119,14 +120,9 @@ export function ResourceForm(props: ResourceFormProps) {
 	const { model, isSaving, onSave, onClose, isNew, payloadContext, filePath, existingResources } = props;
 	const { rpcClient } = useRpcContext();
 	// A new resource has no lines yet; its values are checked at the end of the service's file, where module names are in scope.
-	const [endOfFile, setEndOfFile] = useState<LinePosition>();
-	useEffect(() => {
-		if (isNew && filePath) {
-			rpcClient.getBIDiagramRpcClient().getEndOfFile({ filePath }).then(setEndOfFile).catch((): undefined => undefined);
-		}
-	}, [isNew, filePath]);
+	const endOfFile = useEndOfFile(isNew ? filePath : undefined);
 	const runAssist: RunFormAssist = (instruction, description, requestId, context) => assistFormInForm(rpcClient,
-		{ fileName: filePath, startLine: endOfFile ?? { line: 0, offset: 0 } },
+		{ fileName: filePath, startLine: endOfFile.startLine },
 		{ requestId, instruction, node: "a new resource of an HTTP service", ...context, ...description });
 
 	const [functionModel, setFunctionModel] = useState<FunctionModel>(model);
@@ -268,7 +264,7 @@ export function ResourceForm(props: ResourceFormProps) {
 					<>
 						{isSaving && <ProgressIndicator id="resource-loading-bar" />}
 						<SidePanelBody>
-							{filePath && endOfFile && (
+							{filePath && endOfFile !== FILE_START && (
 								<FieldsFormAssist run={runAssist} abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })} />
 							)}
 							<ResourcePath method={functionModel.accessor} path={functionModel.name} onChange={onPathChange} isNew={true} onError={onResourcePathError} existingResources={existingResources} />

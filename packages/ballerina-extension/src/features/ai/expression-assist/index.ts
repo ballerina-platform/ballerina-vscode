@@ -21,17 +21,15 @@ import { z } from "zod";
 import { AssistFlowChange, CreateConfigurableAction, ExpressionAssistAction, ExpressionAssistRequest, ExpressionAssistResponse, FormAssistQuestion } from "@wso2/ballerina-core";
 import { SYSTEM_PROMPT, buildUserPrompt, fixedChoices, scopeNames } from "./prompts";
 import { asDeclared, createConfigurableTool, namedIn } from "./configurable";
-import { checkExpression, describeEnclosing, describeExpectedType, describeScope, stripSemicolon } from "./context";
-import { candidateImports, lookupTools, projectFunctions, undefinedFunctionHints } from "./tools";
-import { ALWAYS_NIL, AttemptState, FLOW_CHANGE_INPUT, alwaysNil, askUserTool, attemptFeedback, checkValue, explainTool, firstCall, groundedCannotDoTool, handOffRequestErrors, newAttemptState, recordAttempt, secretInValue } from "./attempt";
-import { abortAssist, runAssist, withEscalation } from "./run";
+import { checkExpression, describeEnclosing, describeExpectedType, stripSemicolon } from "./context";
+import { candidateImports, describeInScope, lookupTools } from "./tools";
+import { AttemptState, FLOW_CHANGE_INPUT, IMPORTS, askUserTool, attemptFeedback, cannotDoTool, checkSlot, explainTool, failureOf, firstCall, handOffRequestErrors, newAttemptState, recordAttempt, secretInValue } from "./attempt";
+import { runAssist, withEscalation } from "./run";
 import { AnthropicModel } from "../utils/ai-client";
 
 // Enough for a lookup, a docs read and two compile retries; a stuck run stops instead of making the user wait.
 const MAX_STEPS = 6;
 const TIMEOUT_MS = 20_000;
-
-export const abortExpressionAssist = abortAssist;
 
 interface Candidate {
     expression: string;
@@ -55,13 +53,14 @@ interface RunState extends AttemptState<Candidate> {
 }
 
 const newRun = (): RunState => ({ ...newAttemptState<Candidate>(), configurables: [] });
+const answered = (run: RunState) => !!(run.declined || run.question || run.editsOtherFields || run.flowChange || run.explanation);
 
 // A run that ended without a value that compiles, and no answer that needs the user, goes to a stronger model.
 export function assistExpression(req: ExpressionAssistRequest): Promise<ExpressionAssistResponse> {
     return withEscalation(
         (run, model, earlierTry) => runField(req, run, model, earlierTry),
         newRun,
-        (run) => run.finished && !run.verified && !run.declined && !run.question && !run.editsOtherFields && !run.flowChange && !run.explanation,
+        (run) => run.finished && !run.verified && !answered(run),
         ({ best }) => `Its closest try:\n${best ? `${best.expression}\n   errors: ${best.errors.join("; ")}` : "(no submits)"}\nFind a value that compiles.`,
     );
 }
@@ -73,20 +72,18 @@ function runField(req: ExpressionAssistRequest, run: RunState, model: AnthropicM
         model,
         prepare: async () => {
             const value = req.context.expression.trim();
-            const [variables, functions, type, errors, enclosing] = await Promise.all([
-                describeScope(req),
-                projectFunctions(req),
+            const [scope, type, errors, enclosing] = await Promise.all([
+                describeInScope(req),
                 describeExpectedType(req),
                 req.diagnostics ?? (req.mode === "fix" && value ? checkExpression(req, value, {}) : Promise.resolve([])),
                 describeEnclosing(req),
             ]);
-            const scope = [variables, functions].filter(Boolean).join("\n");
             return {
                 system: SYSTEM_PROMPT,
                 prompt: buildUserPrompt(req, scope, type, errors, enclosing) + earlierTry,
                 tools: buildTools(req, run, type, scopeNames(scope)),
                 maxSteps: MAX_STEPS,
-                done: () => run.verified || run.stalled || !!run.declined || !!run.question || !!run.editsOtherFields || !!run.flowChange || !!run.explanation,
+                done: () => run.verified || run.stalled || answered(run),
             };
         },
         finish: () => {
@@ -112,17 +109,7 @@ function toResponse({ best, declined, question, editsOtherFields, flowChange, pr
     if (explanation && !verified) {
         return { explanation };
     }
-    if (declined) {
-        return { error: declined, declined: true };
-    }
-    if (!best) {
-        return { error: "Couldn't come up with a value. Try describing it differently." };
-    }
-    // A value that does not compile would only move the error into the field.
-    if (best.errors.length > 0) {
-        return { error: `Couldn't find a value that works here: ${best.errors[0]}`, errors: best.errors };
-    }
-    return valueOf(best);
+    return failureOf({ declined, best }, "Couldn't come up with a value. Try describing it differently.", "Couldn't find a value that works here") ?? valueOf(best);
 }
 
 const valueOf = (best: Candidate): ExpressionAssistResponse => ({
@@ -131,12 +118,6 @@ const valueOf = (best: Candidate): ExpressionAssistResponse => ({
     actions: best.actions,
     note: best.note,
 });
-
-interface SubmittedValue {
-    expression: string;
-    imports?: Record<string, string>;
-    note: string;
-}
 
 // Compiles a value for this field and records it; `next` says what to do when it fails.
 async function submitValue(req: ExpressionAssistRequest, run: RunState, names: string[], { expression, imports = {}, note }: SubmittedValue, next: string[]): Promise<string> {
@@ -155,26 +136,26 @@ async function submitValue(req: ExpressionAssistRequest, run: RunState, names: s
         return `The value must be one of ${allowed.join(", ")}.`;
     }
     const named = namedIn(clean, run.configurables);
-    const checked = await checkValue(req, asDeclared(clean, named), used, names);
-    const nil = !checked.errors.length && await alwaysNil(req, checked.expression, used);
+    const checked = await checkSlot(req, asDeclared(clean, named), used, names, run);
     // The let around a value that names a new configurable is there only for the check.
     const value = named.length ? { expression: clean, actions: named } : { expression: checked.expression };
     const secret = checked.errors.length ? undefined : secretInValue(clean, req.context.expression);
-    const candidate = { ...value, imports: used, note, errors: nil ? [ALWAYS_NIL] : secret ? [secret] : checked.errors };
-    const hints = [...checked.hints, ...await undefinedFunctionHints(req, checked.errors, clean, run)];
-    return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, hints, next);
+    const candidate = { ...value, imports: used, note, errors: secret ? [secret] : checked.errors };
+    return recordAttempt(run, candidate) ? "OK" : attemptFeedback(candidate.errors, checked.hints, next);
 }
+
+const SUBMIT_INPUT = z.object({
+    expression: z.string().describe("One Ballerina expression, written exactly as source. A string literal keeps its own quotes inside this value: \"\\\"localhost\\\"\""),
+    imports: IMPORTS,
+    note: z.string().describe("One short plain-language sentence about the value"),
+});
+type SubmittedValue = z.infer<typeof SUBMIT_INPUT>;
 
 function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: string, names: string[]) {
     return {
         submit: tool({
             description: "Compile the expression for this field. Returns OK, or the compiler errors to fix.",
-            inputSchema: z.object({
-                expression: z.string().describe("One Ballerina expression, written exactly as source. A string literal keeps its own quotes inside this value: \"\\\"localhost\\\"\""),
-                imports: z.record(z.string(), z.string()).optional()
-                    .describe("Modules to import, prefix to module id, e.g. {\"time\": \"ballerina/time\"}"),
-                note: z.string().describe("One short plain-language sentence about the value"),
-            }),
+            inputSchema: SUBMIT_INPUT,
             execute: (value) => submitValue(req, run, names, value, [
                 `The value must be: ${expectedType}. A record written {| ... |} allows only the fields listed.`,
                 "Fix and submit again, or call cannot_do if that type cannot hold what was asked.",
@@ -189,8 +170,8 @@ function buildTools(req: ExpressionAssistRequest, run: RunState, expectedType: s
             },
             (action) => { run.configurables.push(action); }
         ),
-        ask_user: askUserTool(run, "Ask one short question when at least two real values in scope could fill a needed choice. When nothing in scope can fill it, call cannot_do instead."),
-        cannot_do: groundedCannotDoTool(run, "Use when no value for this field can do what was asked: cite the compiler error, the missing name, or that it is not about this field."
+        ask_user: askUserTool(run),
+        cannot_do: cannotDoTool(run, "Use when no value for this field can do what was asked: cite the compiler error, the missing name, or that it is not about this field."
             + (req.canChangeFlow ? " Not for one that needs code before this node: call needs_flow_change." : ""), !!req.canChangeFlow),
         explain: explainTool(run,
             "Only for a request to explain what this field or its value means; it changes nothing. Never for a request to suggest or write a value.",

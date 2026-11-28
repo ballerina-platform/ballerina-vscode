@@ -84,7 +84,7 @@ const FIELD_KINDS: Record<FormFieldInputType, FieldKind> = {
     CONNECTION: "LATER",
 };
 
-export const selectedType = (field: FormField): InputType | undefined =>
+export const selectedType = (field: { types?: InputType[] }): InputType | undefined =>
     field.types?.find((type) => type.selected) ?? field.types?.[0];
 
 const takesExpression = (field: FormField) => field.types?.some((type) => type.fieldType === "EXPRESSION");
@@ -121,6 +121,9 @@ const stringLiteralText = (expression: string): string | undefined => {
     }
     return stringLiteral(trimmed);
 };
+
+/** The text inside a string template, with or without `string` before it; undefined for any other expression. */
+export const templateBody = (expression: string): string | undefined => /^(?:string\s*)?`([\s\S]*)`$/.exec(expression.trim())?.[1];
 
 /** The text of a double-quoted string literal; undefined for any other expression. */
 export function stringLiteral(expression: string): string | undefined {

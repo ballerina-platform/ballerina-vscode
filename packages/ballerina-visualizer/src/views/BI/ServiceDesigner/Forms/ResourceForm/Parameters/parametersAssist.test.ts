@@ -23,7 +23,8 @@ import type { ConfigProperties, ParameterModel } from "@wso2/ballerina-core";
 
 jest.mock("@wso2/ballerina-core", () => jest.requireActual("@wso2/ballerina-core/lib/utils/form-property-utils"));
 jest.mock("../../../utils", () => ({ HTTP_ENUM_TYPES: ["string", "int", "boolean"] }));
-import { applyParameters, describeParameters, headerVariable } from "./parametersAssist";
+import { applyParameters, describeParameters } from "./parametersAssist";
+import { headerVariable } from "../../TriggerHandlerForm/annotationAssist";
 
 // The templates the language server sends with every HTTP resource model.
 const schemas: ConfigProperties = JSON.parse(fs.readFileSync(path.resolve(__dirname,

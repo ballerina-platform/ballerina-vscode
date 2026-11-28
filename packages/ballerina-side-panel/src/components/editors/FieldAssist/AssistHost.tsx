@@ -61,9 +61,7 @@ export interface AppliedMark {
     display?: ValueDisplay;
     // A row Copilot added, which has no earlier value.
     added?: boolean;
-    sample?: boolean;
     request: string;
-    source?: string;
     revert: () => void;
     // Runs once the value is back, however it was put back, e.g. to remove a configurable the change added.
     undone?: () => void;
@@ -101,8 +99,6 @@ export interface AppliedChanges {
     formId: string;
     // Each change's mark keys, across the thread's turns; a change counts while any of its marks shows.
     changes: Record<string, string[]>;
-    request: string;
-    note?: string;
     marks: Record<string, AppliedMark>;
     // Puts the fields back, rows within `form`, and removes what the changes created outside the form, e.g. a configurable.
     revert: (keys: string[], form?: FormAssistDescription) => FormAssistResponse;
@@ -164,7 +160,6 @@ export interface AssistHostValue {
     liveForm: () => FormController | undefined;
     handOff: (messages: string[], focus: AssistFocus, pending?: string) => void;
     formReady: boolean;
-    formOpen: boolean;
     formShown: boolean;
     registerField: (key: string, field: AssistField) => () => void;
     // A field's own Copilot thread, which takes Revise for a change it made; returns its unregister.
@@ -185,10 +180,9 @@ export interface AssistHostValue {
     dockOwner?: object;
     claimDock: (owner: object) => () => void;
     assistFields: () => Map<string, AssistField>;
-    fieldCount: number;
+    partCount: number;
     registerFieldSource: (source: AssistFieldSource) => () => void;
     fieldSources: () => AssistFieldSource[];
-    sourceCount: number;
     body: HTMLElement | null;
     setBody: (body: HTMLElement | null) => void;
     draft: string;
@@ -200,8 +194,6 @@ export interface AssistHostValue {
     formThread: React.MutableRefObject<FormThread | undefined>;
     // The fields the latest change touched; the first of them to show scrolls into view.
     reveal: React.MutableRefObject<string[] | undefined>;
-    // The rebuilt form's thread takes focus back when the user was typing in it as the change landed.
-    refocus: React.MutableRefObject<boolean>;
     // The change the review card sits under, and whether the card takes the focus when it moves there.
     reviewKey?: string;
     setReviewKey: (key?: string) => void;
@@ -308,7 +300,6 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     }), []);
     const formThread = useRef<FormThread>();
     const reveal = useRef<string[]>();
-    const refocus = useRef(false);
     const [orb, setOrb] = useState<HTMLElement | null>(null);
     const [reviewKey, setReviewKey] = useState<string>();
     const [expandedKey, setExpandedKey] = useState<string>();
@@ -385,7 +376,6 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
     const docked = scope === FORM_SCOPE && !scopeLabel;
     useExclusivePopover(!!scope && !closing && !docked, close);
 
-    const formOpen = docked && !closing;
     const value = useMemo<AssistHostValue>(() => ({
         scope: closing ? undefined : scope,
         shownScope: scope,
@@ -398,7 +388,6 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         liveForm,
         handOff,
         formReady,
-        formOpen,
         formShown: docked,
         registerField: fields.register,
         registerFieldThread: fieldThreads.register,
@@ -408,10 +397,9 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         setFieldRunning,
         fieldThread,
         assistFields: fields.all,
-        fieldCount: fields.count,
+        partCount: fields.count + sources.count,
         registerFieldSource,
         fieldSources,
-        sourceCount: sources.count,
         dockOwner,
         claimDock,
         registerAction: actions.register,
@@ -427,7 +415,6 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         setOrbState,
         formThread,
         reveal,
-        refocus,
         reviewKey,
         setReviewKey,
         expandedKey,
@@ -441,7 +428,7 @@ export function AssistHostProvider({ children, review }: AssistHostProviderProps
         dropMark,
         formErrors,
         setFormErrors,
-    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, formOpen, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, stopFieldThread, fieldRunning, fieldThread, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, expandedKey, revising, review, applied, dropMark, formErrors]);
+    }), [scope, cardScope, closing, open, close, release, registerForm, handOff, formReady, docked, fields.register, fields.all, fields.count, fieldThreads.register, reviseInField, stopFieldThread, fieldRunning, fieldThread, registerFieldSource, fieldSources, sources.count, dockOwner, claimDock, actions.register, actions.all, body, draft, orb, orbState, reviewKey, expandedKey, revising, review, applied, dropMark, formErrors]);
 
     return <AssistHostContext.Provider value={value}>{children}</AssistHostContext.Provider>;
 }
@@ -557,18 +544,31 @@ export function withFieldChange(current: AppliedChanges | undefined, key: string
     return {
         formId: current?.formId ?? "",
         changes: { ...current?.changes, [`field:${key}`]: [key] },
-        request: mark.request,
-        note: current?.note,
         marks: { ...current?.marks, [key]: { ...merged, inField: true } },
         // The form puts back only what it changed; this field's own Undo puts back its value.
         revert: (keys, form) => current?.revert(keys.filter((other) => other !== key && !!current.marks[other]), form) ?? {},
     };
 }
 
-export function AssistDock({ closing, onClose, onClear, children }: { closing?: boolean; onClose: () => void; onClear?: () => void; children: React.ReactNode }) {
-    const orb = useAssistHost()?.orb;
-    const card = <AssistCardFrame closing={closing} onClose={onClose} onClear={onClear}>{children}</AssistCardFrame>;
-    return orb ? createPortal(<OrbPopover orb={orb} closing={closing}>{card}</OrbPopover>, orb.ownerDocument.body) : card;
+// Puts a change the field's own Copilot made up for review under the field; its Undo also removes what the value created.
+export function reviewFieldChange(host: AssistHostValue | undefined, key: string, mark: AppliedMark, removeCreated?: void | (() => Promise<void>)) {
+    host?.setApplied((current) => withFieldChange(current, key, {
+        ...mark,
+        revert: () => {
+            mark.revert();
+            if (removeCreated) {
+                void removeCreated();
+            }
+        },
+    }));
+    host?.setReviewKey(key);
+    host?.close();
+}
+
+export function AssistDock({ onClear, children }: { onClear?: () => void; children: React.ReactNode }) {
+    const host = useAssistHost();
+    const card = <AssistCardFrame closing={host?.closing} onClose={() => host?.close()} onClear={onClear}>{children}</AssistCardFrame>;
+    return host?.orb ? createPortal(<OrbPopover orb={host.orb} closing={host.closing}>{card}</OrbPopover>, host.orb.ownerDocument.body) : card;
 }
 
 const POPOVER_WIDTH = 390;
@@ -600,6 +600,16 @@ interface Anchored {
 
 const maxHeight = (view: Window, top: number) => ({ ["--popover-max-height" as string]: `${view.innerHeight - top - POPOVER_MARGIN}px` });
 
+// Runs `update` as the window resizes or anything in it scrolls; returns the remover.
+export function onViewChange(view: Window, update: () => void): () => void {
+    view.addEventListener("resize", update);
+    view.addEventListener("scroll", update, true);
+    return () => {
+        view.removeEventListener("resize", update);
+        view.removeEventListener("scroll", update, true);
+    };
+}
+
 function useAnchor(orb: HTMLElement) {
     const [anchored, setAnchored] = useState<Anchored>();
     useLayoutEffect(() => {
@@ -613,12 +623,7 @@ function useAnchor(orb: HTMLElement) {
             });
         };
         update();
-        view.addEventListener("resize", update);
-        view.addEventListener("scroll", update, true);
-        return () => {
-            view.removeEventListener("resize", update);
-            view.removeEventListener("scroll", update, true);
-        };
+        return onViewChange(view, update);
     }, [orb]);
     return anchored;
 }
@@ -708,13 +713,14 @@ function useFormHint(ready: boolean, used: boolean) {
 
 export function AssistHeaderButton() {
     const host = useAssistHost();
-    const hint = useFormHint(!!host?.formReady, !!host?.formOpen || !!host?.applied);
+    const formOpen = !!host?.formShown && !host.closing;
+    const hint = useFormHint(!!host?.formReady, formOpen || !!host?.applied);
     const orbFace = useContext(AssistOrbContext);
     if (!host?.formReady) {
         return null;
     }
     const working = host.orbState === "running";
-    const errors = !working && !host.formOpen && offersFix(host.formErrors) ? errorLines(host.formErrors).length : 0;
+    const errors = !working && !formOpen && offersFix(host.formErrors) ? errorLines(host.formErrors).length : 0;
     const face = orbFace?.(errors ? "idle" : host.orbState ?? "idle") ?? ORB_ICON;
     if (errors) {
         const fixErrors = () => {
@@ -732,7 +738,7 @@ export function AssistHeaderButton() {
     return (
         <S.OrbAnchor>
             <S.HeaderOrb ref={host.setOrb} type="button" aria-label={working ? "Copilot is working" : "Fill this form with Copilot"}
-                aria-pressed={host.formOpen} aria-busy={working} onClick={() => (host.formOpen ? host.close() : host.open(FORM_SCOPE))}>
+                aria-pressed={formOpen} aria-busy={working} onClick={() => (formOpen ? host.close() : host.open(FORM_SCOPE))}>
                 {face}
                 <S.OrbTip aria-hidden="true" hidden={hint.shown}>Fill this form with Copilot</S.OrbTip>
             </S.HeaderOrb>
@@ -745,14 +751,6 @@ export function AssistHeaderButton() {
                 </S.OrbBubble>
             )}
         </S.OrbAnchor>
-    );
-}
-
-export function UndoAllButton({ onClick }: { onClick: () => void }) {
-    return (
-        <S.HeaderButton type="button" title="Undo All" aria-label="Undo All" onClick={onClick}>
-            <Icon name="bi-undo" sx={{ fontSize: "14px", width: "14px", height: "14px" }} iconSx={{ fontSize: "14px" }} />
-        </S.HeaderButton>
     );
 }
 

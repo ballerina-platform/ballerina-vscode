@@ -85,11 +85,8 @@ import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../Flo
 import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
-import { assistExpressionInForm, assistFormInForm, deserializeForDiagnosticsAPI, runAssistActions } from "../form-utils";
-import { createMiniChatPrompt } from "../../../../components/AgentStatusOrb/promptHandoff";
+import { assistExpressionInForm, assistFormInForm, continueInChat, deserializeForDiagnosticsAPI, formValuesNote, runAssistActions } from "../form-utils";
 import { useAssistTarget } from "../../AIChatAgent/agentScope";
-import { FORM_VALUES } from "../form-assist/NodeFormAssist";
-import { requestMiniChatOpen } from "../../../../components/AgentStatusOrb/shared";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
@@ -1154,15 +1151,8 @@ function ArtifactFormContent(props: ArtifactFormProps) {
                 ...description,
             }),
             runAssistActions: (actions, fieldValue) => runAssistActions(rpcClient, fileName, actions, fieldValue),
-            continueFormInChat: close && (async (request, values, context) => {
-                const note = values.length ? `${FORM_VALUES}\n${values.map((value) => `- ${value}`).join("\n")}` : "";
-                const hiddenContext = [...await target.handoffContext(), note, context].filter(Boolean).join("\n");
-                const prompt = createMiniChatPrompt(request, { autoSubmit: true, newThread: true, hiddenContext });
-                if (!requestMiniChatOpen(prompt)) {
-                    rpcClient.getAiPanelRpcClient().openAIPanel(prompt);
-                }
-                close();
-            }),
+            continueFormInChat: close && (async (request, values, context) =>
+                continueInChat(rpcClient, request, [...await target.handoffContext(), formValuesNote(values), context], close)),
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,

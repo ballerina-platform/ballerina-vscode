@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { LineRange } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
-const FILE_START: LineRange = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
+export const FILE_START: LineRange = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
 
 /** The end of a file, where a new item's values are checked: line 0 is above the file's imports. */
 export function useEndOfFile(filePath?: string): LineRange {

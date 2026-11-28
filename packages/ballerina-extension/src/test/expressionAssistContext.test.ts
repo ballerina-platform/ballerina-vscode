@@ -146,43 +146,45 @@ describe("declaredType", () => {
 });
 
 describe("buildFormPrompt", () => {
+    const formPrompt = (req: object) => buildFormPrompt(req as any, "", { signature: "", code: "" });
+
     it("lists the form's actions", () => {
-        const prompt = buildFormPrompt({
+        const prompt = formPrompt({
             node: "FORM", instruction: "add a listener on 9092", slots: [], groups: [],
             actions: [{ id: "attachListener", label: "Attach Listener", description: "Opens a form that creates a new listener." }],
-        } as any, "", { signature: "", code: "" });
+        });
         expect(prompt).toContain("Actions:\n- attachListener (Attach Listener): Opens a form that creates a new listener.");
     });
 
     it("gives a value its type from the slot it names, and marks earlier turns that changed nothing", () => {
-        const prompt = buildFormPrompt({
+        const prompt = formPrompt({
             node: "VARIABLE", instruction: "or Guest", groups: [], earlier: ["customer name (not done)"],
             slots: [
                 { path: "properties.expression", label: "Expression", property: { types: [{ fieldType: "EXPRESSION", selected: true }] }, value: "", typeFrom: "properties.type" },
                 { path: "properties.type", label: "Type", property: { types: [{ fieldType: "TYPE", selected: true }] }, value: "int", previous: "string" },
             ],
-        } as any, "", { signature: "", code: "" });
+        });
         expect(prompt).toContain("- properties.expression (Expression): a value of the type in properties.type; when the request needs another type, set properties.type too = (empty)");
         expect(prompt).toContain("except those marked (not done), (undone) or (explained, nothing changed)):\n1. customer name (not done)");
         expect(prompt).toContain("- properties.type (Type): type = int (before this thread: string)");
     });
 
     it("gives each earlier message the reply it got, so a follow-up can refer to it", () => {
-        const prompt = buildFormPrompt({
+        const prompt = formPrompt({
             node: "TYPE", instruction: "ok add them", slots: [], groups: [],
             earlier: ["a payment type with card and cash", "can we add anything else? (not done)"],
             replies: ["Changed Kind, Name and Members.", "Which ones should be added? (UPI, WALLET)"],
-        } as any, "", { signature: "", code: "" });
+        });
         expect(prompt).toContain("1. a payment type with card and cash\n   You replied: Changed Kind, Name and Members.\n"
             + "2. can we add anything else? (not done)\n   You replied: Which ones should be added? (UPI, WALLET)");
     });
 
     it("marks a value that applies only under a choice", () => {
-        const prompt = buildFormPrompt({
+        const prompt = formPrompt({
             node: "FORM", instruction: "serve on port 9099", groups: [],
             slots: [{ path: "port", label: "Port", property: { types: [{ fieldType: "EXPRESSION", ballerinaType: "int", selected: true }] }, value: "9090",
                 when: [{ path: "configureListener", values: ["Custom Listener"] }] }],
-        } as any, "", { signature: "", code: "" });
+        });
         expect(prompt).toContain("- port (Port): int = 9090 (only when configureListener is \"Custom Listener\")");
     });
 
@@ -195,13 +197,13 @@ describe("buildFormPrompt", () => {
     });
 
     it("marks a row value that may stay empty", () => {
-        const prompt = buildFormPrompt({
+        const prompt = formPrompt({
             node: "FORM", instruction: "add a limit parameter", slots: [],
             groups: [{ id: "queryParameters", label: "Query Parameters", min: 0, rows: [], item: [
                 { key: "name", label: "Name", property: { types: [{ fieldType: "IDENTIFIER", selected: true }] } },
                 { key: "defaultValue", label: "Default Value", typeFrom: "type", property: { optional: true, types: [{ fieldType: "EXPRESSION", selected: true }] } },
             ] }],
-        } as any, "", { signature: "", code: "" });
+        });
         expect(prompt).toContain("each row: name (Name): ");
         expect(prompt).toContain("defaultValue (Default Value, optional): a value of the row's type");
     });
@@ -229,6 +231,7 @@ describe("fitTypeDescription", () => {
 
 describe("describeDiagnostic", () => {
     const at = (start: number, end: number, line = 0) => ({ start: { line, character: start }, end: { line, character: end } });
+    const hint = (code: string, end: number, message: string, expression: string) => describeDiagnostic({ code, range: at(0, end), message }, expression).hint;
 
     it("names the code at fault and writes out the ?. fix for an optional nilable field", () => {
         const expression = "order.customer ?: \"Guest\"";
@@ -238,34 +241,29 @@ describe("describeDiagnostic", () => {
     });
 
     it("reads on with ?. after a value that can be nil", () => {
-        const { hint } = describeDiagnostic({ code: "BCE2556", range: at(0, 25), message: "invalid operation: type 'Customer?' does not support field access" }, "order?.customer.firstName");
-        expect(hint).toMatch(/^Write order\?\.customer\?\.firstName:/);
+        expect(hint("BCE2556", 25, "invalid operation: type 'Customer?' does not support field access", "order?.customer.firstName")).toMatch(/^Write order\?\.customer\?\.firstName:/);
     });
 
     it("defaults a nilable value by its expected type, and checks an error", () => {
-        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 11), message: "incompatible types: expected 'string', found 'string?'" }, "order?.note").hint)
-            .toBe("order?.note can be nil: write (order?.note ?: \"\").");
-        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 17), message: "incompatible types: expected 'int', found '(int|error)'" }, "int:fromString(s)").hint)
+        expect(hint("BCE2066", 11, "incompatible types: expected 'string', found 'string?'", "order?.note")).toBe("order?.note can be nil: write (order?.note ?: \"\").");
+        expect(hint("BCE2066", 17, "incompatible types: expected 'int', found '(int|error)'", "int:fromString(s)"))
             .toMatch(/^int:fromString\(s\) can also be an error: write check int:fromString\(s\)/);
     });
 
     it("narrows json, names the nil side of an operator, and checks an error before a default", () => {
-        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 23), message: "incompatible types: expected 'string', found '(boolean|int|float|decimal|string|json[]|map<json>)'" }, "check body.contact.mail").hint)
+        expect(hint("BCE2066", 23, "incompatible types: expected 'string', found '(boolean|int|float|decimal|string|json[]|map<json>)'", "check body.contact.mail"))
             .toBe("check body.contact.mail is json: narrow it, e.g. let json|error value = body.contact.mail in value is string ? value : \"\".");
-        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 10), message: "incompatible types: expected 'Order', found '(json|error)'" }, "body.order").hint)
+        expect(hint("BCE2066", 10, "incompatible types: expected 'Order', found '(json|error)'", "body.order"))
             .toBe("body.order is json: convert it to Order with check (check body.order).cloneWithType().");
-        expect(describeDiagnostic({ code: "BCE2066", range: at(0, 16), message: "incompatible types: expected 'decimal', found '(boolean|int|float|decimal|string|json[]|map<json>)'" }, "check body.total").hint)
+        expect(hint("BCE2066", 16, "incompatible types: expected 'decimal', found '(boolean|int|float|decimal|string|json[]|map<json>)'", "check body.total"))
             .toBe("check body.total is json: convert it to decimal with check (check body.total).cloneWithType().");
-        expect(describeDiagnostic({ code: "BCE2070", range: at(0, 22), message: "operator '+' not defined for 'string' and 'string?'" }, "a + \" \" + order?.note").hint)
-            .toBe("order?.note can be nil: write (order?.note ?: \"\").");
-        expect(describeDiagnostic({ code: "BCE2642", range: at(0, 21), message: "operator '?:' cannot be applied to type '(string|error)'" }, "f(order).trim() ?: \"\"").hint)
-            .toMatch(/^f\(order\)\.trim\(\) can be an error but never nil/);
-        expect(describeDiagnostic({ code: "BCE2070", range: at(0, 9), message: "operator '+' not defined for 'decimal' and 'float'" }, "a + 0.5f").hint).toBeUndefined();
+        expect(hint("BCE2070", 22, "operator '+' not defined for 'string' and 'string?'", "a + \" \" + order?.note")).toBe("order?.note can be nil: write (order?.note ?: \"\").");
+        expect(hint("BCE2642", 21, "operator '?:' cannot be applied to type '(string|error)'", "f(order).trim() ?: \"\"")).toMatch(/^f\(order\)\.trim\(\) can be an error but never nil/);
+        expect(hint("BCE2070", 9, "operator '+' not defined for 'decimal' and 'float'", "a + 0.5f")).toBeUndefined();
     });
 
     it("drops a default from a value that is never nil", () => {
-        expect(describeDiagnostic({ code: "BCE2642", range: at(0, 16), message: "operator '?:' cannot be applied to type 'string'" }, "order.id ?: \"x\"").hint)
-            .toBe("order.id is never nil, so drop the ?: default.");
+        expect(hint("BCE2642", 16, "operator '?:' cannot be applied to type 'string'", "order.id ?: \"x\"")).toBe("order.id is never nil, so drop the ?: default.");
     });
 
     it("leaves a long span to the parse locator and gives no fix for other codes", () => {

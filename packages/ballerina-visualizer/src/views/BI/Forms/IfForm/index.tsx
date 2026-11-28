@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Codicon, FormExpressionEditorRef, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
@@ -31,7 +31,6 @@ import {
     ExpressionProperty
 } from "@wso2/ballerina-core";
 import { BRANCH_MARKS, newElseBranch, newIfBranch } from "../form-assist/branches";
-import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
     ExpressionEditor,
@@ -51,8 +50,6 @@ import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 interface IfFormProps {
-    // Closes the panel once the chat takes the step over.
-    onClose?: () => void;
     fileName: string;
     node: FlowNode;
     targetLineRange: LineRange;
@@ -63,8 +60,8 @@ interface IfFormProps {
     updatedExpressionField?: ExpressionFormField;
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
-    // Rebuilds the form from a node the form assist filled.
-    onReseed?: (node: FlowNode) => void;
+    // The form's Copilot, given how to read the form's current node.
+    assist?: (toNode: () => FlowNode) => ReactNode;
 }
 
 export function IfForm(props: IfFormProps) {
@@ -79,7 +76,7 @@ export function IfForm(props: IfFormProps) {
         showProgressIndicator,
         resetUpdatedExpressionField,
         subPanelView,
-        onReseed
+        assist
     } = props;
     const {
         watch,
@@ -378,15 +375,7 @@ export function IfForm(props: IfFormProps) {
                     }
                 }}
             >
-                {onReseed && (
-                    <NodeFormAssist
-                        node={node}
-                        location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
-                        toNode={() => buildNode(getValues())}
-                        reseed={onReseed}
-                        onClose={props.onClose}
-                    />
-                )}
+                {assist?.(() => buildNode(getValues()))}
                 {branches.map((branch, index) => {
                     if (branch.properties?.condition && branch.label !== "Else") {
                         const field = convertNodePropertyToFormField(`branch-${index}`, branch.properties.condition);

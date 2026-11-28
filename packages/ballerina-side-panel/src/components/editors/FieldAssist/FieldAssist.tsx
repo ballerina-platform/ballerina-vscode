@@ -46,7 +46,7 @@ export interface Proposal extends ExpressionAssistResponse {
     expression: string;
 }
 
-interface AssistState {
+export interface AssistState {
     history: string[];
     // Copilot's reply to each turn in `history`, by index.
     replies?: string[];
@@ -90,6 +90,24 @@ export function AssistButton({ disabled }: { disabled?: boolean }) {
 }
 
 export const newRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+// The running request: a new one or unmounting aborts it.
+export function usePendingRequest(abort?: (requestId: string) => void) {
+    const pending = useRef<string>();
+    const cancel = () => {
+        if (pending.current) {
+            abort?.(pending.current);
+            pending.current = undefined;
+        }
+    };
+    useEffect(() => cancel, []);
+    const start = () => {
+        cancel();
+        pending.current = newRequestId();
+        return pending.current;
+    };
+    return { pending, cancel, start };
+}
 
 // Resolves to what removes the created items again, where the host can remove them.
 export type RunAssistActions = (actions: ExpressionAssistAction[], fieldValue: string) => Promise<void | (() => Promise<void>)>;
@@ -154,14 +172,18 @@ function fieldReply(response: ExpressionAssistResponse, unchanged: boolean): str
     return response.explanation ?? response.flowChange?.reason ?? response.error;
 }
 
-// A card opened on a finished turn, e.g. one whose change was reviewed, shows the reply it got, as the form's thread does;
-// a turn that ends while the card is open shows its own result, or the card closes for the review.
+export const hasAnswer = ({ proposal, question, error, handoff, failed }: AssistState) => !!(proposal || question || error || handoff || failed);
+
+// A card opened on a finished turn shows the reply it got; a turn that ends while it is open shows its own result.
 const latestReply = (state: AssistState, openedAt: number) => {
-    const answered = state.proposal || state.question || state.error || state.handoff || state.failed || state.declined !== undefined;
+    const answered = hasAnswer(state) || state.declined !== undefined;
     return state.reply ?? (answered || state.history.length !== openedAt ? undefined : state.replies?.[openedAt - 1]);
 };
 
-const withReply = (replies: string[] = [], index: number, text?: string) => {
+// The thread stays, so a follow-up reads against the requests before it.
+const idle = ({ history, replies }: AssistState): AssistState => ({ history, replies, loading: false });
+
+export const withReply = (replies: string[] = [], index: number, text?: string) => {
     const next = [...replies];
     next[index] = text ?? "";
     return next;
@@ -172,15 +194,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
     const [state, setState] = useState<AssistState>(() => ({ history: thread?.history ?? [], replies: thread?.replies, loading: false }));
     useEffect(() => thread?.keep(state.history, state.replies), [state.history, state.replies]);
     const marks = useRef(thread?.marks ?? new Map<number, string>());
-    const pending = useRef<string>();
-
-    const cancel = () => {
-        if (pending.current) {
-            abort?.(pending.current);
-            pending.current = undefined;
-        }
-    };
-    useEffect(() => cancel, []);
+    const { pending, cancel, start } = usePendingRequest(abort);
 
     // A request only the main Copilot can carry out: code outside the form, or a value that never compiled.
     const sentOutside = (response: ExpressionAssistResponse, unchanged: boolean) => {
@@ -198,8 +212,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         if (!review || !response.expression || unchanged || sensitive || withheld) {
             return false;
         }
-        // The thread stays, so a follow-up or a Revise reads against the requests before it, as in the form.
-        setState((prev) => ({ history: prev.history, replies: prev.replies, loading: false }));
+        setState(idle);
         // A value that can't land, e.g. a configurable this form can't create, keeps the thread open with the reason.
         Promise.resolve(review(response as Proposal, asked ?? "")).catch((error: Error) => setState((prev) => ({ ...prev, error: error.message })));
         return true;
@@ -219,9 +232,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
         if (!assist) {
             return;
         }
-        cancel();
-        const requestId = newRequestId();
-        pending.current = requestId;
+        const requestId = start();
         // Each prompt refines the latest suggestion, not the saved value.
         const value = state.proposal?.expression ?? getValue();
         const withheld = shouldWithhold(value, sensitive);
@@ -254,16 +265,11 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
             handOff([...state.history, asked], state.proposal?.expression);
             return;
         }
-        if (response.question) {
-            setState((prev) => ({ ...prev, loading: false, question: response.question, error: undefined }));
-            return;
-        }
-        if (response.explanation) {
-            setState((prev) => ({ ...prev, loading: false, reply: response.explanation, error: undefined }));
-            return;
-        }
-        if (response.declined) {
-            setState((prev) => ({ ...prev, loading: false, declined: response.error ?? "", error: undefined }));
+        const answer = response.question ? { question: response.question }
+            : response.explanation ? { reply: response.explanation }
+            : response.declined ? { declined: response.error ?? "" } : undefined;
+        if (answer) {
+            setState((prev) => ({ ...prev, loading: false, ...answer, error: undefined }));
             return;
         }
         if (sentOutside(response, unchanged)) {
@@ -295,7 +301,7 @@ export function useFieldAssist({ assist, thread, abort, getValue, sensitive = fa
     const close = () => {
         cancel();
         setOpen(false);
-        setState((prev) => ({ history: prev.history, replies: prev.replies, loading: false }));
+        setState(idle);
     };
 
     // The next request goes without the earlier ones; the value and any change under review stay.
@@ -349,11 +355,9 @@ interface FieldAssistPanelProps {
     display?: (expression: string) => string;
     // The field's current errors; while there are any, the first starter fixes them.
     currentErrors?: () => string[];
-    embedded?: boolean;
-    headless?: boolean;
 }
 
-export function FieldAssistPanel({ assist, value, onApply, display = (expression) => expression, currentErrors, embedded, headless }: FieldAssistPanelProps) {
+export function FieldAssistPanel({ assist, value, onApply, display = (expression) => expression, currentErrors }: FieldAssistPanelProps) {
     const { state } = assist;
     const { proposal } = state;
     const [openedAt] = useState(state.history.length);
@@ -396,8 +400,7 @@ export function FieldAssistPanel({ assist, value, onApply, display = (expression
             onClear={assist.clear}
             proposal={proposal ?? state.handoff}
             onAccept={apply}
-            embedded={embedded}
-            headless={headless}
+            headless
             starters={starters}
             onStarter={runStarter}
             reply={latestReply(state, openedAt)}

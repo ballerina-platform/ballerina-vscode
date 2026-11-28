@@ -668,6 +668,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
         setAssistSeed(undefined);
         formValuesRef.current = {};
     }, [node]);
+    const trackFormValues = (_key: string, _value: unknown, allValues: FormValues) => { formValuesRef.current = allValues; };
     const reseedForm = (patched: FlowNode) => {
         if (!CUSTOM_FORM_NODES.has(patched.codedata.node)) {
             initForm(patched);
@@ -2189,15 +2190,41 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
         pushTypeStack(getDefaultValue(typeName));
     }
 
+    const typeEditorAt = (item: StackItem, i: number) => (
+        <EditorContext.Provider value={levelEditorContext(i)}>
+            <FormTypeEditor
+                type={item.type}
+                newType={item.isDirty}
+                newTypeValue={typeEditorState.newTypeValue}
+                isGraphql={isGraphql}
+                onTypeChange={(type) => onTypeChange(type, i === 0)}
+                onSaveType={onSaveType}
+                onTypeCreate={() => { }}
+                isPopupTypeForm={true}
+                getNewTypeCreateForm={getNewTypeCreateForm}
+                refetchTypes={refetchStates[i]}
+            />
+        </EditorContext.Provider>
+    );
+
+    const nodeAssist = (toNode: () => FlowNode) => (
+        <NodeFormAssist
+            node={assistSeed?.node ?? node}
+            location={{ fileName, startLine: targetLineRange.startLine, codedata: (assistSeed?.node ?? node).codedata }}
+            toNode={toNode}
+            reseed={reseedForm}
+            onClose={props.onClose}
+        />
+    );
+
     // handle if node form
     if (node?.codedata.node === "IF") {
         return (
             <IfForm
                 key={assistSeed?.key}
-                onClose={props.onClose}
                 fileName={fileName}
                 node={assistSeed?.node ?? node}
-                onReseed={reseedForm}
+                assist={nodeAssist}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 showProgressIndicator={showProgressIndicator}
@@ -2215,10 +2242,9 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
         return (
             <MatchForm
                 key={assistSeed?.key}
-                onClose={props.onClose}
                 fileName={fileName}
                 node={assistSeed?.node ?? node}
-                onReseed={reseedForm}
+                assist={nodeAssist}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 onSubmit={onSubmit}
@@ -2237,10 +2263,9 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
             <EditorContext.Provider value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}>
                 <ForkForm
                     key={assistSeed?.key}
-                    onClose={props.onClose}
                     fileName={fileName}
                     node={assistSeed?.node ?? node}
-                    onReseed={reseedForm}
+                    assist={nodeAssist}
                     targetLineRange={targetLineRange}
                     openRecordEditor={handleOpenTypeEditor}
                     expressionEditor={expressionEditor}
@@ -2273,20 +2298,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             </BreadcrumbContainer>
                         )}
                         <div style={{ height: '560px', overflow: 'auto' }}>
-                            <EditorContext.Provider value={levelEditorContext(i)}>
-                                <FormTypeEditor
-                                    type={item.type}
-                                    newType={item.isDirty}
-                                    newTypeValue={typeEditorState.newTypeValue}
-                                    isGraphql={isGraphql}
-                                    onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                    onSaveType={onSaveType}
-                                    onTypeCreate={() => { }}
-                                    isPopupTypeForm={true}
-                                    getNewTypeCreateForm={getNewTypeCreateForm}
-                                    refetchTypes={refetchStates[i]}
-                                />
-                            </EditorContext.Provider>
+                            {typeEditorAt(item, i)}
                         </div>
                     </DynamicModal>)
                 }
@@ -2311,7 +2323,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 key={assistSeed?.key}
                 fileName={fileName}
                 node={assistSeed?.node ?? node}
-                onChange={(_key, _value, allValues) => { formValuesRef.current = allValues; }}
+                onChange={trackFormValues}
                 injectedComponents={[{ component: formAssist, index: 0 }]}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
@@ -2365,7 +2377,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     formFields={fields}
                     projectPath={projectPath}
                     selectedNode={node.codedata.node}
-                    onChange={(_key, _value, allValues) => { formValuesRef.current = allValues; }}
+                    onChange={trackFormValues}
                     injectedComponents={[{ component: formAssist, index: 0 }]}
                     openRecordEditor={handleOpenTypeEditor}
                     onSubmit={handleOnSubmit}
@@ -2435,20 +2447,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             </BreadcrumbContainer>
                         )}
                         <div style={{ height: '560px', overflow: 'auto' }}>
-                            <EditorContext.Provider value={levelEditorContext(i)}>
-                                <FormTypeEditor
-                                    type={item.type}
-                                    newType={item.isDirty}
-                                    newTypeValue={typeEditorState.newTypeValue}
-                                    isGraphql={isGraphql}
-                                    onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                    onSaveType={onSaveType}
-                                    onTypeCreate={() => { }}
-                                    isPopupTypeForm={true}
-                                    getNewTypeCreateForm={getNewTypeCreateForm}
-                                    refetchTypes={refetchStates[i]}
-                                />
-                            </EditorContext.Provider>
+                            {typeEditorAt(item, i)}
                         </div>
                     </DynamicModal>)
                 }
@@ -2642,20 +2641,7 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         </BreadcrumbContainer>
                     )}
                     <div style={{ height: '560px', overflow: 'auto' }}>
-                        <EditorContext.Provider value={levelEditorContext(i)}>
-                            <FormTypeEditor
-                                type={item.type}
-                                newType={item.isDirty}
-                                newTypeValue={typeEditorState.newTypeValue}
-                                isPopupTypeForm={true}
-                                isGraphql={isGraphql}
-                                onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                onSaveType={onSaveType}
-                                onTypeCreate={() => { }}
-                                getNewTypeCreateForm={getNewTypeCreateForm}
-                                refetchTypes={refetchStates[i]}
-                            />
-                        </EditorContext.Provider>
+                        {typeEditorAt(item, i)}
                     </div>
                 </DynamicModal>
             ))}

@@ -21,7 +21,7 @@ import { z } from "zod";
 import { AvailableNode, Category, Item, LineRange } from "@wso2/ballerina-core";
 import { StateMachine } from "../../../stateMachine";
 import { BiDiagramRpcManager } from "../../../rpc-managers/bi-diagram/rpc-manager";
-import { AssistSite, describeEnclosing, describeType, propertyWith, typeImports } from "./context";
+import { AssistSite, describeEnclosing, describeScope, describeType, propertyWith, typeImports } from "./context";
 
 const SEARCH_LIMIT = 12;
 const SIGNATURE_LIMIT = 3;
@@ -122,15 +122,19 @@ async function valueMethods(site: AssistSite, value: string): Promise<string> {
     return methods.length ? methods.join("\n") : `No methods found for ${value}.`;
 }
 
-async function searchFunctions(site: AssistSite, query: string, run: LookupState): Promise<string> {
+async function indexSearch(site: AssistSite, q: string, limit: number): Promise<Category[]> {
     const response = await StateMachine.langClient().search({
         filePath: site.filePath,
         position: { startLine: site.context.startLine, endLine: site.context.startLine },
         // The local index, not Central: a slow Central reply would use up the whole run.
-        queryMap: { q: query, limit: SEARCH_LIMIT, offset: 0, includeAvailableFunctions: "true", functionSource: "index" },
+        queryMap: { q, limit, offset: 0, includeAvailableFunctions: "true", functionSource: "index" },
         searchKind: "FUNCTION",
     }).catch((): undefined => undefined);
-    const nodes = flattenNodes((response?.categories ?? []) as Category[]).slice(0, SEARCH_LIMIT);
+    return (response?.categories ?? []) as Category[];
+}
+
+async function searchFunctions(site: AssistSite, query: string, run: LookupState): Promise<string> {
+    const nodes = flattenNodes(await indexSearch(site, query, SEARCH_LIMIT)).slice(0, SEARCH_LIMIT);
     if (nodes.length === 0) {
         return "No functions found. Try another keyword.";
     }
@@ -179,19 +183,18 @@ const PROJECT_FUNCTION_LIMIT = 20;
 const PROJECT_CATEGORY = "Current Integration";
 
 /** The project's own functions, so a request a helper already covers calls it rather than redoing its logic. */
-export async function projectFunctions(site: AssistSite): Promise<string> {
-    const response = await StateMachine.langClient().search({
-        filePath: site.filePath,
-        position: { startLine: site.context.startLine, endLine: site.context.startLine },
-        queryMap: { q: "", limit: PROJECT_FUNCTION_LIMIT, offset: 0, includeAvailableFunctions: "true", functionSource: "index" },
-        searchKind: "FUNCTION",
-    }).catch((): undefined => undefined);
-    const project = ((response?.categories ?? []) as Category[]).filter((category) => category.metadata?.label === PROJECT_CATEGORY);
+async function projectFunctions(site: AssistSite): Promise<string> {
+    const project = (await indexSearch(site, "", PROJECT_FUNCTION_LIMIT)).filter((category) => category.metadata?.label === PROJECT_CATEGORY);
     const lines = flattenNodes(project).slice(0, PROJECT_FUNCTION_LIMIT).map((node) => {
         const about = node.metadata.description?.split("\n")[0];
         return `- ${node.codedata.symbol}${about ? ` — ${about}` : ""}`;
     });
     return lines.length ? `Project functions (read one with function_docs before calling it):\n${lines.join("\n")}` : "";
+}
+
+// The variables in scope and the project's functions, as the prompt lists them.
+export async function describeInScope(site: AssistSite): Promise<string> {
+    return (await Promise.all([describeScope(site), projectFunctions(site)])).filter(Boolean).join("\n");
 }
 
 function flattenNodes(items: Item[]): AvailableNode[] {

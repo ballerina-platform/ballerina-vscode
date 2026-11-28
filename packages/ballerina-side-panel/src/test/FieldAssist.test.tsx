@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { ExpressionAssistResponse } from "@wso2/ballerina-core";
 import {
     AssistButton,
@@ -32,7 +32,6 @@ import { FormAssistDescription, changesOf, keepUnsavedEdits } from "../component
 import { AppliedMark, AssistHeaderButton, AssistHostProvider, AssistHostValue, FormController, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { AssistShell } from "../components/editors/FieldAssist/AssistShell";
-import { ReviewDiff } from "../components/editors/FieldAssist/ChangeReview";
 
 interface HarnessProps {
     initial: string;
@@ -69,6 +68,16 @@ function Harness({ initial, assist, abort, sensitive, onApply, thread, review, c
 
 const promptBox = () => screen.getByRole("textbox");
 
+// Copilot's responses, one per request; the last one repeats.
+const answers = (...responses: ExpressionAssistResponse[]) =>
+    responses.reduce((mock, response, index) => (index === responses.length - 1 ? mock.mockResolvedValue(response) : mock.mockResolvedValueOnce(response)), jest.fn());
+
+function start(assist: AssistExpression, props: Partial<HarnessProps> = {}) {
+    const view = render(<Harness initial="" assist={assist} {...props} />);
+    fireEvent.click(screen.getByText("open"));
+    return view;
+}
+
 async function ask(text: string) {
     fireEvent.change(promptBox(), { target: { value: text } });
     await act(async () => {
@@ -78,10 +87,8 @@ async function ask(text: string) {
 
 describe("FieldAssist", () => {
     it("writes a value for an empty field and inserts it with Tab", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "0.08d * total", note: "Adds tax" }));
-        render(<Harness initial="" assist={assist} />);
-
-        fireEvent.click(screen.getByText("open"));
+        const assist = answers({ expression: "0.08d * total", note: "Adds tax" });
+        start(assist);
         await ask("8% tax on the total");
 
         expect(assist).toHaveBeenCalledWith(expect.objectContaining({ mode: "generate", value: "", instruction: "8% tax on the total" }));
@@ -92,15 +99,13 @@ describe("FieldAssist", () => {
             fireEvent.keyDown(promptBox(), { key: "Tab" });
         });
         expect(screen.getByTestId("value").textContent).toBe("0.08d * total");
-        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(screen.queryByRole("textbox")).toBeNull();
     });
 
     it("refines the latest suggestion rather than the saved value", async () => {
         const assist = jest.fn(async (input: FieldAssistInput): Promise<ExpressionAssistResponse> =>
             ({ expression: `${input.value}.trim()` }));
-        render(<Harness initial="name" assist={assist} />);
-
-        fireEvent.click(screen.getByText("open"));
+        start(assist, { initial: "name" });
         await ask("trim it");
         await screen.findByText("Replace");
         await ask("again");
@@ -112,7 +117,7 @@ describe("FieldAssist", () => {
     });
 
     it("fixes with the field's errors and shows the reason when no value works", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ error: "The type has no status field." }));
+        const assist = answers({ error: "The type has no status field." });
         render(<Harness initial="request.message" assist={assist} />);
 
         await act(async () => {
@@ -131,9 +136,7 @@ describe("FieldAssist", () => {
             return new Promise<ExpressionAssistResponse>(() => undefined);
         });
         const abort = jest.fn();
-        render(<Harness initial="" assist={assist} abort={abort} />);
-
-        fireEvent.click(screen.getByText("open"));
+        start(assist, { abort });
         await ask("anything");
         fireEvent.keyDown(promptBox(), { key: "Escape" });
 
@@ -142,20 +145,16 @@ describe("FieldAssist", () => {
         expect(screen.getByText("anything")).toBeTruthy();
     });
 
-    it("sends the thread's earlier requests and shows a question's answers", async () => {
-        const assist = jest.fn()
-            .mockResolvedValueOnce({ question: { text: "Which total?", options: ["subtotal", "grandTotal"] } })
-            .mockResolvedValueOnce({ expression: "0.08d * grandTotal" });
-        render(<Harness initial="" assist={assist} />);
-
-        fireEvent.click(screen.getByText("open"));
+    it("sends the thread's earlier requests and replies, and shows a question's answers", async () => {
+        const assist = answers({ question: { text: "Which total?", options: ["subtotal", "grandTotal"] } }, { expression: "0.08d * grandTotal" });
+        start(assist);
         await ask("8% tax on the total");
         await act(async () => {
             fireEvent.click(await screen.findByText("grandTotal"));
         });
 
         expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({
-            instruction: "grandTotal", earlier: ["8% tax on the total (not done)"], asked: "Which total?",
+            instruction: "grandTotal", earlier: ["8% tax on the total (not done)"], replies: ["Which total? (subtotal, grandTotal)"], asked: "Which total?",
         }));
         expect(await screen.findByText("Insert")).toBeTruthy();
     });
@@ -164,25 +163,20 @@ describe("FieldAssist", () => {
         const kept = new Map<string, string[]>();
         const marks = new Map<number, string>();
         const thread = (): FieldThread => ({ history: kept.get("total") ?? [], marks, keep: (history) => { kept.set("total", history); } });
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "subtotal * 1.08d" }));
-        const first = render(<Harness initial="" assist={assist} thread={thread()} />);
-        fireEvent.click(screen.getByText("open"));
+        const assist = answers({ expression: "subtotal * 1.08d" });
+        const first = start(assist, { thread: thread() });
         await ask("8% tax on the subtotal");
         first.unmount();
 
-        render(<Harness initial="" assist={assist} thread={thread()} />);
-        fireEvent.click(screen.getByText("open"));
+        start(assist, { thread: thread() });
         await ask("round it to 2 places");
 
         expect(assist).toHaveBeenLastCalledWith(expect.objectContaining({ earlier: ["8% tax on the subtotal"] }));
     });
 
     it("marks a request that changed nothing, so the next one does not read it as applied", async () => {
-        const assist = jest.fn()
-            .mockResolvedValueOnce({ error: "This took too long. Try again." })
-            .mockResolvedValueOnce({ expression: "subtotal * 1.08d" });
-        render(<Harness initial="" assist={assist} />);
-        fireEvent.click(screen.getByText("open"));
+        const assist = answers({ error: "This took too long. Try again." }, { expression: "subtotal * 1.08d" });
+        start(assist);
         await ask("8% tax on the subtotal");
         await ask("8% tax on the subtotal");
 
@@ -192,9 +186,7 @@ describe("FieldAssist", () => {
     it("lands a value that comes with a hand-off for review, carrying the hand-off", async () => {
         const flowChange = { reason: "Sending the email needs a new node.", request: "Add an email node that sends the confirmation to confirmTo." };
         const review = jest.fn();
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "booking.lead.email", flowChange }));
-        render(<Harness initial="" assist={assist} review={review} continueInChat={jest.fn()} />);
-        fireEvent.click(screen.getByText("open"));
+        start(answers({ expression: "booking.lead.email", flowChange }), { review, continueInChat: jest.fn() });
         await ask("email the booking confirmation to the guest");
 
         expect(review).toHaveBeenCalledWith(expect.objectContaining({ expression: "booking.lead.email", flowChange }), "email the booking confirmation to the guest");
@@ -203,12 +195,7 @@ describe("FieldAssist", () => {
 
     it("lands a value that creates a configurable for review, and keeps the thread open with the reason when it can't land", async () => {
         const review = jest.fn().mockRejectedValueOnce(new Error("This form can't create configurables yet."));
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({
-            expression: "apiKey",
-            actions: [{ kind: "createConfigurable", name: "apiKey", type: "string", documentation: "" }],
-        }));
-        render(<Harness initial='"abc"' assist={assist} review={review} />);
-        fireEvent.click(screen.getByText("open"));
+        start(answers({ expression: "apiKey", actions: [{ kind: "createConfigurable", name: "apiKey", type: "string", documentation: "" }] }), { initial: '"abc"', review });
         await ask("move it to a configurable");
 
         expect(review).toHaveBeenCalledWith(expect.objectContaining({ expression: "apiKey" }), "move it to a configurable");
@@ -216,9 +203,8 @@ describe("FieldAssist", () => {
     });
 
     it("clears the thread, so the next request goes without the earlier ones", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ explanation: "It adds tax." }));
-        render(<Harness initial="subtotal" assist={assist} />);
-        fireEvent.click(screen.getByText("open"));
+        const assist = answers({ explanation: "It adds tax." });
+        start(assist, { initial: "subtotal" });
         await ask("what does this do");
         fireEvent.click(screen.getByRole("button", { name: "Clear chat" }));
 
@@ -228,10 +214,7 @@ describe("FieldAssist", () => {
     });
 
     it("shows a decline as its own card", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ error: "That is not about this value.", declined: true }));
-        render(<Harness initial="" assist={assist} />);
-
-        fireEvent.click(screen.getByText("open"));
+        start(answers({ error: "That is not about this value.", declined: true }));
         await ask("what's the weather");
 
         expect(await screen.findByText("Request Not Applied")).toBeTruthy();
@@ -239,13 +222,8 @@ describe("FieldAssist", () => {
     });
 
     it("withholds a secret from the request and says so", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({
-            expression: "anthropicApiKey",
-            actions: [{ kind: "createConfigurable", name: "anthropicApiKey", type: "string", useFieldValue: true }],
-        }));
-        render(<Harness initial={"\"my-secret\""} assist={assist} sensitive />);
-
-        fireEvent.click(screen.getByText("open"));
+        const assist = answers({ expression: "anthropicApiKey", actions: [{ kind: "createConfigurable", name: "anthropicApiKey", type: "string", useFieldValue: true }] });
+        start(assist, { initial: "\"my-secret\"", sensitive: true });
         await ask("make this a configurable");
 
         expect(assist).toHaveBeenCalledWith(expect.objectContaining({ value: "", valueWithheld: true }));
@@ -256,9 +234,7 @@ describe("FieldAssist", () => {
 
     it("holds back a prompt that contains a key", async () => {
         const assist = jest.fn();
-        render(<Harness initial="" assist={assist} />);
-
-        fireEvent.click(screen.getByText("open"));
+        start(assist);
         await ask("use sk-ant-api03-abcdefghijklmnopqrstuv as the value");
 
         expect(assist).not.toHaveBeenCalled();
@@ -267,13 +243,7 @@ describe("FieldAssist", () => {
     });
 
     it("keeps the suggestion open when applying it fails", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "apiKey" }));
-        const onApply = jest.fn(async () => {
-            throw new Error("Couldn't create the configurable.");
-        });
-        render(<Harness initial="" assist={assist} onApply={onApply} />);
-
-        fireEvent.click(screen.getByText("open"));
+        start(answers({ expression: "apiKey" }), { onApply: jest.fn().mockRejectedValue(new Error("Couldn't create the configurable.")) });
         await ask("a configurable");
         await act(async () => {
             fireEvent.click(await screen.findByText("Insert"));
@@ -282,7 +252,6 @@ describe("FieldAssist", () => {
         expect(screen.getByRole("alert").textContent).toBe("Couldn't create the configurable.");
         expect(screen.getByTestId("value").textContent).toBe("");
     });
-
 });
 
 describe("DialogFieldAssist", () => {
@@ -320,7 +289,7 @@ describe("DialogFieldAssist", () => {
     }
 
     it("writes the suggestion and its imports into the dialog's field, then reviews it and undoes it", async () => {
-        const assistExpression = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: AFTER, imports: { http: "ballerina/http" }, note: "Adds PUT" }));
+        const assistExpression = answers({ expression: AFTER, imports: { http: "ballerina/http" }, note: "Adds PUT" });
         const onApply = jest.fn();
         render(<DialogHarness assistExpression={assistExpression} onApply={onApply} />);
 
@@ -386,7 +355,7 @@ describe("undone changes", () => {
 });
 
 describe("field threads in a host", () => {
-    const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "1" }));
+    const assist = answers({ expression: "1" });
     function HostedField() {
         const host = useAssistHost()!;
         useEffect(() => host.registerField("expression", {} as never), [host.registerField]);
@@ -421,21 +390,8 @@ describe("field threads in a host", () => {
 });
 
 describe("a field thread's replies", () => {
-    it("go with the next request, so a follow-up can refer to them", async () => {
-        const assist = jest.fn(async (input: FieldAssistInput): Promise<ExpressionAssistResponse> =>
-            input.earlier ? { expression: "\"UPI\"" } : { question: { text: "Which method?", options: ["UPI", "WALLET"] } });
-        render(<Harness initial="" assist={assist} />);
-        fireEvent.click(screen.getByText("open"));
-        await ask("a payment method");
-        await ask("the first one");
-
-        expect(assist.mock.calls[1][0]).toMatchObject({ earlier: ["a payment method (not done)"], replies: ["Which method? (UPI, WALLET)"] });
-    });
-
     it("show the latest reply when the card opens again after a review, and not while the review takes over", async () => {
-        const assist = jest.fn(async (): Promise<ExpressionAssistResponse> => ({ expression: "1", note: "Sets it to one." }));
-        render(<Harness initial="" assist={assist} review={jest.fn()} />);
-        fireEvent.click(screen.getByText("open"));
+        start(answers({ expression: "1", note: "Sets it to one." }), { review: jest.fn() });
         await ask("one");
         expect(screen.queryByText("Sets it to one.")).toBeNull();
 
@@ -520,10 +476,36 @@ describe("Revise from a field's change card", () => {
     });
 });
 
-describe("ReviewDiff", () => {
-    it("shows a replaced expression as code, with no chip for a value it names", () => {
-        const { container } = render(<ReviewDiff before="order.total" after="{amount: 0d}" display="code" />);
-        expect(container.textContent).toBe("−order.total");
-        expect(container.querySelector("i, [class*='codicon'], [class*='fw-']")).toBeNull();
+const askHook = async (response: ExpressionAssistResponse, continueInChat?: jest.Mock) => {
+    const { result } = renderHook(() => useFieldAssist({ assist: async () => response, getValue: () => "new ()", continueInChat }));
+    await act(async () => {
+        result.current.submit("pass tier GOLD");
+    });
+    return result;
+};
+
+describe("field Copilot hand-off to the main Copilot", () => {
+    it("offers a change outside the form and sends its request with the user's words", async () => {
+        const toChat = jest.fn();
+        const result = await askHook({ flowChange: { reason: "It needs a step before the agent runs.", request: "Create a context with tier GOLD." } }, toChat);
+        expect(result.current.state.handoff?.request).toBe("Create a context with tier GOLD.");
+        result.current.toChat();
+        expect(toChat).toHaveBeenCalledWith("Create a context with tier GOLD.", expect.stringContaining("\"pass tier GOLD\""));
+        expect(toChat.mock.calls[0][1]).toContain("It needs a step before the agent runs.");
+    });
+
+    it("offers the user's request when no value compiled", async () => {
+        const toChat = jest.fn();
+        const result = await askHook({ error: "Couldn't find a value that works here: bad", errors: ["bad"] }, toChat);
+        expect(result.current.state.failed).toEqual(["bad"]);
+        expect(result.current.state.error).toBeUndefined();
+        result.current.toChat();
+        expect(toChat).toHaveBeenCalledWith("pass tier GOLD", expect.stringContaining("bad"));
+    });
+
+    it("keeps the error where nothing can take the request", async () => {
+        const result = await askHook({ error: "Couldn't find a value that works here: bad", errors: ["bad"] });
+        expect(result.current.state.failed).toBeUndefined();
+        expect(result.current.state.error).toBe("Couldn't find a value that works here: bad");
     });
 });

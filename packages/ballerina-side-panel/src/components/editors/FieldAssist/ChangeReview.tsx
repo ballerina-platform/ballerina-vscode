@@ -21,7 +21,7 @@ import { createPortal } from "react-dom";
 import { clamp } from "lodash";
 import type { AssistFlowChange } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { AppliedChanges, AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
+import { AppliedChanges, AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, onViewChange, scrollParent, undoAll } from "./AssistHost";
 import { PromptInput } from "./AssistShell";
 import { HandoffCard, handOffNote } from "./Handoff";
 import { CHANGED_FIELD, S } from "./styles";
@@ -209,12 +209,10 @@ function useBeside(field: HTMLElement, side: ReviewSide | undefined, card: HTMLE
         const observer = new ResizeObserver(update);
         observer.observe(field);
         card && observer.observe(card);
-        view.addEventListener("resize", update);
-        view.addEventListener("scroll", update, true);
+        const stop = onViewChange(view, update);
         return () => {
             observer.disconnect();
-            view.removeEventListener("resize", update);
-            view.removeEventListener("scroll", update, true);
+            stop();
         };
     }, [field, side, card]);
     return side ? besideField(field, side, card?.offsetHeight ?? 0) : undefined;
@@ -233,30 +231,26 @@ export function ChangeCard({ host, fieldKey, mark, field, inline }: ChangeCardPr
     const [card, setCard] = useState<HTMLDivElement | null>(null);
     const side = mark.inField || inline ? undefined : host.reviewSide;
     const beside = useBeside(field, side, card);
+    const keys = reviewOrder(host);
+    const added = changeKind(mark.added ? "" : mark.before, mark.after ?? "", mark.display) === "added";
     const changeCard = (
         <S.ChangeCard
             ref={setCard}
             beside={!!beside}
             data-copilot-card
             role="group"
-            aria-label={cardLabel(host, fieldKey, mark)}
+            aria-label={`Copilot change ${keys.indexOf(fieldKey) + 1} of ${keys.length}: ${mark.label}${added ? ", added" : ""}`}
             style={beside ? { left: beside.left, top: beside.top, width: beside.width, visibility: beside.hidden ? "hidden" : undefined } : undefined}
         >
             <S.ChangeCaret aria-hidden="true" side={beside ? side : undefined} style={beside ? { top: beside.caret } : undefined} />
-            <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} />
+            <ChangeCardContent host={host} fieldKey={fieldKey} mark={mark} field={field} hidden={!!beside?.hidden} keys={keys} added={added} />
         </S.ChangeCard>
     );
     // Out of the form's flow, so the fields below stay where they are; inside a dialog, so it stays above the dialog's backdrop.
     return beside ? createPortal(changeCard, field.closest("[role=dialog]") ?? field.ownerDocument.body) : changeCard;
 }
 
-function cardLabel(host: AssistHostValue, fieldKey: string, mark: AppliedMark): string {
-    const keys = reviewOrder(host);
-    const added = changeKind(mark.added ? "" : mark.before, mark.after ?? "", mark.display) === "added";
-    return `Copilot change ${keys.indexOf(fieldKey) + 1} of ${keys.length}: ${mark.label}${added ? ", added" : ""}`;
-}
-
-function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardProps & { hidden: boolean }) {
+function ChangeCardContent({ host, fieldKey, mark, field, hidden, keys, added }: ChangeCardProps & { hidden: boolean; keys: string[]; added: boolean }) {
     const buttons: Record<ReviewFocus, React.RefObject<HTMLButtonElement>> = { keep: useRef(null), previous: useRef(null), next: useRef(null) };
     const reviseRef = useRef<HTMLButtonElement>(null);
     const revising = host.revising === fieldKey;
@@ -274,7 +268,6 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
             focusNext.current = undefined;
         }
     }, [mark, hidden]);
-    const keys = reviewOrder(host);
     const index = keys.indexOf(fieldKey);
     const step = (by: number) => keys[(index + by + keys.length) % keys.length];
     const moveTo = (key: string | undefined, focus: ReviewFocus) => {
@@ -301,7 +294,6 @@ function ChangeCardContent({ host, fieldKey, mark, field, hidden }: ChangeCardPr
     const nextChange = keys.length > 1 ? step(1) : undefined;
     const before = mark.added ? "" : mark.before;
     const after = mark.after ?? "";
-    const added = changeKind(before, after, mark.display) === "added";
     const closePrompt = () => {
         host.setRevising(undefined);
         reviseRef.current?.focus({ preventScroll: true });
@@ -389,15 +381,16 @@ const addedLine = (content: React.ReactNode) => (
     <S.DiffLine kind="add"><S.LineSign>+</S.LineSign><S.NewValue>{content}</S.NewValue></S.DiffLine>
 );
 
+const marked = (parts: DiffPart[]) =>
+    parts.map((part, index) => (part.kind === "same" ? part.text : <S.Changed key={index} kind={part.kind}>{part.text}</S.Changed>));
+
 export function ValueDiff({ before, after }: { before: string; after: string }) {
     const kind = changeKind(before, after, "code");
     if (kind !== "edited") {
         return <>{kind !== "added" && removedLine(before)}{kind !== "cleared" && addedLine(after)}</>;
     }
     const parts = wordDiff(before, after, true);
-    const line = (shown: "del" | "ins") => parts
-        .filter((part) => part.kind === "same" || part.kind === shown)
-        .map((part, index) => (part.kind === shown ? <S.Changed key={index} kind={shown}>{part.text}</S.Changed> : part.text));
+    const line = (shown: "del" | "ins") => marked(parts.filter((part) => part.kind === "same" || part.kind === shown));
     return <>{removedLine(line("del"))}{addedLine(line("ins"))}</>;
 }
 
@@ -426,7 +419,7 @@ export function ReviewDiff({ before, after, display }: { before: string; after: 
     return (
         <S.DiffLine kind="edit">
             <S.NewValue>
-                {wordDiff(before, after, display === "code").map((part, index) => (part.kind === "same" ? part.text : <S.Changed key={index} kind={part.kind}>{part.text}</S.Changed>))}
+                {marked(wordDiff(before, after, display === "code"))}
             </S.NewValue>
         </S.DiffLine>
     );

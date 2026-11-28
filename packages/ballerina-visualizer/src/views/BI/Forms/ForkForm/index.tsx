@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Codicon, FormExpressionEditorRef, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -34,7 +34,6 @@ import {
     NodeProperties
 } from "@wso2/ballerina-core";
 import { BRANCH_MARKS, newForkWorker } from "../form-assist/branches";
-import { NodeFormAssist } from "../form-assist/NodeFormAssist";
 import {
     FormValues,
     ExpressionEditor,
@@ -75,8 +74,6 @@ import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 interface ForkFormProps {
-    // Closes the panel once the chat takes the step over.
-    onClose?: () => void;
     fileName: string;
     node: FlowNode;
     openRecordEditor: (isOpen: boolean, f: FormValues, editingField?: FormField, newType?: string | NodeProperties) => void;
@@ -88,8 +85,8 @@ interface ForkFormProps {
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
     showProgressIndicator?: boolean;
-    // Rebuilds the form from a node the form assist filled.
-    onReseed?: (node: FlowNode) => void;
+    // The form's Copilot, given how to read the form's current node.
+    assist?: (toNode: () => FlowNode) => ReactNode;
 }
 
 export function ForkForm(props: ForkFormProps) {
@@ -105,7 +102,7 @@ export function ForkForm(props: ForkFormProps) {
         resetUpdatedExpressionField,
         subPanelView,
         showProgressIndicator,
-        onReseed,
+        assist,
     } = props;
     const {
         watch,
@@ -380,15 +377,7 @@ export function ForkForm(props: ForkFormProps) {
             nodeInfo={{ kind: node.codedata.node }}
         >
             <FormStyles.Container>
-                {onReseed && (
-                    <NodeFormAssist
-                        node={node}
-                        location={{ fileName, startLine: targetLineRange.startLine, codedata: node.codedata }}
-                        toNode={() => buildNode(getValues())}
-                        reseed={onReseed}
-                        onClose={props.onClose}
-                    />
-                )}
+                {assist?.(() => buildNode(getValues()))}
                 {branches.map((branch, index) => {
                     if (branch.properties?.variable) {
                         const variableField = convertNodePropertyToFormField(`branch-${index}`, branch.properties.variable);

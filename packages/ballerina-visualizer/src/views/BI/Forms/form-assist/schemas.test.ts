@@ -38,8 +38,8 @@ const dataMapperNode = template("data_mapper-creation");
 
 const node = (json: unknown) => structuredClone(json) as FlowNode;
 const selectedMode = (property: Property) => (property.types?.find((type) => type.selected) ?? property.types?.[0])?.fieldType;
-const roundTrip = (json: unknown, patch: Parameters<NonNullable<ReturnType<typeof nodeAssistSchema>>["apply"]>[1]) => {
-    const schema = nodeAssistSchema(node(json))!;
+const roundTrip = (json: unknown, patch: Parameters<ReturnType<typeof nodeAssistSchema>["apply"]>[1]) => {
+    const schema = nodeAssistSchema(node(json));
     const applied = schema.apply(node(json), patch);
     return { applied, described: schema.describe(applied) };
 };
@@ -85,7 +85,7 @@ describe("form assist node schemas", () => {
     });
 
     it("describes a Variable's name, type and value as slots", () => {
-        const { slots } = nodeAssistSchema(node(variableNode))!.describe(node(variableNode));
+        const { slots } = nodeAssistSchema(node(variableNode)).describe(node(variableNode));
         expect(slots.map((slot) => slot.path)).toEqual(expect.arrayContaining(["properties.variable", "properties.type", "properties.expression"]));
         expect(slots.find((slot) => slot.path === "properties.expression")?.typeFrom).toBe("properties.type");
     });
@@ -121,7 +121,7 @@ describe("form assist node schemas", () => {
                 },
             },
         };
-        const row = nodeAssistSchema(node(chat))!.describe(node(chat)).groups[0].item[0].property;
+        const row = nodeAssistSchema(node(chat)).describe(node(chat)).groups[0].item[0].property;
         expect(row.types[0].ballerinaType).toBe("ai:ChatMessage");
         expect(row.imports).toEqual({ ai: "ballerina/ai" });
     });
@@ -174,7 +174,7 @@ describe("form assist node schemas", () => {
             metadata: { label: "Input", description: "" }, value: "", optional: false, editable: true,
             types: [{ ...type, selected: true }, { fieldType: "EXPRESSION", selected: false }],
         } as unknown as Property;
-        const schema = nodeAssistSchema(withInput)!;
+        const schema = nodeAssistSchema(withInput);
         expect(selectedMode(schema.describe(withInput).slots.find((slot) => slot.path === "properties.input")!.property)).toBe(offered);
         Object.entries(modes).forEach(([value, mode]) => {
             const input = schema.apply(withInput, { values: { "properties.input": value } }).properties.input as Property;
@@ -193,7 +193,7 @@ describe("form assist node schemas", () => {
             metadata: { label: "Wait", description: "" }, value: false, optional: true, editable: true,
             types: [{ fieldType: "FLAG", selected: true }],
         } as unknown as Property;
-        const schema = nodeAssistSchema(register)!;
+        const schema = nodeAssistSchema(register);
         const slots = schema.describe(register).slots;
         expect(slots.find((slot) => slot.path === "properties.agent")?.property.types?.[0].fieldType).toBe("SINGLE_SELECT");
         expect(slots.find((slot) => slot.path === "properties.wait")?.value).toBe("false");
@@ -201,9 +201,5 @@ describe("form assist node schemas", () => {
         const appliedProperties = applied.properties as Record<string, Property>;
         expect(appliedProperties.agent.value).toBe("supportAgent");
         expect(appliedProperties.wait.value).toBe(true);
-    });
-
-    it("covers agent calls", () => {
-        expect(nodeAssistSchema({ ...node(variableNode), codedata: { node: "AGENT_CALL" } } as FlowNode)).toBeDefined();
     });
 });

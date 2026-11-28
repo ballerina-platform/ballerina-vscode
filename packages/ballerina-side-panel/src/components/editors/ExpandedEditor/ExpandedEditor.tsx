@@ -197,13 +197,6 @@ const ReviewedField = styled.div`
     flex-direction: column;
 `;
 
-const EditorSlot = styled.div`
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-`;
-
 // A step below the toolbar's 32px buttons: secondary actions, but a comparable glyph size.
 const HeaderButton = styled.button<{ active?: boolean }>`
     display: flex;
@@ -470,9 +463,9 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
                 <ModalBody>
                     <ModalContent>
                         <ReviewedField>
-                            <EditorSlot>
+                            <ReviewedField>
                                 <ModeComponent key={revision} {...modeProps} />
-                            </EditorSlot>
+                            </ReviewedField>
                             {assistKey && <AssistMark fieldKey={assistKey} expanded />}
                         </ReviewedField>
                         {assistPanel}
