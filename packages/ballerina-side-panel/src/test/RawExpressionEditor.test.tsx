@@ -72,4 +72,22 @@ describe("ContextAwareRawExpressionEditor", () => {
         expect(props.rawExpression("Hi")).toBe("string `Hi`");
         expect(props.sanitizedExpression("string `Hi`")).toBe("Hi");
     });
+
+    it("writes a string template again once the document is removed, and shows its text", () => {
+        formValue = `\`Read ${DOCUMENT}\``;
+        render(<ContextAwareRawExpressionEditor field={queryField()} />);
+        expect(editorProps.at(-1).rawExpression("Read ")).toBe("string `Read `");
+
+        formValue = "`Read `";
+        render(<ContextAwareRawExpressionEditor field={queryField()} />);
+        const props = editorProps.at(-1);
+        expect(props.sanitizedExpression("`Read `")).toBe("Read ");
+        expect(props.rawExpression("Read again")).toBe("string `Read again`");
+    });
+
+    it("leaves an expression that is not one template as it is", () => {
+        formValue = "`a` + `b`";
+        render(<ContextAwareRawExpressionEditor field={queryField()} />);
+        expect(editorProps.at(-1).sanitizedExpression("`a` + `b`")).toBe("`a` + `b`");
+    });
 });
