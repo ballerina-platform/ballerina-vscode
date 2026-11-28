@@ -4051,14 +4051,14 @@ public class CodeAnalyzer extends NodeVisitor {
         SyntaxKind parentKind = node.parent().kind();
         if (parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION) {
             nodeBuilder.properties().checkError(true);
-        } else {
-            functionTypeSymbol.returnTypeDescriptor()
-                    .ifPresent(typeSymbol -> {
-                        if (CommonUtils.subTypeOf(typeSymbol, semanticModel.types().ERROR)
-                                && CommonUtils.withinDoClause(node)) {
-                            nodeBuilder.properties().checkError(false);
-                        }
-                    });
+            return;
+        }
+        // A form fills a missing checkError from the template, which checks every call that can fail.
+        boolean canFail = functionTypeSymbol.returnTypeDescriptor()
+                .map(typeSymbol -> CommonUtils.subTypeOf(typeSymbol, semanticModel.types().ERROR))
+                .orElse(false);
+        if (canFail) {
+            nodeBuilder.properties().checkError(false);
         }
     }
 
