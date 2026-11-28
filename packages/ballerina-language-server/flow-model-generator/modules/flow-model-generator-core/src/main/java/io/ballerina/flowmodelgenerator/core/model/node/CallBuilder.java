@@ -181,10 +181,11 @@ public abstract class CallBuilder extends NodeBuilder {
         boolean keepsError = keepsErrorAt(context, functionData);
         if (keepsError) {
             String returnType = functionData.returnType();
-            String nameFrom = returnType.isBlank() || !CommonUtils.hasReturn(returnType) ? "error" : returnType;
+            boolean hasValue = !returnType.isBlank() && CommonUtils.hasReturn(returnType);
+            String nameFrom = hasValue ? returnType : "error";
             properties()
-                    .type(withError(returnType), false, functionData.importStatements(), false,
-                            Property.RESULT_TYPE_LABEL)
+                    .type(FlowNodeUtil.withErrorReturn(hasValue ? returnType : ""), false,
+                            functionData.importStatements(), false, Property.RESULT_TYPE_LABEL)
                     .data(nameFrom, context.getAllVisibleSymbolNames(), Property.RESULT_NAME, Property.RESULT_DOC,
                             false);
         } else if (CommonUtils.hasReturn(functionData.returnType())) {
@@ -199,6 +200,13 @@ public abstract class CallBuilder extends NodeBuilder {
     private boolean keepsErrorAt(TemplateContext context, FunctionData functionData) {
         return functionData.returnError() && !functionData.inferredReturnType()
                 && CHECKED_BY_POSITION.contains(getFunctionNodeKind()) && checkHasNowhereToGo(context);
+    }
+
+    // Agent templates are cached per agent, so they are unchecked here where the error can't go.
+    protected void uncheckWhereErrorCannotGo(TemplateContext context) {
+        if (properties().build().containsKey(Property.CHECK_ERROR_KEY) && checkHasNowhereToGo(context)) {
+            properties().checkError(false);
+        }
     }
 
     // No do clause with on fail and no error return to take a check's error; false when the position is unknown.
@@ -241,13 +249,6 @@ public abstract class CallBuilder extends NodeBuilder {
             }
         }
         return Optional.empty();
-    }
-
-    private static String withError(String returnType) {
-        if (returnType.isBlank() || !CommonUtils.hasReturn(returnType)) {
-            return "error?";
-        }
-        return (returnType.contains(" ") ? "(" + returnType + ")" : returnType) + "|error";
     }
 
     /**
