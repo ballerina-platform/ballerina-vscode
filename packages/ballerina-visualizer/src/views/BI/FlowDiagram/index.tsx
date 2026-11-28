@@ -1124,8 +1124,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                                 typeof currentSelectedNode?.properties?.variable?.value === "string"
                             ) {
                                 const updatedSelectedNode = searchNodesByStartLine(model.flowModel.nodes, currentSelectedNode?.codedata.lineRange.startLine);
-                                if (updatedSelectedNode
-                                        && updatedSelectedNode.codedata?.node === currentSelectedNode.codedata?.node
+                                if (isOpenNodeAt(updatedSelectedNode, currentSelectedNode, model.flowModel.nodes)
                                         // Kept while its source is unchanged, so a write elsewhere leaves its form's values.
                                         && !isEqual(updatedSelectedNode.codedata, currentSelectedNode.codedata)) {
                                     selectedNodeRef.current = updatedSelectedNode;
@@ -1256,8 +1255,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             return;
         }
         const matchingNode = findNodeByStartLine(model, openNode.codedata.lineRange.startLine);
-        if (matchingNode && matchingNode.id !== openNode.id
-                && matchingNode.codedata?.node === openNode.codedata?.node) {
+        if (isOpenNodeAt(matchingNode, openNode, model.nodes) && matchingNode.id !== openNode.id) {
             selectedNodeRef.current = matchingNode;
             changeTargetRange(matchingNode.codedata.lineRange);
         }
@@ -1309,6 +1307,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const findNodeWithName = (node: FlowNode, name: string) => {
         return node?.properties?.variable?.value === name;
     }
+
+    // Matched on start line: a variable written above the open one starts there now, while a rename leaves no node with the old name.
+    const isOpenNodeAt = (match: FlowNode | undefined, open: FlowNode, nodes: FlowNode[]): boolean => {
+        if (!match || match.codedata?.node !== open.codedata?.node) {
+            return false;
+        }
+        const name = open.properties?.variable?.value;
+        return typeof name !== "string" || findNodeWithName(match, name) || !flattenNodes(nodes).some((node) => findNodeWithName(node, name));
+    };
 
     const findNodeWithStartLine = (node: FlowNode, startLine: LinePosition) => {
         return (
@@ -1391,9 +1398,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return undefined;
     };
 
-    // Found by name: the LS may write the variable after a blank line, off the selected node's old start line.
+    // Found by name, as the LS may write it after a blank line; the first at or after the open node, as another block can declare the same name.
     const followInsertedVariable = (nodes: FlowNode[], name: string) => {
-        const newNode = searchNodesByName(nodes, name);
+        const from = selectedNodeRef.current?.codedata?.lineRange?.startLine?.line ?? 0;
+        const named = flattenNodes(nodes).filter((node) => findNodeWithName(node, name));
+        const newNode = named.find((node) => node.codedata.lineRange.startLine.line >= from) ?? named[named.length - 1];
         if (!newNode) {
             console.error(">>> Inserted node not found in updated flow model");
             return;
