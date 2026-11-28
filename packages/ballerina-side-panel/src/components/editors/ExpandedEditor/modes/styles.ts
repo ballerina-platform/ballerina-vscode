@@ -27,6 +27,25 @@ export const ExpressionContainer = styled.div`
     box-sizing: border-box;
 `;
 
+// The toolkit text area sizes itself by rows; here it fills the modal instead, so its bottom edge stays inside.
+export const FillTextArea = styled.div`
+    flex: 1;
+    min-height: 0;
+    display: flex;
+
+    vscode-text-area {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    vscode-text-area::part(control) {
+        flex: 1;
+        height: 100%;
+        box-sizing: border-box;
+    }
+`;
+
 export const FlexExpressionContainer = styled.div`
     width: 100%;
     flex: 1;

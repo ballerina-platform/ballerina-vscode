@@ -20,6 +20,8 @@ package io.ballerina.flowmodelgenerator.core;
 
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
+import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.SingleFileProject;
@@ -109,5 +111,20 @@ public class AiUtilsTest {
             Assert.assertFalse(description.contains("**"), description);
             Assert.assertFalse(description.contains("client class"), description);
         }
+    }
+
+    @Test(description = "A string template in a string|ai:Prompt field opens in Prompt mode typed string, "
+            + "so it is checked as a string; a bare template stays an ai:Prompt.")
+    public void testPromptModeTypeFollowsTheTemplate() {
+        Assert.assertEquals(promptType("string `Subject: ${subject}`"), "string");
+        Assert.assertEquals(promptType("`Subject: ${subject}`"), AiUtils.AI_PROMPT_TYPE);
+    }
+
+    private static String promptType(String value) {
+        PropertyType union = new PropertyType(Property.ValueType.EXPRESSION, "string|ai:Prompt", null, null, null,
+                null, null, true);
+        Property query = new Property(null, List.of(union), value, null, null, false, true, false, false, false,
+                null, null, null, null, null, null, null, null);
+        return AiUtils.addPromptTypeIfUnionMember(query, false).types().getFirst().ballerinaType();
     }
 }

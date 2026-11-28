@@ -1356,6 +1356,8 @@ export interface ExpressionEditorContext {
      * (`'type`, `issue\-number`). A plain name such as `issue-number` is then reported instead of accepted.
      */
     sourceFormName?: boolean;
+    // The form field being checked, so a check replaces only that field's earlier one.
+    fieldKey?: string;
 }
 
 export interface ExpressionCompletionsRequest {
@@ -2512,15 +2514,19 @@ export interface BIInterface extends BaseLangClientInterface {
     getSequenceDiagramModel: (params: SequenceModelRequest) => Promise<SequenceModelResponse>;
     generateServiceFromOAS: (params: ServiceFromOASRequest) => Promise<ServiceFromOASResponse>;
     getExpressionCompletions: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
+    getExpressionCompletionsNow: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
     getConfigVariablesV2: (params: ConfigVariableRequest) => Promise<ConfigVariableResponse>;
     updateConfigVariablesV2: (params: UpdateConfigVariableRequestV2) => Promise<UpdateConfigVariableResponseV2>;
     deleteConfigVariableV2: (params: DeleteConfigVariableRequestV2) => Promise<DeleteConfigVariableResponseV2>;
     getConfigVariableNodeTemplate: (params: GetConfigVariableNodeTemplateRequest) => Promise<BINodeTemplateResponse>;
     getComponentsFromContent: (params: ComponentsFromContent) => Promise<BallerinaProjectComponents>;
     getSignatureHelp: (params: SignatureHelpRequest) => Promise<SignatureHelpResponse>;
+    getSignatureHelpNow: (params: SignatureHelpRequest) => Promise<SignatureHelpResponse>;
     getVisibleTypes: (params: VisibleTypesRequest) => Promise<VisibleTypesResponse>;
     getFormDiagnostics: (params: FormDiagnosticsRequest) => Promise<FormDiagnosticsResponse>;
     getExpressionDiagnostics: (params: ExpressionDiagnosticsRequest) => Promise<ExpressionDiagnosticsResponse>;
+    checkExpression: (params: ExpressionDiagnosticsRequest) => Promise<ExpressionDiagnosticsResponse>;
+    getExpectedType: (params: ExpressionDiagnosticsRequest) => Promise<{ type?: string }>;
     getOpenApiGeneratedModules: (params: OpenAPIGeneratedModulesRequest) => Promise<OpenAPIGeneratedModulesResponse>
 
     // New Service Designer APIs

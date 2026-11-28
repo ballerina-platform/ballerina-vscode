@@ -45,6 +45,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { createDefaultParameterValue, createToolParameters, stripCodeFences, stripCodeFencesInline } from "../AIChatAgent/formUtils";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
+import { useEndOfFile } from "../../../hooks/useEndOfFile";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -194,6 +195,7 @@ interface NewActivityFromConnectionProps {
 export function NewActivityFromConnection(props: NewActivityFromConnectionProps): JSX.Element {
     const { fileName, onActivityCreated, onActivityCreatedReturnToList, onBack, onClose } = props;
     const { rpcClient } = useRpcContext();
+    const fileEnd = useEndOfFile(fileName);
 
     const [panelView, setPanelView] = useState<PanelView>(PanelView.CONNECTION_LIST);
     const [categories, setCategories] = useState<PanelCategory[]>([]);
@@ -686,7 +688,7 @@ export function NewActivityFromConnection(props: NewActivityFromConnectionProps)
                     <ArtifactForm
                         preserveFieldOrder={true}
                         fileName={fileName}
-                        targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
+                        targetLineRange={fileEnd}
                         fields={fields}
                         onSubmit={(data) => handleActivitySubmit(data, false)}
                         onBack={() => setPanelView(PanelView.CONNECTION_LIST)}

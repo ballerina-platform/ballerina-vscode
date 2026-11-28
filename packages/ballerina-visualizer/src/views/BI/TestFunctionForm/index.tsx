@@ -17,13 +17,13 @@
  */
 
 import { useEffect, useState } from "react";
-import { View, ViewContent } from "@wso2/ui-toolkit";
+import { ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType } from "@wso2/ballerina-core";
 import { EVENT_TYPE } from "@wso2/ballerina-core";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
@@ -621,7 +621,7 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
     ];
 
     return (
-        <View>
+        <AssistView>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Test" subtitle="Create a new test for your integration" />
             <ViewContent padding>
@@ -641,6 +641,6 @@ export function TestFunctionForm(props: TestFunctionDefProps) {
                     </FormContainer>
                 </Container>
             </ViewContent>
-        </View>
+        </AssistView>
     );
 }

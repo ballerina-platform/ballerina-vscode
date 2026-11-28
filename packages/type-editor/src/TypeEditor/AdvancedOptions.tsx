@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button, CheckBox, Codicon } from '@wso2/ui-toolkit';
 import { Type } from '@wso2/ballerina-core';
+import { AssistMark, SectionChanges } from '@wso2/ballerina-side-panel';
 
 interface AdvancedOptionsProps {
     type: Type;
@@ -34,6 +35,7 @@ export function AdvancedOptions({ type, onChange }: AdvancedOptionsProps) {
                     <Codicon name={isExpanded ? "chevron-up" : "chevron-down"} />
                 </Button>
                 <span>Advanced Options</span>
+                <SectionChanges keys={["isReadOnly", "isPublic"]} onReveal={() => setIsExpanded(true)} />
             </div>
             {isExpanded && (
                 <>
@@ -45,42 +47,48 @@ export function AdvancedOptions({ type, onChange }: AdvancedOptionsProps) {
                             onChange({ ...type, allowAdditionalFields: checked });
                         }}
                     />}
-                    <CheckBox
-                        sx={{ border: 'none', padding: '5px' }}
-                        label="Is Readonly Type"
-                        checked={type?.properties?.isReadOnly?.value === "true"}
-                        onChange={(checked: boolean) => {
-                            // Match the same pattern used in the working checkbox
-                            onChange({
-                                ...type,
-                                properties: {
-                                    ...type.properties,
-                                    isReadOnly: {
-                                        ...type.properties?.isReadOnly,
-                                        value: checked ? "true" : "false"
+                    <div>
+                        <CheckBox
+                            sx={{ border: 'none', padding: '5px' }}
+                            label="Readonly Type"
+                            checked={type?.properties?.isReadOnly?.value === "true"}
+                            onChange={(checked: boolean) => {
+                                // Match the same pattern used in the working checkbox
+                                onChange({
+                                    ...type,
+                                    properties: {
+                                        ...type.properties,
+                                        isReadOnly: {
+                                            ...type.properties?.isReadOnly,
+                                            value: checked ? "true" : "false"
+                                        }
                                     }
-                                }
-                            });
-                        }}
-                    />
-                    <CheckBox
-                        sx={{ border: 'none', padding: '5px' }}
-                        label="Accessible by Other Integrations"
-                        checked={type?.properties?.isPublic?.value === "true"}
-                        onChange={(checked: boolean) => {
-                            // Match the same pattern used in the working checkbox
-                            onChange({
-                                ...type,
-                                properties: {
-                                    ...type.properties,
-                                    isPublic: {
-                                        ...type.properties?.isPublic,
-                                        value: checked ? "true" : "false"
+                                });
+                            }}
+                        />
+                        <AssistMark fieldKey="isReadOnly" />
+                    </div>
+                    <div>
+                        <CheckBox
+                            sx={{ border: 'none', padding: '5px' }}
+                            label="Accessible by Other Integrations"
+                            checked={type?.properties?.isPublic?.value === "true"}
+                            onChange={(checked: boolean) => {
+                                // Match the same pattern used in the working checkbox
+                                onChange({
+                                    ...type,
+                                    properties: {
+                                        ...type.properties,
+                                        isPublic: {
+                                            ...type.properties?.isPublic,
+                                            value: checked ? "true" : "false"
+                                        }
                                     }
-                                }
-                            });
-                        }}
-                    />
+                                });
+                            }}
+                        />
+                        <AssistMark fieldKey="isPublic" />
+                    </div>
                 </>
             )}
         </div>

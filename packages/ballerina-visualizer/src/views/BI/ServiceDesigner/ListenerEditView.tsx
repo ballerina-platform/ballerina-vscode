@@ -18,13 +18,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ListenerModel, NodePosition, LineRange } from '@wso2/ballerina-core';
-import { Typography, ProgressRing, View, ViewContent } from '@wso2/ui-toolkit';
+import { Typography, ProgressRing, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import ListenerConfigForm from './Forms/ListenerConfigForm';
 import { LoadingContainer } from '../../styles';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
-import { TitleBar } from '../../../components/TitleBar';
+import { AssistView, TitleBar } from '../../../components/TitleBar';
 
 const Container = styled.div`
     display: "flex";
@@ -75,7 +75,7 @@ export function ListenerEditView(props: ListenerEditViewProps) {
     }
 
     return (
-        <View>
+        <AssistView>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title={listenerModel?.name + " Configuration"} subtitle="Configure Listener" />
             <ViewContent padding>
@@ -97,6 +97,6 @@ export function ListenerEditView(props: ListenerEditViewProps) {
                     </Container>
                 )}
             </ViewContent>
-        </View >
+        </AssistView >
     );
 };

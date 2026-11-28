@@ -19,12 +19,13 @@
 import React, { useEffect } from "react";
 import { FormField } from "../Form/types";
 import { CheckBoxGroup, FormCheckBox } from "@wso2/ui-toolkit";
-import { useFormContext } from "../../context";
+import { untouched, useFormContext } from "../../context";
 import styled from "@emotion/styled";
 import { FieldFactory } from "./FieldFactory";
 import { withHeldValue } from "./utils";
 import { indentedFieldStyles } from "../Form/styles";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FieldDescription as Description, FieldLabel as Label } from "./CheckBoxField";
 
 const Container = styled.div`
     display: grid;
@@ -39,17 +40,6 @@ const StateFields = styled.div`
     ${indentedFieldStyles}
 `;
 
-const Label = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-editor-foreground);
-    text-align: left;
-    text-transform: capitalize;
-`;
-const Description = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-list-deemphasizedForeground);
-    text-align: left;
-`;
 const LabelGroup = styled.div`
     display: flex;
     flex-direction: column;
@@ -73,6 +63,10 @@ export function CheckBoxEditor(props: TextEditorProps) {
     const { register, control, setValue, watch } = form;
 
     useEffect(() => {
+        // A value Copilot set while the box was not on screen stays.
+        if (!untouched(form, field.key)) {
+            return;
+        }
         if (getBooleanValue(field.value)) {
             setValue(field.key, true);
         } else {

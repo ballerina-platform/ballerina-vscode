@@ -110,8 +110,8 @@ const SelectTrigger = styled.div<{ disabled?: boolean }>`
     justify-content: space-between;
     padding: 6px 8px;
     min-height: calc(var(--input-height) * 1px);
-    background: var(--vscode-dropdown-background);
-    border: 1px solid var(--vscode-dropdown-border);
+    background: var(--field-changed-background, var(--vscode-dropdown-background));
+    border: 1px solid var(--field-changed-border, var(--vscode-dropdown-border));
     border-radius: ${FIELD_RADIUS};
     cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
     opacity: ${(props) => (props.disabled ? 0.5 : 1)};

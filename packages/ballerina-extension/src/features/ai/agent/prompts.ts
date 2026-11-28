@@ -31,6 +31,7 @@ import { getRequirementAnalysisCodeGenPrefix, getRequirementAnalysisTestGenPrefi
 import { CONCURRENCY_CODING_RULES } from "./concurrency-rules";
 import { extractRequirementsDocument } from "./np/requirements";
 import { GLOB_TOOL_NAME, GREP_TOOL_NAME } from "./tools/project-search";
+import { NIL_RULES } from "./nil-rules";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
 import { getSkillsGuidanceSection } from "./skills";
@@ -238,6 +239,9 @@ When a connector authenticates via an OAuth2 refresh-token grant that includes a
 - In a loop over independent items (files, messages, rows) where items should be skipped, do NOT \`check\` the per-item work: \`check\` exits the whole loop, and so does an \`on fail\` attached to the loop itself. Capture the error and continue instead: \`error? result = processItem(item); if result is error { log:printError("Skipped item", 'error = result); continue; }\`. Keep \`check\` for failures that should abort all the work.
 
 ${DATA_BINDING_CODING_RULES}
+
+## Nil and optional fields
+${NIL_RULES}
 
 ${profile.moduleInitRules}
 

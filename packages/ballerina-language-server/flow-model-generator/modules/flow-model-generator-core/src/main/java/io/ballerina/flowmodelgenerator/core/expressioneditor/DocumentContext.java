@@ -243,5 +243,6 @@ public class DocumentContext {
         this.module = null;
         this.project = null;
         this.semanticModel = null;
+        this.imports = null;
     }
 }

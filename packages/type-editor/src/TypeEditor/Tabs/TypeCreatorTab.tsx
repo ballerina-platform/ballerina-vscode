@@ -30,6 +30,7 @@ import { ArrayEditor } from "../ArrayEditor";
 import { debounce } from "lodash";
 import { URI, Utils } from "vscode-uri";
 import { EditorContext } from "../Contexts/TypeEditorContext";
+import { AssistMark } from "@wso2/ballerina-side-panel";
 
 const CategoryRow = styled.div<{ showBorder?: boolean }>`
     display: flex;
@@ -118,6 +119,8 @@ interface TypeCreatorTabProps {
     isSaving: boolean;
     setIsSaving: (isSaving: boolean) => void;
     onTypeChange: (type: Type, rename?: boolean) => void;
+    // The type as edited so far, before it is saved.
+    onDraftChange?: (type: Type) => void;
 }
 
 export function TypeCreatorTab(props: TypeCreatorTabProps) {
@@ -130,6 +133,7 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
         isSaving,
         setIsSaving,
         onTypeChange,
+        onDraftChange,
         filePath
     } = props;
 
@@ -203,6 +207,11 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
         setIsNewType(newType);
     }, [editingType?.name, newType]);
 
+    useEffect(() => {
+        // A new type's name is held apart until it is committed.
+        onDraftChange?.(isNewType && tempName ? { ...type, name: tempName } : type);
+    }, [type, tempName, isNewType]);
+
     const handleSetType = (type: Type) => {
         replaceTop({
             type: type,
@@ -211,6 +220,9 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
         setType(type);
     }
 
+
+    // Each kind's members as last left, so switching kinds and back loses nothing.
+    const membersByKind = useRef<Record<string, Member[]>>({});
 
     const handleTypeKindChange = (value: string) => {
         // Convert display name back to internal TypeKind
@@ -235,13 +247,13 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
         setOnValidationError(false);
 
         const typeValue = selectedKind === TypeKind.CLASS ? "CLASS" : selectedKind.toUpperCase();
+        membersByKind.current[type!.codedata.node] = type!.members;
 
-        // Always create a new type with the selected kind, preserving the name
         handleSetType({
             ...type!,
             name: type!.name, // Explicitly preserve the name
             kind: typeValue,
-            members: [] as Member[],
+            members: membersByKind.current[typeValue] ?? [],
             codedata: {
                 ...type!.codedata, // Check the location of the type
                 node: typeValue.toUpperCase() as TypeNodeKind
@@ -449,30 +461,25 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
 
     // Function to validate before saving to verify names created in nested forms
     const handleSaveWithValidation = async (typeToSave: Type) => {
-
+        setIsSaving(true);
         try {
-            setIsSaving(true);
-
-            // Perform immediate validation
-            const validationResult = await validateTypeNameSync(typeToSave.name);
-
-            // Update the UI state with validation results
-            if (validationResult.isValid) {
-                setNameError("");
-                setIsTypeNameValid(true);
-                // Proceed with save
-                await onTypeSave(typeToSave);
-            } else {
+            // An unreachable check falls back to the last result; a failed save is never retried as a check failure.
+            const validationResult = await validateTypeNameSync(typeToSave.name).catch((error): undefined => {
+                console.error('Error during validation', error);
+                return undefined;
+            });
+            if (validationResult && !validationResult.isValid) {
                 setNameError(validationResult.error);
                 setIsTypeNameValid(false);
-                // Don't save if validation fails
+                return;
             }
-        } catch (error) {
-            console.error('Error during validation', error);
-            // If the previous validation was successful, attempt to save
-            if (isTypeNameValid && !onValidationError) {
-                await onTypeSave(typeToSave);
+            if (validationResult) {
+                setNameError("");
+                setIsTypeNameValid(true);
+            } else if (!isTypeNameValid || onValidationError) {
+                return;
             }
+            await onTypeSave(typeToSave);
         } finally {
             setIsSaving(false);
         }
@@ -546,17 +553,20 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
         <>
             <CategoryRow>
                 {isNewType && (
-                    <Dropdown
-                        id="type-selector"
-                        data-testid="type-kind-dropdown"
-                        label="Kind"
-                        value={getTypeKindLabel(selectedTypeKind, isGraphql)}
-                        items={getAvailableTypeKinds(isGraphql, selectedTypeKind).map((kind) => ({
-                            label: getTypeKindLabel(kind, isGraphql),
-                            value: getTypeKindLabel(kind, isGraphql)
-                        }))}
-                        onChange={(e) => handleTypeKindChange(e.target.value)}
-                    />
+                    <div>
+                        <Dropdown
+                            id="type-selector"
+                            data-testid="type-kind-dropdown"
+                            label="Kind"
+                            value={getTypeKindLabel(selectedTypeKind, isGraphql)}
+                            items={getAvailableTypeKinds(isGraphql, selectedTypeKind).map((kind) => ({
+                                label: getTypeKindLabel(kind, isGraphql),
+                                value: getTypeKindLabel(kind, isGraphql)
+                            }))}
+                            onChange={(e) => handleTypeKindChange(e.target.value)}
+                        />
+                        <AssistMark fieldKey="kind" />
+                    </div>
                 )}
                 {!isNewType && !isEditing && !type.properties["name"]?.editable && (
                     <InputWrapper>
@@ -640,6 +650,7 @@ export function TypeCreatorTab(props: TypeCreatorTabProps) {
                             onFocus={(e) => { e.target.select(); validateTypeName(e.target.value) }}
                             ref={nameInputRef}
                         />
+                        <AssistMark fieldKey="name" />
                     </TextFieldWrapper>
                 )}
             </CategoryRow>

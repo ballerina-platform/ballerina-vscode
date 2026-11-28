@@ -16,6 +16,7 @@
  * under the License.
  */
 import React, { useEffect, useMemo, useState } from 'react';
+import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { AgentTriggerKind, ServiceModel, TriggerModelsResponse, deriveBasePath } from '@wso2/ballerina-core';
 import { Codicon, Icon, SearchBox } from '@wso2/ui-toolkit';
@@ -225,6 +226,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                             <PopupTitle variant="h2">{channel ? channel.name : "Add Trigger"}</PopupTitle>
                             <PopupSubtitle variant="body2">{subtitleFor(agentName, channel, agentEvent)}</PopupSubtitle>
                         </HeaderTitleContainer>
+                        <AssistHeaderButton />
                         <CloseButton appearance="icon" onClick={close}>
                             <Codicon name="close" />
                         </CloseButton>

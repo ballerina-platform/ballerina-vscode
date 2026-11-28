@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { isEqual } from 'lodash';
 
 import styled from '@emotion/styled';
 import { ParamEditor } from './ParamEditor';
@@ -25,7 +26,9 @@ import { Codicon, ErrorBanner, LinkButton, RequiredFormInput, ThemeColors } from
 import { FormField, FormValues } from '../Form/types';
 import { getGraphqlIdForField } from './graphqlId';
 import { Controller } from 'react-hook-form';
-import { useFormContext } from '../../context';
+import { useAssistKey, useFormContext } from '../../context';
+import { useAssistHost } from '../editors/FieldAssist/AssistHost';
+import { withoutRow } from '../editors/FieldAssist/ChangeReview';
 import { Imports, NodeKind } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { FieldFactory } from '../editors/FieldFactory';
@@ -47,6 +50,32 @@ export interface Parameter {
 }
 
 
+// Rows follow a list Copilot writes into the form; each row keeps the range object the rename log tracks.
+// Only a new list counts: the same list re-rendered must not drop a row still being added.
+export function useHeldParameters(value: Parameter[] | undefined, parameters: Parameter[], setParameters: (parameters: Parameter[]) => void) {
+    const held = useRef(value);
+    useEffect(() => {
+        const changed = !isEqual(value, held.current);
+        held.current = value;
+        if (!changed || !Array.isArray(value) || isEqual(value, parameters)) {
+            return;
+        }
+        setParameters(value.map((param) => {
+            const tracked = parameters.find((known) => known.identifierRange && isEqual(known.identifierRange, param.identifierRange));
+            return tracked ? { ...param, identifierRange: tracked.identifierRange } : param;
+        }));
+    }, [value]);
+}
+
+// Copilot marks each shown parameter on its own row (`parameters-1`); deleting a row moves the marks below it up.
+export function useRowMarks(propertyKey: string, parameters: Parameter[]) {
+    const host = useAssistHost();
+    const fieldKey = useAssistKey(propertyKey);
+    const rowKey = (index: number) => `${fieldKey}-${parameters.slice(0, index).filter((param) => !param.hidden).length}`;
+    const rowRemoved = (index: number) => host?.setApplied((current) => current && withoutRow(current, rowKey(index)));
+    return { rowKey, rowRemoved };
+}
+
 export interface ParamConfig {
     paramValues: Parameter[];
     formFields: FormField[];
@@ -63,6 +92,8 @@ export interface ParamManagerProps {
     setSubComponentEnabled?: (isAdding: boolean) => void;
     /** Overrides the "+ Add X" button text (defaults to the selectedNode-derived label below). */
     addButtonLabel?: string;
+    /** The list the form holds, which the rows follow. */
+    value?: Parameter[];
 }
 
 const AddButtonWrapper = styled.div`
@@ -157,9 +188,10 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
                         message: `${selectedNode === "DATA_MAPPER_DEFINITION" ? 'Input type' : field.label} is required`
                     })
                 }}
-                render={({ field: { onChange }, fieldState: { error } }) => (
+                render={({ field: { onChange, value }, fieldState: { error } }) => (
                     <>
                         <ParamManager
+                            value={value}
                             propertyKey={field.key}
                             paramConfigs={field.paramManagerProps}
                             openRecordEditor={openRecordEditor}
@@ -217,12 +249,14 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
 }
 
 export function ParamManager(props: ParamManagerProps) {
-    const { propertyKey, paramConfigs, readonly, onChange, openRecordEditor, selectedNode, setSubComponentEnabled } = props;
+    const { propertyKey, paramConfigs, readonly, onChange, openRecordEditor, selectedNode, setSubComponentEnabled, value } = props;
     const { rpcClient } = useRpcContext();
 
     const [editingSegmentId, setEditingSegmentId] = useState<number>(-1);
     const [isNew, setIsNew] = useState(false);
     const [parameters, setParameters] = useState<Parameter[]>(paramConfigs.paramValues);
+    useHeldParameters(value, parameters, setParameters);
+    const { rowKey, rowRemoved } = useRowMarks(propertyKey, parameters);
     const [paramComponents, setParamComponents] = useState<React.ReactElement[]>([]);
     const [isGraphql, setIsGraphql] = useState<boolean>(false);
     const [autoOpenedWaitDataEditor, setAutoOpenedWaitDataEditor] = useState<boolean>(false);
@@ -270,6 +304,7 @@ export function ParamManager(props: ParamManagerProps) {
         const indexToRemove = param.id;
         if (indexToRemove >= 0 && indexToRemove < updatedParameters.length) {
             updatedParameters.splice(indexToRemove, 1);
+            rowRemoved(indexToRemove);
         }
         const reArrangedParameters = updatedParameters.map((item, index) => ({
             ...item,
@@ -361,6 +396,7 @@ export function ParamManager(props: ParamManagerProps) {
                             onSave={onSaveParam}
                             onCancelEdit={onParamEditCancel}
                             openRecordEditor={openRecordEditor}
+                            markKey={rowKey(index)}
                         />
                     )
                 } else if ((editingSegmentId !== index && !(param.hidden ?? false))) {
@@ -368,6 +404,7 @@ export function ParamManager(props: ParamManagerProps) {
                         <ParamItem
                             key={param.id}
                             param={param}
+                            markKey={rowKey(index)}
                             readonly={editingSegmentId !== -1 || readonly}
                             isGraphql={isGraphql}
                             onDelete={onDelete}

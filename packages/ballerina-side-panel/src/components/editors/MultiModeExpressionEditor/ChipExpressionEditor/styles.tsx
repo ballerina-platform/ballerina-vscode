@@ -44,7 +44,7 @@ export const ChipEditorField = styled.div<{ customHeight?: string }>`
 
 // A side ribbon and its input share this border colour, so focus outlines both.
 export const FieldBorderScope = styled.div`
-    --field-border: ${FIELD_BORDER};
+    --field-border: var(--field-changed-border, ${FIELD_BORDER});
     &:focus-within {
         --field-border: var(--field-focus-border, var(--vscode-focusBorder));
     }

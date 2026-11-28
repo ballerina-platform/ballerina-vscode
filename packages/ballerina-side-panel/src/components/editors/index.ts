@@ -40,6 +40,7 @@ export { ExpandedEditor } from "./ExpandedEditor";
 export { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
 export { NodeReferenceSelectEditor } from "./MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
 export { ApprovalEditor, AddApprovalFunctionForm } from "./ApprovalEditor";
+export { CheckBoxField, FieldDescription, FieldLabel } from "./CheckBoxField";
 export {
     applyTypedText,
     canToggleModifier,

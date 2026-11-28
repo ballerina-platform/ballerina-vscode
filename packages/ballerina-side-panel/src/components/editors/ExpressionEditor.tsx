@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Control, Controller, FieldValues, UseFormWatch, UseFormSetValue, UseFormTrigger } from 'react-hook-form';
 import styled from '@emotion/styled';
 import {
@@ -30,7 +30,8 @@ import {
     ThemeColors
 } from '@wso2/ui-toolkit';
 import { LinkButton } from "@wso2/ui-toolkit/lib/components/LinkButton/LinkButton";
-import { buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
+import { assistProperty, buildRequiredRule, getPropertyFromFormField, isExpandableMode, toEditorMode } from './utils';
+import { literalText, stringLiteral, templateBody } from './FieldAssist/fieldKinds';
 import { getDefaultHint } from './defaultHint';
 import { buildValidate } from '../Form/validationRules';
 import { useFieldDiagnostics } from '../Form/useFieldDiagnostics';
@@ -38,12 +39,14 @@ import { WarningBanner } from '../Form/WarningBanner';
 import { CollapsibleDescription } from './CollapsibleDescription';
 import { dedupeMessages } from '../Form/DiagnosticsStore';
 import { FormField, FormExpressionEditorProps, HelperpaneOnChangeOptions } from '../Form/types';
-import { useFormContext, useFormFieldLoadingContext } from '../../context';
+import { useAssistKey, useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
     ExpressionProperty,
     FormDiagnostics,
     getPrimaryInputType,
+    Imports,
     InputType,
+    isDropDownType,
     LineRange,
     RecordTypeField,
     SubPanel,
@@ -54,8 +57,13 @@ import ReactMarkdown from 'react-markdown';
 import { FieldProvider } from "./FieldContext";
 import { useModeSwitcherContext } from "./ModeSwitcherContext";
 import ModeSwitcher from '../ModeSwitcher';
-import { ExpressionField } from './ExpressionField';
+import { ExpressionField, getEditorConfiguration } from './ExpressionField';
 import { InputMode } from './MultiModeExpressionEditor/ChipExpressionEditor/types';
+import { AssistButton, FieldAssistContext, FieldAssistPanel, Proposal, reviewNote, runValueActions, useFieldAssist } from './FieldAssist/FieldAssist';
+import { AssistCardFrame, reviewFieldChange, reviseInCard, useAssistHost, usePresence } from './FieldAssist/AssistHost';
+import { HostedFieldPanel, replaceEditorText, switchesToExpression, useFieldThread, whenEditorReplaced } from './FieldAssist/StructuredFieldAssist';
+import { S as AssistStyles } from './FieldAssist/styles';
+import { isSensitiveField, shouldWithhold } from './FieldAssist/secretGuard';
 import { getInputModeFromTypes } from './MultiModeExpressionEditor/ChipExpressionEditor/utils';
 import { ExpandedEditor } from './ExpandedEditor';
 import { SkeletonBase } from '../Skeletons/styles';
@@ -378,6 +386,287 @@ export const DataMapperJoinClauseRhsEditor = (props: ContextAwareExpressionEdito
 };
 
 
+// A prompt holds text: a template keeps its text, a string literal becomes text, and any other value an interpolation.
+const promptText = (expression: string): string => {
+    const body = templateBody(expression);
+    const text = stringLiteral(expression.trim());
+    return body ?? (text === undefined ? `\${${expression.trim()}}` : text.replace(/\$\{/g, "${\"${\"}").replace(/`/g, "${\"`\"}"));
+};
+
+const ASSISTED_MODES = [InputMode.EXP, InputMode.TEMPLATE, InputMode.PROMPT, InputMode.RECORD, InputMode.SQL];
+// Lists and maps are edited item by item, so a value from the helper goes in through the field's expression mode.
+const STRUCTURED_MODES = [InputMode.ARRAY, InputMode.TEXT_ARRAY, InputMode.MAP];
+
+// A select or a toggle keeps a listed value; anything else goes in through the expression editor.
+const CHOICE_MODES = [InputMode.SELECT, InputMode.BOOLEAN];
+
+// Which modes take the helper: a text, number, list or map mode only when the field can switch to its expression mode.
+const assistableMode = (inputMode: InputMode, canSwitchToExpression: boolean) =>
+    [...ASSISTED_MODES, ...CHOICE_MODES].includes(inputMode)
+    || ([InputMode.TEXT, InputMode.NUMBER, ...STRUCTURED_MODES].includes(inputMode) && canSwitchToExpression);
+
+function HeaderAssistButton({ inputMode, disabled }: { inputMode: InputMode; disabled?: boolean }) {
+    return STRUCTURED_MODES.includes(inputMode) ? <AssistButton disabled={disabled} /> : null;
+}
+
+const choiceValues = (inputMode: InputMode, field: FormField): string[] => inputMode === InputMode.BOOLEAN
+    ? ["true", "false"]
+    : field.types?.filter(isDropDownType).flatMap((type) => type.options.map((option) => option.value)) ?? [];
+
+// Whether a proposal has to land in the expression editor because this mode can't show it, e.g. orders[0] for a record.
+function needsExpressionEditor(inputMode: InputMode, expression: string, field: FormField): boolean {
+    // Clearing a field, e.g. putting back an empty previous value, keeps its mode.
+    if (!expression.trim()) {
+        return false;
+    }
+    if (CHOICE_MODES.includes(inputMode)) {
+        return !choiceValues(inputMode, field).includes(expression);
+    }
+    if (inputMode === InputMode.RECORD) {
+        return !expression.trim().startsWith("{");
+    }
+    if (inputMode === InputMode.SQL) {
+        return !expression.trim().startsWith("`");
+    }
+    if (inputMode === InputMode.TEXT || inputMode === InputMode.NUMBER) {
+        return literalText(inputMode, expression) === undefined;
+    }
+    return STRUCTURED_MODES.includes(inputMode);
+}
+
+// What a proposal looks like in the field's editor, which shows the text inside a literal or template.
+const proposalText = (inputMode: InputMode, expression: string, sanitizedExpression?: (value: string) => string): string => {
+    if (inputMode === InputMode.TEXT || inputMode === InputMode.NUMBER) {
+        return literalText(inputMode, expression) ?? expression;
+    }
+    if (inputMode === InputMode.PROMPT) {
+        return promptText(expression);
+    }
+    if (inputMode === InputMode.SQL) {
+        return getEditorConfiguration(inputMode).serializeValue(expression);
+    }
+    return inputMode === InputMode.TEMPLATE && sanitizedExpression ? sanitizedExpression(expression) : expression;
+};
+
+interface ExpressionFieldAssistProps {
+    field: FormField;
+    fieldKey: string;
+    inputMode: InputMode;
+    readOnly: boolean;
+    watch: (key: string) => any;
+    fieldRef: React.RefObject<HTMLDivElement>;
+    sanitizedExpression?: (value: string) => string;
+    assistExpression?: FormExpressionEditorProps["assistExpression"];
+    abortExpressionAssist?: (requestId: string) => void;
+    runAssistActions?: FormExpressionEditorProps["runAssistActions"];
+    // The expanded editor covers the panel, so the helper shows inline under its larger editor.
+    expanded: boolean;
+    clearDiagnostics: () => void;
+}
+
+const FORM_VALUE_LIMIT = 200;
+
+// The form's other filled-in fields, so the helper can read intent such as a variable's name; secrets stay out.
+function otherFieldValues(fields: FormField[] = [], values: Record<string, unknown>, key: string) {
+    return fields.flatMap((field) => {
+        const raw = values[field.key];
+        const value = (typeof raw === "string" ? raw : raw == null ? "" : JSON.stringify(raw)).trim();
+        const skip = field.key === key || field.hidden || !value || shouldWithhold(value, isSensitiveField(field.label, field.key));
+        return skip ? [] : [{ label: field.label || field.key, value: value.slice(0, FORM_VALUE_LIMIT) }];
+    });
+}
+
+// Lets the header's Copilot read and fill this field in a form with no node schema.
+function useAssistField(hosted: boolean, key: string, field: FormField, value: () => string,
+    apply: (proposal: Proposal, focus?: boolean) => Promise<void>) {
+    const host = useAssistHost();
+    const { partOfParentForm } = useFormContext();
+    const latest = useRef({ field, value, apply });
+    latest.current = { field, value, apply };
+    useEffect(() => {
+        if (!hosted || !host || partOfParentForm) {
+            return;
+        }
+        return host.registerField(key, {
+            label: field.label,
+            description: field.documentation,
+            property: () => assistProperty(latest.current.field),
+            value: () => latest.current.value(),
+            // The form's Copilot writes many fields at once; none of them takes the focus from its thread.
+            apply: (expression, imports) => void latest.current.apply({ expression, imports }, false),
+        });
+    }, [hosted, key, host?.registerField]);
+}
+
+// The form's parts other than this field; none when the form has no helper of its own.
+function otherParts(parts: string[] | undefined, label: string): string[] | undefined {
+    const others = parts?.filter((part) => part !== label);
+    return others?.length ? others : undefined;
+}
+
+// Wires the AI helper to one field: which modes take it, where the panel shows, and how a proposal lands in the editor.
+function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
+    const { field, fieldKey: key, inputMode, readOnly, watch, fieldRef, sanitizedExpression, expanded } = props;
+    const markKey = useAssistKey(key);
+    const { updateImports, form, nodeInfo, fields } = useFormContext();
+    const modeSwitcherContext = useModeSwitcherContext();
+    // A text or number field can still take a computed value: it switches to Expression mode when one is applied.
+    const canSwitchToExpression = switchesToExpression(modeSwitcherContext);
+    const recordMode = inputMode === InputMode.RECORD;
+    const assistable = assistableMode(inputMode, canSwitchToExpression);
+    // In a side panel the helper is the panel's Copilot popover, scoped to this field.
+    const host = useAssistHost();
+    const inPopover = !!host && !expanded;
+    const assist = useFieldAssist({
+        thread: host?.fieldThread(markKey),
+        assist: assistable && !readOnly && props.assistExpression
+            ? (input) => props.assistExpression({
+                ...input,
+                key,
+                property: assistProperty(field),
+                // A variable's value takes its type from the form's Type field, as the diagnostics do.
+                variableType: nodeInfo?.kind === "VARIABLE" ? form?.watch("type") : undefined,
+                form: { node: nodeInfo?.kind, fields: otherFieldValues(fields, form?.getValues() ?? {}, key) },
+                formParts: inPopover ? otherParts(host.liveForm()?.parts(), field.label) : undefined,
+                canChangeFlow: inPopover && !!host.liveForm()?.continueInChat,
+            })
+            : undefined,
+        abort: props.abortExpressionAssist,
+        getValue: () => watch(key) ?? "",
+        sensitive: isSensitiveField(field.label, key),
+        handOff: inPopover ? (messages, pending) => host.handOff(messages, { key, label: field.label }, pending) : undefined,
+        review: host ? (proposal, request) => writeForReview(proposal, request) : undefined,
+        continueInChat: inPopover ? (request, context) => host.liveForm()?.continueInChat?.(request, `In the ${field.label} field.\n${context}`) : undefined,
+    });
+    // The editor whose button opened the helper: the field itself, or the expanded editor over it.
+    const assistTarget = useRef<HTMLElement | null>(null);
+    // Bumped when a value lands while an expanded editor without a code editor is open, so it reopens on that value.
+    const [expandedRevision, setExpandedRevision] = useState(0);
+    // The field's errors from this render, filled in by fixAction; the panel offers a fix while there are any.
+    const errorsRef = useRef<string[]>([]);
+    errorsRef.current = [];
+    const scope = `field:${markKey}`;
+    const hosted = inPopover && assist.available;
+    // In the expanded editor a Revise continues the thread in the editor's own card.
+    useFieldThread(markKey, field.label, assist, !!host && assist.available, expanded ? () => assist.open || assist.toggle() : undefined);
+    const hostOpen = host?.scope === scope;
+    const openHosted = () => host?.open(scope, field.label);
+    // The expanded editor covers the panel, so no popover from the panel stays open over it.
+    useEffect(() => {
+        if (expanded && host?.scope) {
+            host.close();
+        }
+    }, [expanded]);
+    useEffect(() => {
+        // Another field or the whole form took the popover, or it closed: this thread ends.
+        const { history, proposal, loading, error } = assist.state;
+        if (hosted && host.shownScope !== scope && (assist.open || history.length || proposal || loading || error)) {
+            assist.close();
+        }
+    }, [hosted, host?.shownScope]);
+    const assistContext = useMemo(
+        () => (assist.available ? {
+            open: (from?: HTMLElement) => {
+                assistTarget.current = from ?? null;
+                if (reviseInCard(host, markKey)) {
+                    return;
+                }
+                if (!hosted) {
+                    assist.toggle();
+                } else if (hostOpen) {
+                    host.close();
+                } else {
+                    openHosted();
+                }
+            },
+            isOpen: host?.revising === markKey || (hosted ? hostOpen : assist.open),
+        } : undefined),
+        [assist.available, assist.open, hosted, hostOpen, host]
+    );
+    const display = (expression: string) => proposalText(inputMode, expression, sanitizedExpression);
+    // Applied as an edit in the editor, so the value goes through the same change path as typing.
+    const applyProposal = async (proposal: Proposal, focus = true) => {
+        await runValueActions(props.runAssistActions, proposal.actions, watch(key) ?? "");
+        if (proposal.imports) {
+            updateImports?.(key, proposal.imports);
+        }
+        if (needsExpressionEditor(inputMode, proposal.expression, field)) {
+            const previousEditor = fieldRef.current?.querySelector(".cm-editor");
+            modeSwitcherContext?.onModeChange(InputMode.EXP);
+            whenEditorReplaced(key, previousEditor, (editor) => replaceEditorText(editor, proposal.expression, focus));
+            return;
+        }
+        // The record form reloads its fields from a value set from outside.
+        if (recordMode || CHOICE_MODES.includes(inputMode)) {
+            form?.setValue(key, proposal.expression, { shouldDirty: true });
+            if (!recordMode) {
+                props.clearDiagnostics();
+            }
+            return;
+        }
+        // A template field edits the text inside the backticks; a text field, the text inside the quotes.
+        // The expanded editor's code editor when the helper was opened over it; a prompt there has none, so the field's own is used.
+        const target = assistTarget.current?.closest("[data-expanded-editor]")?.querySelector<HTMLElement>(".cm-editor");
+        replaceEditorText(target ?? fieldRef.current?.querySelector(".cm-editor"), display(proposal.expression), focus);
+        if (expanded && !target) {
+            setExpandedRevision((revision) => revision + 1);
+        }
+    };
+    useAssistField(hosted, key, field, () => watch(key) ?? "", applyProposal);
+    // The suggestion lands in the field at once; the card under it keeps, undoes or revises it, as for a form change.
+    const writeForReview = async (proposal: Proposal, request: string) => {
+        const before = watch(key) ?? "";
+        // A configurable the value names is declared as it lands; Undo removes it with the value.
+        const removeCreated = await runValueActions(props.runAssistActions, proposal.actions, before);
+        await applyProposal({ ...proposal, actions: undefined }, false);
+        reviewFieldChange(host, markKey, {
+            before: display(before),
+            after: display(proposal.expression),
+            // An expression shows as code, as the editor shows it; text as prose.
+            display: inputMode === InputMode.EXP ? "code" : undefined,
+            request,
+            label: field.label,
+            note: reviewNote(proposal, before),
+            handoff: proposal.flowChange,
+            values: { before, after: proposal.expression },
+            revert: () => void applyProposal({ expression: before }, false),
+        }, removeCreated);
+        if (expanded) {
+            assist.close();
+        }
+    };
+    // A value from the field's own Copilot is the user's edit, as typing is, so a form review of the field ends.
+    const replaceWithProposal = async (proposal: Proposal) => {
+        await applyProposal(proposal);
+        host?.dropMark(markKey);
+    };
+    const presence = usePresence(!hosted && assist.open);
+    const assistPanel = hosted ? (
+        <HostedFieldPanel scope={scope} assist={assist} value={watch(key) ?? ""} onApply={replaceWithProposal} display={display} currentErrors={() => errorsRef.current} />
+    ) : presence.shown && (
+        // Only the expanded editor has no host; its card sits under the editor, as in the panel.
+        <AssistCardFrame closing={presence.closing} gap headless onClose={assist.close}>
+            <FieldAssistPanel assist={assist} value={watch(key) ?? ""} onApply={replaceWithProposal} display={display} currentErrors={() => errorsRef.current} />
+        </AssistCardFrame>
+    );
+    const fix = (errorMessages: string[]) => {
+        if (hosted) {
+            openHosted();
+        }
+        assist.fix(errorMessages);
+    };
+    const fixAction = (errorMessages: string[]) => {
+        errorsRef.current = errorMessages;
+        return assist.available && !(hosted ? hostOpen : assist.open) && (
+            <AssistStyles.FixButton type="button" title="Fix with Copilot" onClick={() => fix(errorMessages)}>
+                <Icon name="wand-magic-sparkles-solid" sx={{ width: "12px", height: "12px" }} iconSx={{ fontSize: "12px" }} />
+                Fix
+            </AssistStyles.FixButton>
+        );
+    };
+    return { assistContext, assistPanel, fixAction, expandedRevision };
+}
+
 // Prompt fields get a visible way into the expanded editor; a field's own action takes precedence.
 export const FieldActionLink = ({ field, inputMode, onOpenExpandedMode }: { field: FormField; inputMode: InputMode; onOpenExpandedMode?: () => void }) => {
     const onClick = field.actionCallback ?? (inputMode === InputMode.PROMPT ? onOpenExpandedMode : undefined);
@@ -426,14 +715,18 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         helperPaneZIndex,
         growRange = { start: 1, offset: 9 },
         rawExpression, // original expression
-        sanitizedExpression // sanitized expression that will be rendered in the editor
+        sanitizedExpression, // sanitized expression that will be rendered in the editor
+        assistExpression,
+        abortExpressionAssist,
+        runAssistActions
     } = props as ExpressionEditorProps;
 
     const key = fieldKey ?? field.key;
+    const markKey = useAssistKey(key);
     const readOnly = field.editable === false;
     const defaultHint = getDefaultHint(field);
     // If Form directly  calls ExpressionEditor without setting targetLineRange and fileName through context
-    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics } = useFormContext();
+    const { targetLineRange: contextTargetLineRange, fileName: contextFileName, droppedFieldDiagnostics, updateImports } = useFormContext();
     // The diagnostics the field arrived with, unless a mode switch dropped them along with the value.
     const arrivedDiagnostics = droppedFieldDiagnostics?.[key] === field.diagnostics ? undefined : field.diagnostics;
     const [formDiagnostics, setFormDiagnostics] = useState(arrivedDiagnostics);
@@ -634,7 +927,10 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         if (inputMode === InputMode.RECORD && recordTypeField && onOpenRecordConfigPage) {
             const currentValue = watch(key) || '';
             // Create onChange callback that updates the form value
-            const onChangeCallback = (value: string) => {
+            const onChangeCallback = (value: string, imports?: Imports) => {
+                if (imports) {
+                    updateImports?.(key, imports);
+                }
                 if (controllerOnChange) {
                     controllerOnChange(value);
                 } else {
@@ -744,6 +1040,13 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         ? handleOpenExpandedMode
         : undefined;
 
+    const fieldRef = useRef<HTMLDivElement>(null);
+    const { assistContext, assistPanel, fixAction, expandedRevision } = useExpressionFieldAssist({
+        field, fieldKey: key, inputMode, readOnly, watch, fieldRef, sanitizedExpression,
+        assistExpression, abortExpressionAssist, runAssistActions, expanded: isExpandedModalOpen,
+        clearDiagnostics: () => setFormDiagnostics([]),
+    });
+
     const documentation = field.documentation
         ? field.documentation.endsWith('.')
             ? field.documentation
@@ -763,17 +1066,21 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                     isRecordTypeField={modeSwitcherContext.isRecordTypeField}
                     onChange={modeSwitcherContext.onModeChange}
                     types={modeSwitcherContext.types}
+                    // List and map editors have no toolbar of their own, so the helper's button sits in the field's header.
+                    assist={<HeaderAssistButton inputMode={inputMode} disabled={readOnly} />}
                 />
             )}
         </S.FieldInfoSection>
     ) : null;
 
     return (
+        <FieldAssistContext.Provider value={assistContext}>
         <FieldProvider
             initialField={props.field}
             triggerCharacters={props.triggerCharacters}
         >
             <S.Container
+                ref={fieldRef}
                 id={id}
                 data-testid={`ex-editor-${field.key}`}
             >
@@ -943,7 +1250,10 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                     return (
                                         <>
                                             {errorMessages.length > 0 && (
-                                                <ErrorBanner errorMsg={errorMessages.join('\n')} />
+                                                <ErrorBanner
+                                                    errorMsg={errorMessages.join('\n')}
+                                                    action={String(fieldValue ?? "").trim() ? fixAction(errorMessages) : undefined}
+                                                />
                                             )}
                                             {warningMessages.length > 0 && (
                                                 <WarningBanner warningMsg={warningMessages.join('\n')} />
@@ -951,10 +1261,15 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         </>
                                     );
                                 })()}
+                                {!isExpandedModalOpen && assistPanel}
                                 <FieldActionLink field={field} inputMode={inputMode} onOpenExpandedMode={onOpenExpandedMode} />
                                 {onOpenExpandedMode && toEditorMode(inputMode) && (
                                     <ExpandedEditor
                                         isOpen={isExpandedModalOpen}
+                                        assistPanel={isExpandedModalOpen ? assistPanel : undefined}
+                                        assistKey={markKey}
+                                        revision={expandedRevision}
+                                        errorAction={fixAction}
                                         field={field}
                                         value={watch(key)}
                                         onChange={async (updatedValue: string, updatedCursorPosition: number) => {
@@ -1021,5 +1336,6 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                 />
             </S.Container>
         </FieldProvider>
+        </FieldAssistContext.Provider>
     );
 };

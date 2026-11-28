@@ -18,8 +18,9 @@
 
 import React, { ReactNode, useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { Icon } from "@wso2/ui-toolkit";
+import { Icon, View } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { AssistHeaderButton, AssistHostProvider, HandedOffContext } from "@wso2/ballerina-side-panel";
 import { BetaSVG } from "../../views/Connectors/Marketplace/BetaSVG";
 import { UndoRedoGroup } from "../UndoRedoGroup";
 import { MACHINE_VIEW } from "@wso2/ballerina-core";
@@ -178,7 +179,17 @@ export function TitleBar(props: TitleBarProps) {
             <RightContainer>
                 {(!hideUndoRedo && (actions || isDiagramView)) && <UndoRedoGroup key={Date.now()} />}
                 {actions && <ActionsContainer>{actions}</ActionsContainer>}
+                <AssistHeaderButton />
             </RightContainer>
         </TitleBarContainer>
+    );
+}
+
+// A full-page view whose TitleBar offers the Copilot for the form inside it; onHandedOff means the view reloads on source changes, so its forms may hand requests to the chat.
+export function AssistView({ children, onHandedOff }: { children: ReactNode; onHandedOff?: () => void }) {
+    return (
+        <AssistHostProvider review="end">
+            <HandedOffContext.Provider value={onHandedOff}><View>{children}</View></HandedOffContext.Provider>
+        </AssistHostProvider>
     );
 }

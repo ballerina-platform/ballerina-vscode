@@ -40,6 +40,9 @@ import {
     declineTask,
     DocGenerationRequest,
     enhancePrompt,
+    assistExpression,
+    abortExpressionAssist,
+    assistForm,
     generateAgent,
     GenerateAgentCodeRequest,
     generateContextTypes,
@@ -72,6 +75,9 @@ import {
     PlanApprovalRequest,
     ProcessContextTypeCreationRequest,
     PromptEnhancementRequest,
+    ExpressionAssistRequest,
+    AbortExpressionAssistRequest,
+    FormAssistRequest,
     promptForLogin,
     promptGithubAuthorize,
     provideConfiguration,
@@ -237,6 +243,9 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
         }
     });
     messenger.onRequest(enhancePrompt, (args: PromptEnhancementRequest) => rpcManger.enhancePrompt(args));
+    messenger.onRequest(assistExpression, (args: ExpressionAssistRequest) => rpcManger.assistExpression(args));
+    messenger.onNotification(abortExpressionAssist, (args: AbortExpressionAssistRequest) => rpcManger.abortExpressionAssist(args));
+    messenger.onRequest(assistForm, (args: FormAssistRequest) => rpcManger.assistForm(args));
     messenger.onNotification(promptForLogin, () => rpcManger.promptForLogin());
     messenger.onRequest(submitClarifyAnswer, (args: ClarifyAnswerRequest) => rpcManger.submitClarifyAnswer(args));
     messenger.onRequest(cancelClarify, (args: ClarifyCancelRequest) => rpcManger.cancelClarify(args));

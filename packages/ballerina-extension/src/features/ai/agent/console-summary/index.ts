@@ -207,7 +207,7 @@ async function generateSummary(
  * Settles as `promise` does, or rejects once `signal` aborts, whichever comes first.
  * For work that takes no signal of its own; it is left running, only no longer awaited.
  */
-function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+export function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
     return new Promise<T>((resolve, reject) => {
         const onAbort = () => reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
         // Always handled, so a rejection after the abort is not reported as unhandled.

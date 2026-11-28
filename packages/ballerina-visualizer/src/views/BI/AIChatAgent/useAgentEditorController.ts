@@ -284,12 +284,14 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (!tool?.name) {
             return;
         }
+        // The tool's flow keeps the agent too, so its Configure page can pass it on.
+        const target = { view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram, agentMetadata: { agent: node } };
         if (isImportedTool(tool)) {
             const location = workspaceTools.current.get(tool.name);
             if (location) {
                 await rpcClient.getVisualizerRpcClient().openView({
                     type: EVENT_TYPE.OPEN_VIEW,
-                    location: { ...location, view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram },
+                    location: { ...location, ...target },
                 });
             }
             return;
@@ -308,7 +310,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 documentUri: resolved.documentUri,
                 identifier: tool.name,
                 position: toolPosition,
-                view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram,
+                ...target,
             },
         });
     }, [resolveToolFunction, rpcClient]);

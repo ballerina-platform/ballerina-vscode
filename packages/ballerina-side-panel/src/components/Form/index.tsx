@@ -18,7 +18,7 @@
 
 import React, { forwardRef, useCallback, useMemo, useEffect, useImperativeHandle, useState, useRef } from "react";
 import isEqual from "lodash/isEqual";
-import { useForm } from "react-hook-form";
+import { FieldErrors, useForm } from "react-hook-form";
 import {
     Button,
     Codicon,
@@ -37,7 +37,7 @@ import { indentedFieldStyles } from "./styles";
 import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
-import { getValueForDropdown, isDropdownField } from "../editors/utils";
+import { assistProperty, getValueForDropdown, isDropdownField } from "../editors/utils";
 import {
     Diagnostic,
     CodeData,
@@ -83,6 +83,10 @@ import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
 import { CHIP_EXPRESSION_EDITOR_HEIGHT, FIELD_INPUT_GAP, FORM_FIELD_GAP } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { FieldsFormAssist } from "../editors/FieldAssist/FormAssist";
+import { SectionChanges, useCopilotChanged } from "../editors/FieldAssist/AssistMark";
+import { keysWithin } from "../editors/FieldAssist/formFields";
+import { AssistFieldTree, AssistHostProvider, FormErrorReport, FormErrors, useAssistHost } from "../editors/FieldAssist/AssistHost";
 
 // Sizes toolkit inputs like expression fields; every form container applies it.
 export const FORM_INPUT_STYLES = `
@@ -117,6 +121,7 @@ export const FORM_INPUT_STYLES = `
 
 namespace S {
     export const Container = styled(SidePanelBody) <{ nestedForm?: boolean; compact?: boolean; footerActionButton?: boolean }>`
+        outline: none;
         ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;
@@ -151,6 +156,12 @@ namespace S {
         display: flex;
         flex-direction: column;
         gap: ${FORM_FIELD_GAP};
+    `;
+
+    export const SectionTitle = styled.span`
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     `;
 
     export const Row = styled.div<{}>`
@@ -528,7 +539,7 @@ export interface FormHandle {
     setFieldValue: (key: string, value: unknown) => void;
 }
 
-export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
+const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const {
         infoLabel,
         hideInfoBanner = false,
@@ -658,7 +669,10 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             previous.length === 0 && unmapped.length === 0 ? previous : unmapped);
     }, [serverValidationErrors, setError]);
 
-    const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
+    // A form rebuilt after a Copilot change or revert in an advanced field keeps that section open.
+    const advancedFields = formFields.filter((field) => field.advanced);
+    const copilotChanged = useCopilotChanged(keysWithin(advancedFields));
+    const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? copilotChanged);
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const toggleGroup = (groupId: string) =>
         setExpandedGroups((prev) => {
@@ -1138,6 +1152,8 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     // take the parent's: without a file the language server returns no tokens and no chips render.
     // Only the context inherits it; the props stay unset so the nested form never reports dirtiness.
     const parentContext = useFormContext();
+    const assistHost = useAssistHost();
+    const partOfParentForm = isPartOfParentForm(parentContext, assistHost);
     const editorTargetLineRange = targetLineRange ?? (nestedForm ? parentContext?.targetLineRange : undefined);
     const editorFileName = fileName ?? (nestedForm ? parentContext?.fileName : undefined);
 
@@ -1158,6 +1174,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             ...expressionEditor,
             getExpressionEditorDiagnostics: handleGetExpressionDiagnostics,
         },
+        updateImports,
         clearFieldDiagnostics: handleClearFieldDiagnostics,
         droppedFieldDiagnostics,
         targetLineRange: editorTargetLineRange,
@@ -1166,9 +1183,13 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
         nodeInfo: {
             kind: selectedNode,
         },
+        fields: formFields,
         onRequestCreateConnection,
         onCreateNode,
         renameLog,
+        assistHost,
+        partOfParentForm,
+        assistPrefix: partOfParentForm ? parentContext?.nestedAssistPrefix : undefined,
     };
 
     // Find the first editable identifier field
@@ -1180,6 +1201,8 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     const autoFocusFirstField =
         firstEditableFieldIndex >= 0 &&
         (!opensPrefilled || firstEditableFieldValue === undefined || firstEditableFieldValue === "");
+    const containerRef = useFocusOnOpen(!!onSubmit && !hideSaveButton);
+    const saveTooltip = `${submitText || "Save"} (${SAVE_SHORTCUT_LABEL})`;
 
     const isValid = useMemo(() => {
         let hasDiagnostics: boolean = false;
@@ -1244,11 +1267,13 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     const hasBlockingLiveErrors = diagnosticsStore.hasBlockingErrors();
     const isLiveValidating = diagnosticsStore.isAnyValidating();
 
-    const hasFieldLiveError = (fieldKey: string): boolean => {
+    const liveErrorMessages = (fieldKey: string): string[] => {
         const fieldDiagnostics = diagnosticsStore.getField(fieldKey);
         return [...fieldDiagnostics.client, ...fieldDiagnostics.ls, ...fieldDiagnostics.compiler]
-            .some((diagnostic) => diagnostic.severity === "ERROR");
+            .filter((diagnostic) => diagnostic.severity === "ERROR").map((diagnostic) => diagnostic.message);
     };
+
+    const hasFieldLiveError = (fieldKey: string): boolean => liveErrorMessages(fieldKey).length > 0;
 
     const errorCount = Object.keys(errors).length;
     const formIsValid = isValid && formStateIsValid && !isValidating && errorCount === 0 && !hasIncompleteRequiredFields &&
@@ -1361,6 +1386,15 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
         })();
     };
 
+    const handleSaveShortcut = (event: React.KeyboardEvent) => {
+        const canSave = onSubmit && !hideSaveButton && !disableSaveButton && !isSaving;
+        if (isSaveShortcut(event) && canSave) {
+            event.preventDefault();
+            event.stopPropagation();
+            handleOnSaveClick();
+        }
+    };
+
     const handleOnSaveClick = () => {
         setSavingButton('save');
 
@@ -1440,6 +1474,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
             {!preserveOrder && !compact && !hideInfoBanner && (
                 <FormDescription formFields={formFields} selectedNode={selectedNode} />
             )}
+            <FormErrorReport errors={collectFormErrors(formFields, errors, liveErrorMessages, formDiagnostics)} />
             {formDiagnostics && formDiagnostics.length > 0 && (
                 <S.FormDiagnosticsContainer>
                     <ErrorBanner
@@ -1465,6 +1500,13 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                  * 1. preserveOrder = true: Render all fields in original order from formFields array
                  * 2. preserveOrder = false: Render name and type fields at the bottom, and rest at top
                  */}
+            {expressionEditor?.assistForm && !partOfParentForm && (
+                <AssistFieldTree fields={formFields} form={{ getValues, setValue }} toProperty={assistProperty} updateImports={updateImports} />
+            )}
+            {expressionEditor?.assistForm && (
+                <FieldsFormAssist run={expressionEditor.assistForm} abort={expressionEditor.abortExpressionAssist} onContinueInChat={expressionEditor.continueFormInChat} runAssistActions={expressionEditor.runAssistActions}
+                    savedValue={(path) => savedFieldValue(formFields, path)} />
+            )}
             <S.CategoryRow bottomBorder={false}>
                 {(() => {
                     const fieldsToRender = [...formFields]
@@ -1559,7 +1601,10 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                 {hasAdvanceFields && <S.GroupDivider />}
                 {hasAdvanceFields && (
                     <S.Row>
-                        {optionalFieldsTitle}
+                        <S.SectionTitle>
+                            {optionalFieldsTitle}
+                            <SectionChanges fields={advancedFields} onReveal={handleOnShowAdvancedOptions} />
+                        </S.SectionTitle>
                         <S.ButtonContainer>
                             {!showAdvancedOptions && (
                                 <LinkButton
@@ -1834,7 +1879,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                 unregisterLoading={unregisterLoading}
             >
                 <Provider {...contextValue}>
-                    <S.Container nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body">
+                    <S.Container ref={containerRef} tabIndex={-1} nestedForm={nestedForm} compact={compact} footerActionButton={footerActionButton} className="side-panel-body" onKeyDown={handleSaveShortcut}>
                         {isFormLoading && <FormLoadingIndicator />}
                         {/* NOTE: isFormLoading is only expected to be true during initial field value
     resolution on form open. If this ever becomes true during user interaction,
@@ -1894,6 +1939,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                                         appearance="primary"
                                         onClick={handleOnSaveClick}
                                         disabled={disableSaveButton || isSaving}
+                                        tooltip={saveTooltip}
                                     >
                                         {isValidatingForm ? (
                                             <Typography variant="progress">Validating...</Typography>
@@ -1921,6 +1967,7 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
                                         appearance="primary"
                                         onClick={handleOnSaveClick}
                                         disabled={disableSaveButton || isSaving}
+                                        tooltip={saveTooltip}
                                         buttonSx={{ width: "100%", height: "35px" }}
                                     >
                                         {isValidatingForm ? (
@@ -1941,6 +1988,33 @@ export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) =>
     );
 });
 
+// An empty required value is the fill hint's job, not an error to fix.
+function collectFormErrors(fields: FormField[], errors: FieldErrors<FormValues>, live: (key: string) => string[],
+    formDiagnostics?: FormProps["formDiagnostics"]): FormErrors {
+    const reported = (key: string) => errors[key] && errors[key].type !== "required" ? String(errors[key].message ?? "").split("\n") : [];
+    return {
+        fields: fields
+            .map((field) => ({ label: field.label || field.key, messages: [...new Set([...reported(field.key), ...live(field.key)])].filter(Boolean) }))
+            .filter((field) => field.messages.length > 0),
+        outside: (formDiagnostics ?? []).filter((diagnostic) => diagnostic.severity === "ERROR").map((diagnostic) => diagnostic.message),
+    };
+}
+
+// The value a field opened with, which is the saved one until the form is saved.
+const savedFieldValue = (fields: FormField[], key: string): string | undefined => {
+    const value = fields.find((field) => field.key === key)?.value;
+    return value == null ? undefined : String(value);
+};
+
+// A form inside another form's field under the same Copilot, e.g. one row of a list, is part of that field.
+const isPartOfParentForm = (parent: FormContext | undefined, host: unknown) => !!parent?.form && parent.assistHost === host;
+
+// A form on a page has no panel to hold its Copilot thread, so it holds its own.
+export const Form = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
+    const body = <FormBody {...props} ref={ref} />;
+    return useAssistHost() ? body : <AssistHostProvider>{body}</AssistHostProvider>;
+});
+
 export default Form;
 
 const FormLoadingIndicator = () => (
@@ -1956,6 +2030,21 @@ export const FormLoadingState = () => (
         <FormLoadingIndicator />
     </S.Container>
 );
+
+export const isSaveShortcut = (event: React.KeyboardEvent) => event.key === "Enter" && (event.metaKey || event.ctrlKey);
+
+export const SAVE_SHORTCUT_LABEL = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent) ? "⌘Enter" : "Ctrl+Enter";
+
+// Focus lands in the form when it opens, so the save shortcut works before any field is clicked.
+export function useFocusOnOpen(enabled = true) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (enabled && !ref.current?.contains(document.activeElement)) {
+            ref.current?.focus({ preventScroll: true });
+        }
+    }, []);
+    return ref;
+}
 
 export const FormRow = S.Row;
 export const FormButtonContainer = S.ButtonContainer;

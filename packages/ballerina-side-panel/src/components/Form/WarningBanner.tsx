@@ -19,28 +19,36 @@
 import styled from "@emotion/styled";
 import React from "react";
 
-/**
- * The amber counterpart of the toolkit's (red) ErrorBanner, for WARNING-severity findings that do
- * not block submit. It lives here rather than in the toolkit because ErrorBanner hardcodes the
- * error colour on its icon; the colour is VS Code's own editor-warning amber so it tracks the theme.
- */
+// The amber counterpart of the toolkit's ErrorBanner, drawn the same way in VS Code's editor-warning colour.
 const Container = styled.div`
-    align-items: center;
     display: flex;
     flex-direction: row;
-    background-color: var(--vscode-toolbar-activeBackground);
-    padding: 6px;
-    color: var(--vscode-editorWarning-foreground, #cca700);
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 6px 10px;
+    border: 1px solid color-mix(in srgb, var(--vscode-editorWarning-foreground, #cca700) 30%, transparent);
+    border-radius: var(--vscode-cornerRadius-small, 4px);
+    background-color: color-mix(in srgb, var(--vscode-editorWarning-foreground, #cca700) 8%, transparent);
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: 12px;
+    line-height: 18px;
 `;
 
-// The codicon glyph inherits the container's colour, so both icon and text render amber together.
 const Icon = styled.i`
-    margin-right: 6px;
-    vertical-align: middle;
+    flex-shrink: 0;
+    color: var(--vscode-editorWarning-foreground, #cca700);
+    font-size: 14px;
+    line-height: 18px;
 `;
 
 const Message = styled.div`
+    flex: 1;
+    min-width: 0;
     white-space: break-spaces;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 `;
 
 export function WarningBanner(props: { id?: string; warningMsg: string }) {

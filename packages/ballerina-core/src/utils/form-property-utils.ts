@@ -74,3 +74,60 @@ export const isDropDownType = (
     (value?.fieldType === "SINGLE_SELECT" || value?.fieldType === "MULTIPLE_SELECT")
   );
 };
+
+export interface RowStep {
+    before?: number;
+    after?: number;
+    was?: string;
+    now?: string;
+}
+
+// Lines rows up by content, so a row inserted at the top reads as one addition, not every row changing.
+export function alignRows(before: string[], after: string[]): RowStep[] {
+    const common: number[][] = Array.from({ length: before.length + 1 }, () => new Array(after.length + 1).fill(0));
+    for (let i = before.length - 1; i >= 0; i--) {
+        for (let j = after.length - 1; j >= 0; j--) {
+            common[i][j] = before[i] === after[j] ? common[i + 1][j + 1] + 1 : Math.max(common[i + 1][j], common[i][j + 1]);
+        }
+    }
+    const steps: RowStep[] = [];
+    let [i, j] = [0, 0];
+    while (i < before.length || j < after.length) {
+        if (i < before.length && j < after.length && before[i] === after[j]) {
+            steps.push({ before: i, after: j, was: before[i++], now: after[j++] });
+        } else if (j < after.length && (i === before.length || common[i][j + 1] >= common[i + 1][j])) {
+            steps.push({ after: j, now: after[j++] });
+        } else {
+            steps.push({ before: i, was: before[i++] });
+        }
+    }
+    return pairEdits(steps);
+}
+
+// Between two kept rows, the removed and added rows pair up in order as edited rows, e.g. two renamed workers.
+function pairEdits(steps: RowStep[]): RowStep[] {
+    const result: RowStep[] = [];
+    let removed: RowStep[] = [];
+    let added: RowStep[] = [];
+    const flush = () => {
+        const pairs = Math.min(removed.length, added.length);
+        for (let k = 0; k < pairs; k++) {
+            result.push({ before: removed[k].before, after: added[k].after, was: removed[k].was, now: added[k].now });
+        }
+        result.push(...removed.slice(pairs), ...added.slice(pairs));
+        removed = [];
+        added = [];
+    };
+    for (const step of steps) {
+        if (step.was !== undefined && step.now !== undefined) {
+            flush();
+            result.push(step);
+        } else if (step.now === undefined) {
+            removed.push(step);
+        } else {
+            added.push(step);
+        }
+    }
+    flush();
+    return result;
+}

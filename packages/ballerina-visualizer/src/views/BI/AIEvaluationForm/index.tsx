@@ -23,7 +23,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType, EvalsetItem, AvailableNode, FlowNode, Property as FlowProperty, AddOrUpdateTestFunctionRequest, isEvalTemplateCall, unwrapBallerinaString, EvaluationTemplateOption } from "@wso2/ballerina-core";
 import { EVENT_TYPE } from "@wso2/ballerina-core";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
@@ -271,7 +271,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
     }
 
     return (
-        <View>
+        <AssistView>
             <TopNavigationBar projectPath={formProps.projectPath} />
             <TitleBar title="AI Evaluation" subtitle={isEditing
                 ? 'Update an existing AI evaluation'
@@ -282,7 +282,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                     <AIEvaluationFormBody {...formProps} />
                 </Container>
             </ViewContent>
-        </View>
+        </AssistView>
     );
 }
 

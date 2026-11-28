@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { cloneElement, isValidElement, ReactNode, ReactElement, useEffect } from "react";
+import React, { cloneElement, createContext, isValidElement, ReactNode, ReactElement, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { Icon, Divider, ThemeColors, Typography, Tooltip, Button } from "@wso2/ui-toolkit";
@@ -96,6 +96,15 @@ export const CloseButton = styled(Button)`
     border-radius: 5px;
 `;
 
+const HeaderEnd = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+`;
+
+// The dialog's content can portal its own header buttons here, before the close button.
+export const ModalHeaderSlot = createContext<HTMLElement | null>(null);
+
 type TriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode };
 const Trigger: React.FC<TriggerProps> = (props) => <InvisibleButton {...props}>{props.children}</InvisibleButton>;
 
@@ -113,6 +122,7 @@ const DynamicModal: React.FC<DynamicModalProps> & { Trigger: typeof Trigger } = 
     closeButtonIcon = "close",
 }) => {
     const { setShowOverlay } = useVisualizerContext();
+    const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
     let trigger: ReactElement | null = null;
     const content: ReactNode[] = [];
 
@@ -167,19 +177,22 @@ const DynamicModal: React.FC<DynamicModalProps> & { Trigger: typeof Trigger } = 
                     sx={sx}
                     onClick={handleBackdropClick}
                 >
-                    <ModalBox width={width} height={height}>
+                    <ModalBox width={width} height={height} role="dialog" aria-modal="true">
                         <ModalHeaderSection>
                             <Typography variant="h2" sx={{ margin: 0 }}>
                                 {title}
                             </Typography>
-                            <Tooltip content={tooltipText} position="bottom">
-                                <CloseButton appearance="icon" onClick={handleClose}>
-                                    <Icon name={iconName} sx={{fontSize: "16px", width: "16px"}}/>
-                                </CloseButton>
-                            </Tooltip>
+                            <HeaderEnd>
+                                <div ref={setHeaderSlot} style={{ display: "contents" }} />
+                                <Tooltip content={tooltipText} position="bottom">
+                                    <CloseButton appearance="icon" onClick={handleClose}>
+                                        <Icon name={iconName} sx={{fontSize: "16px", width: "16px"}}/>
+                                    </CloseButton>
+                                </Tooltip>
+                            </HeaderEnd>
                         </ModalHeaderSection>
                         <Divider />
-                        {content}
+                        <ModalHeaderSlot.Provider value={headerSlot}>{content}</ModalHeaderSlot.Provider>
                     </ModalBox>
                 </ModalContainer>,
                 targetEl

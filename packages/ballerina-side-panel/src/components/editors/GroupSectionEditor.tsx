@@ -24,6 +24,7 @@ import { FormRow, FormButtonContainer } from "../Form";
 import { FormSectionGroup } from "./FormSectionGroup";
 import { FieldFactory } from "./FieldFactory";
 import { FormFieldEditorProps } from "./EditorFactory";
+import { SectionChanges } from "./FieldAssist/AssistMark";
 
 /**
  * Renders a GROUP_SECTION field. When the group contains nested GROUP_SECTION children,
@@ -68,6 +69,7 @@ export function GroupSectionEditor(props: FormFieldEditorProps) {
                 <FormRow>
                     {collapsedSectionLabel}
                     <FormButtonContainer>
+                        <SectionChanges fields={collapsedFields} onReveal={() => setShowAdvancedOptions(true)} />
                         {!showAdvancedOptions && (
                             <LinkButton
                                 onClick={() => setShowAdvancedOptions(true)}

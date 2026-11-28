@@ -1,0 +1,34 @@
+{
+  "description": "A variable's expression infers its typedesc from the variable's type",
+  "filePath": "infer_typedesc.bal",
+  "context": {
+    "expression": "check (check data.card).cloneWithType()",
+    "startLine": {
+      "line": 8,
+      "offset": 8
+    },
+    "offset": 0,
+    "lineOffset": 0,
+    "codedata": {
+      "node": "VARIABLE"
+    },
+    "property": {
+      "metadata": {
+        "label": "Expression",
+        "description": "Initialize with value"
+      },
+      "types": [
+        {
+          "fieldType": "ACTION_OR_EXPRESSION",
+          "selected": true,
+          "ballerinaType": "Card"
+        }
+      ],
+      "value": "check (check data.card).cloneWithType()",
+      "optional": true,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}

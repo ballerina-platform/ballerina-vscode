@@ -58,7 +58,7 @@ type EnhancementState =
 const DOCKED_UNDER_TOOLBAR = {
     "--field-top-radius": "0",
     "--field-top-border-style": "none",
-    "--field-focus-border": FIELD_BORDER
+    "--field-focus-border": `var(--field-changed-border, ${FIELD_BORDER})`
 } as React.CSSProperties;
 
 export const PromptMode: React.FC<EditorModeExpressionProps> = ({
@@ -76,7 +76,8 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     formDiagnostics,
     inputMode,
     onAIStatusChange,
-    readOnly
+    readOnly,
+    errorAction
 }) => {
     const isSimpleMode = SIMPLE_PROMPT_FIELDS.includes(field.key) && !getHelperPane;
     const detectedMode = getPromptModeForField(field.key);
@@ -451,9 +452,9 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
 
             {/* Error Banner */}
             {error ?
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} /> :
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={error.message.toString()} action={errorAction?.([error.message.toString()])} /> :
                 formDiagnostics && formDiagnostics.length > 0 &&
-                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} />
+                <ErrorBanner sx={{ maxHeight: "50px", overflowY: "auto" }} errorMsg={formDiagnostics.map(d => d.message).join(', ')} action={errorAction?.(formDiagnostics.map(d => d.message))} />
             }
 
             {/* Refinement Bar */}

@@ -22,6 +22,7 @@ import styled from "@emotion/styled";
 import { Type, Member, Imports } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { TypeField } from "./TypeField";
+import { AssistMark } from "@wso2/ballerina-side-panel";
 
 namespace S {
     export const Container = styled.div`
@@ -219,35 +220,39 @@ export function UnionEditor({ type, onChange, rpcClient, onValidationError }: Un
                 </div>
             </S.Header>
             {type.members.map((member, index) => (
-                <S.MemberRow key={index}>
-                    <TypeField
-                        fieldIndex={index}
-                        type={member.type}
-                        memberName={typeof member.type === 'string' ? member.type : member.name}
-                        onChange={(newType) => updateMember(index, newType)}
-                        onUpdateImports={(imports) => handleUpdateImports(index, imports)}
-                        placeholder="Enter type"
-                        sx={{ flexGrow: 1 }}
-                        rootType={type}
-                        autoFocus={index === 0}
-                        onValidationError={(hasError) => handleValidationError(index, hasError)}
-                    />
-                    <Button
-                        appearance="icon"
-                        data-testid={`delete-member-${index}`}
-                        onClick={() => deleteMember(index)}
-                        disabled={type.members.length <= 2}
-                        tooltip={type.members.length <= 2 ? "Union must have at least two members" : "Remove member"}
-                    >
-                        <Codicon
-                            name="trash"
-                            sx={{
-                                cursor: type.members.length <= 2 ? "not-allowed" : "pointer"
-                            }}
+                <div key={index}>
+                    <S.MemberRow>
+                        <TypeField
+                            fieldIndex={index}
+                            type={member.type}
+                            memberName={typeof member.type === 'string' ? member.type : member.name}
+                            onChange={(newType) => updateMember(index, newType)}
+                            onUpdateImports={(imports) => handleUpdateImports(index, imports)}
+                            placeholder="Type"
+                            sx={{ flexGrow: 1 }}
+                            rootType={type}
+                            autoFocus={index === 0}
+                            onValidationError={(hasError) => handleValidationError(index, hasError)}
                         />
-                    </Button>
-                </S.MemberRow>
+                        <Button
+                            appearance="icon"
+                            data-testid={`delete-member-${index}`}
+                            onClick={() => deleteMember(index)}
+                            disabled={type.members.length <= 2}
+                            tooltip={type.members.length <= 2 ? "A union needs at least two member types." : "Delete Member Type"}
+                        >
+                            <Codicon
+                                name="trash"
+                                sx={{
+                                    cursor: type.members.length <= 2 ? "not-allowed" : "pointer"
+                                }}
+                            />
+                        </Button>
+                    </S.MemberRow>
+                    <AssistMark fieldKey={`unionMember-${index}`} />
+                </div>
             ))}
+            <div><AssistMark fieldKey="unionMembers" /></div>
             {notEnoughMembers && type.members.length < 2 && (
                 <S.ValidationMessage>
                     Union type must have at least two members

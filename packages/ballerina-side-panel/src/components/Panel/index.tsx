@@ -20,6 +20,7 @@ import React from "react";
 import { Button, SidePanel, SidePanelTitleContainer, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon } from "../../resources";
+import { AssistHeaderButton, AssistHostProvider } from "../editors/FieldAssist/AssistHost";
 
 const OUTER_RADIUS = "var(--vscode-cornerRadius-large, 8px)";
 
@@ -38,6 +39,12 @@ export interface PanelContainerProps {
 namespace S {
     export const StyledButton = styled(Button)`
         border-radius: 5px;
+    `;
+
+    export const HeaderEnd = styled.div`
+        display: flex;
+        align-items: center;
+        gap: 8px;
     `;
 
     export const TitleContainer = styled.div`
@@ -68,6 +75,16 @@ export function PanelContainer(props: PanelContainerProps) {
             subPanel={subPanel}
             subPanelWidth={subPanelWidth}
         >
+            <AssistHostProvider review="start">
+                <PanelBody title={title} onBack={onBack} onClose={onClose}>{children}</PanelBody>
+            </AssistHostProvider>
+        </SidePanel>
+    );
+}
+
+function PanelBody({ children, title, onBack, onClose }: Pick<PanelContainerProps, "children" | "title" | "onBack" | "onClose">) {
+    return (
+        <>
             {title && (
                 <SidePanelTitleContainer>
                     <S.TitleContainer>
@@ -78,14 +95,17 @@ export function PanelContainer(props: PanelContainerProps) {
                         )}
                         {title}
                     </S.TitleContainer>
-                    <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
-                        <CloseIcon />
-                    </S.StyledButton>
+                    <S.HeaderEnd>
+                        <AssistHeaderButton />
+                        <S.StyledButton data-testid="close-panel-btn" appearance="icon" onClick={onClose}>
+                            <CloseIcon />
+                        </S.StyledButton>
+                    </S.HeaderEnd>
                 </SidePanelTitleContainer>
             )}
             {/* The body takes the height left under the title, so a form's 100% height ends at the panel's bottom. */}
             <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
-        </SidePanel>
+        </>
     );
 }
 

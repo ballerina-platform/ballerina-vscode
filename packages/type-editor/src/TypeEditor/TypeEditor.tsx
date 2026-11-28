@@ -41,11 +41,13 @@ interface TypeEditorProps {
     rpcClient: BallerinaRpcClient;
     onTypeChange: (type: Type, rename?: boolean) => void;
     onSaveType: (type: Type) => void;
+    onDraftChange?: (type: Type) => void;
     newType: boolean;
     newTypeValue?: string;
     isPopupTypeForm: boolean;
     isGraphql?: boolean;
     defaultTab?: 'create-from-scratch' | 'import';
+    onTabChange?: (tabId: string) => void;
     typeHelper: {
         loading?: boolean;
         loadingTypeBrowser?: boolean;
@@ -150,6 +152,7 @@ export function TypeEditor(props: TypeEditorProps) {
 
     const handleTabChange = (tabId: string) => {
         setActiveTab(tabId);
+        props.onTabChange?.(tabId);
     }
 
     return (
@@ -162,7 +165,7 @@ export function TypeEditor(props: TypeEditorProps) {
                         views={[
                             {
                                 id: 'create-from-scratch',
-                                name: 'Create from scratch',
+                                name: 'Create From Scratch',
                                 icon: <Icon
                                     name="bi-edit"
                                     sx={{ marginRight: '5px' }}
@@ -194,6 +197,7 @@ export function TypeEditor(props: TypeEditorProps) {
                                 filePath={props.filePath}
                                 isSaving={isSaving}
                                 setIsSaving={setIsSaving}
+                                onDraftChange={props.onDraftChange}
                             />
                         </div>
                         <div id="import" data-testid="import-tab">
@@ -218,6 +222,7 @@ export function TypeEditor(props: TypeEditorProps) {
                             onTypeSave={onTypeSave}
                             isSaving={isSaving}
                             setIsSaving={setIsSaving}
+                            onDraftChange={props.onDraftChange}
                         />
                     </div>
                 )}

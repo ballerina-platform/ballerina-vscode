@@ -88,6 +88,7 @@ import { ConnectionKind } from "../../../components/ConnectionSelector";
 import { SidePanelView } from "../FlowDiagram/PanelManager";
 import { PanelOverlayProvider } from "../FlowDiagram/context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
+import { AgentScopeProvider, scopeOf } from "../AIChatAgent/agentScope";
 import { createPromptHelperPane } from "./utils";
 import { useAssistantName, useProductMode } from "../../../hooks/useProductMode";
 import { useAgentDeletion } from "../AgentBuilderOverview/DeleteAgentDialog";
@@ -1188,6 +1189,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         return backViews.includes(agentEditor.view) ? agentEditor.back : undefined;
     })();
 
+    const closeAgentPanel = showConnectionPanel ? handleCloseConnectionPanel
+        : agentPanel !== "NONE" ? handleCloseAgentPanel : () => agentEditor.cancel();
+    const providerPart = connectionView === SidePanelView.CONNECTION_CREATE ? "NEW_MODEL_PROVIDER" : "MODEL_PROVIDER";
+    const agentScope = scopeOf(agentDeclRef.current ?? agentEditor.agentNode,
+        showConnectionPanel ? providerPart : agentPanel === "FORM" ? "AGENT" : agentEditor.view, closeAgentPanel);
+
     const renderAgentPanelContent = () => {
         if (showConnectionPanel) {
             if (!selectedNodeRef.current) {
@@ -1269,18 +1276,19 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 </Container>
             </View>
 
+            <AgentScopeProvider value={agentScope}>
             {isAgentPanelOpen && (
                 <PanelContainer
                     title={agentPanelTitle}
                     show={true}
-                    onClose={showConnectionPanel ? handleCloseConnectionPanel
-                        : agentPanel !== "NONE" ? handleCloseAgentPanel : () => agentEditor.cancel()}
+                    onClose={closeAgentPanel}
                     onBack={agentPanelOnBack}
                 >
                     {renderAgentPanelContent()}
                 </PanelContainer>
             )}
             <PanelOverlayRenderer />
+            </AgentScopeProvider>
             {agentDeletion.dialog}
         </PanelOverlayProvider>
     );

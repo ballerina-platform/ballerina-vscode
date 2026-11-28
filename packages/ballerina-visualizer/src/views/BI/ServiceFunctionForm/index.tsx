@@ -22,8 +22,8 @@ import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { FormField, FormImports, FormValues } from '@wso2/ballerina-side-panel';
 import { ArtifactForm } from '../Forms/ArtifactForm';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
-import { TitleBar } from '../../../components/TitleBar';
-import { ViewContent, View } from '@wso2/ui-toolkit';
+import { AssistView, TitleBar } from '../../../components/TitleBar';
+import { ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import {
     logError,
@@ -193,7 +193,7 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
     };
 
     return (
-        <View>
+        <AssistView>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar
                 title={isAgentDefinitionConstructor ? "Agent Definition Constructor" : "Service Function"}
@@ -224,6 +224,6 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
                     )}
                 </Container>
             </ViewContent>
-        </View>
+        </AssistView>
     );
 }

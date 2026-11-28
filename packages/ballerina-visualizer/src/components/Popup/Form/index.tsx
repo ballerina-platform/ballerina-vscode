@@ -21,6 +21,7 @@ import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Button, Codicon, ScrollableContainer, Typography } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
+import { AssistHeaderButton, AssistHostProvider } from "@wso2/ballerina-side-panel";
 
 const fadeIn = keyframes`
     from { opacity: 0; }
@@ -176,7 +177,13 @@ const PopupFormContent = styled.div`
 `;
 
 
-export const PopupForm = (props: PopupFormProps) => {
+export const PopupForm = (props: PopupFormProps) => (
+    <AssistHostProvider>
+        <PopupFormBody {...props} />
+    </AssistHostProvider>
+);
+
+const PopupFormBody = (props: PopupFormProps) => {
     const { width, height, title, subtitle, children, onClose, onBack, breadcrumbs, transitionKey, transitionDirection } = props;
     // The last crumb is the current level, which the title already names.
     const trail = breadcrumbs?.slice(0, -1) ?? [];
@@ -253,6 +260,7 @@ export const PopupForm = (props: PopupFormProps) => {
                         </Typography>
                         {subtitle && <PopupFormSubtitle variant="body2">{subtitle}</PopupFormSubtitle>}
                     </PopupFormHeading>
+                    <AssistHeaderButton />
                     <Codicon name="close" onClick={onClose} />
                 </PopupFormHeader>
                 <PopupFormContent ref={contentRef}>

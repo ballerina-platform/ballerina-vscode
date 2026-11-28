@@ -20,9 +20,10 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import styled from "@emotion/styled";
 import { ConfigProperties, ConfigVariable, DIRECTORY_MAP, getPrimaryInputType, isSamePath, LineRange, ListenerModel, ModelResolutionError, NodePosition, ProjectStructureArtifactResponse, PropertyModel, ServiceModel } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, Codicon, Icon, LinkButton, ProgressRing, SidePanelBody, SplitView, TabPanel, ThemeColors, TreeView, TreeViewItem, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { AssistActionEntry, AssistAsk } from "@wso2/ballerina-side-panel";
+import { Button, Codicon, Icon, LinkButton, ProgressRing, SidePanelBody, SplitView, TabPanel, ThemeColors, TreeView, TreeViewItem, Typography, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 import ListenerConfigForm from "./Forms/ListenerConfigForm";
 import { ServiceEditView } from "./ServiceEditView";
 import { LoadingContainer } from "../../styles";
@@ -168,6 +169,13 @@ namespace S {
         }
     `;
 }
+
+// The project names a service by its kind and path, e.g. "HTTP Service - /orders", so the nearest one of that name in the file is the one that moved.
+function movedService(services: ProjectStructureArtifactResponse[], last: ProjectStructureArtifactResponse): ProjectStructureArtifactResponse | undefined {
+    const distance = (artifact: ProjectStructureArtifactResponse) => Math.abs(artifact.position.startLine - last.position.startLine);
+    return services.filter((artifact) => artifact.name === last.name && isSamePath(artifact.path, last.path)).sort((a, b) => distance(a) - distance(b))[0];
+}
+
 export interface ServiceConfigureProps {
     projectPath: string;
     filePath: string;
@@ -292,6 +300,31 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
     useEffect(() => {
         fetchService(position);
     }, [position]);
+
+    const handedOffRef = useRef(false);
+    const dirtyRef = useRef(dirtyFormMap);
+    dirtyRef.current = dirtyFormMap;
+    const serviceArtifactRef = useRef<ProjectStructureArtifactResponse>();
+    // A change made elsewhere, e.g. by the Copilot chat, can move the service; unsaved edits stay unless the chat took them over.
+    useEffect(() => rpcClient.onProjectContentUpdated(async () => {
+        const last = serviceArtifactRef.current;
+        if (!last || (Object.values(dirtyRef.current).some(Boolean) && !handedOffRef.current)) {
+            return;
+        }
+        const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+        const service = movedService(structure?.projects.flatMap((project) => project.directoryMap[DIRECTORY_MAP.SERVICE] ?? []) ?? [], last);
+        if (!service) {
+            return;
+        }
+        // A notification can come before the project structure has the edit; its stale range holds no service then.
+        const { startLine, startColumn, endLine, endColumn } = service.position;
+        const lineRange = { startLine: { line: startLine, offset: startColumn }, endLine: { line: endLine, offset: endColumn } };
+        const found = await rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({ filePath: props.filePath, codedata: { lineRange } });
+        if (found?.service) {
+            handedOffRef.current = false;
+            setPosition({ ...service.position });
+        }
+    }), [rpcClient]);
 
     useEffect(() => {
         if (props.listenerName) {
@@ -535,6 +568,9 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
             const projectPath = location.projectPath;
             rpcClient.getBIDiagramRpcClient().getProjectStructure().then((res) => {
                 const project = res.projects.find(project => isSamePath(project.projectPath, projectPath));
+                const start = service?.codedata?.lineRange?.startLine?.line;
+                serviceArtifactRef.current = project?.directoryMap[DIRECTORY_MAP.SERVICE]
+                    ?.find((artifact) => isSamePath(artifact.path, props.filePath) && artifact.position?.startLine === start) ?? serviceArtifactRef.current;
                 const projectListeners = project?.directoryMap[DIRECTORY_MAP.LISTENER] || [];
                 const listenersToSet: ProjectStructureArtifactResponse[] = [];
                 const listenerPropertyModel = service?.properties?.listener;
@@ -752,8 +788,24 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
         rpcClient.getVisualizerRpcClient().goBack({ identifier: currentIdentifier });
     }
 
+    // A request from the page's Copilot opens the form on a new listener and hands the request to that form's Copilot.
+    const openAttachListener = (assistRequest?: string) => addModal(
+        <AttachListenerModal
+            filePath={props.filePath}
+            orgName={serviceModel.orgName}
+            packageName={serviceModel.packageName}
+            version={serviceModel.version}
+            moduleName={serviceModel.moduleName}
+            type={existingListenerType}
+            removeDeprecated={serviceModel.moduleName === "ftp" && !!serviceModel.properties?.annotServiceConfig}
+            onAttachListener={handleOnAttachListener}
+            attachedListeners={getAttachedListenerNames(serviceModel.properties?.listener)}
+            assistRequest={assistRequest}
+        />
+        , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", 600, 500);
+
     return (
-        <View>
+        <AssistView onHandedOff={() => { handedOffRef.current = true; }}>
             <TopNavigationBar projectPath={props.projectPath} />
             {!serviceModel && isServiceLoading && (
                 <LoadingContainer>
@@ -899,7 +951,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                     <div ref={serviceRef} data-section-id="service">
                                                                         <ServiceEditView
                                                                             filePath={props.filePath}
-                                                                            position={props.position}
+                                                                            position={position}
                                                                             onChange={handleServiceChange}
                                                                             onDirtyChange={(isDirty, filePath, position) => handleFormDirtyChange(filePath, position, true, isDirty)}
                                                                             onValidityChange={(isValid) => handleFormValidityChange('service', isValid)}
@@ -946,21 +998,15 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                 ))}
                                                                 {/* Add a button to attach a new listener and when clicked, open a new modal to select a listener if multiple listener are allowed */}
                                                                 {listenerType === "MULTIPLE" && (
-                                                                    <LinkButton sx={{ marginTop: '10px' }} onClick={() => {
-                                                                        addModal(
-                                                                            <AttachListenerModal
-                                                                                filePath={props.filePath}
-                                                                                orgName={serviceModel.orgName}
-                                                                                packageName={serviceModel.packageName}
-                                                                                version={serviceModel.version}
-                                                                                moduleName={serviceModel.moduleName}
-                                                                                type={existingListenerType}
-                                                                                removeDeprecated={serviceModel.moduleName === "ftp" && !!serviceModel.properties?.annotServiceConfig}
-                                                                                onAttachListener={handleOnAttachListener}
-                                                                                attachedListeners={getAttachedListenerNames(serviceModel.properties?.listener)}
-                                                                            />
-                                                                            , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", 600, 500);
-                                                                    }}> <Codicon name="add" /> Attach Listener</LinkButton>
+                                                                    <>
+                                                                        <AssistActionEntry
+                                                                            id="attachListener"
+                                                                            label="Attach Listener"
+                                                                            description="Opens a form that creates a new listener, e.g. on another port, and attaches it to this service."
+                                                                            open={openAttachListener}
+                                                                        />
+                                                                        <LinkButton sx={{ marginTop: '10px' }} onClick={() => openAttachListener()}> <Codicon name="add" /> Attach Listener</LinkButton>
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         )}
@@ -974,7 +1020,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                         </ViewContent >
                     </>
                 )}
-        </View >
+        </AssistView >
     );
 }
 
@@ -1005,6 +1051,10 @@ function ServiceConfigureListenerEditView(props: ServiceConfigureListenerEditVie
         const lineRange: LineRange = { startLine: { line: position.startLine, offset: position.startColumn }, endLine: { line: position.endLine, offset: position.endColumn } };
         rpcClient.getServiceDesignerRpcClient().getListenerModelFromCode({ filePath, codedata: { lineRange } }).then(res => {
             console.log("Editing Listener Model: ", res.listener)
+            // A listener the project structure does not list yet has no range of its own; a later update brings it.
+            if (!res.listener?.properties) {
+                return;
+            }
             setListenerModel(res.listener);
             setListenerTypeFromProperties(res.listener.properties);
         })
@@ -1131,11 +1181,17 @@ interface AttachListenerModalProps {
     removeDeprecated?: boolean;
     attachedListeners: string[];
     onAttachListener: (listenerName: string) => Promise<void>;
+    assistRequest?: string;
 }
 
 function AttachListenerModal(props: AttachListenerModalProps) {
 
     const [activeTab, setActiveTab] = useState<"existing" | "new">("existing");
+    useEffect(() => {
+        if (props.assistRequest) {
+            handleTabChange("new");
+        }
+    }, []);
     const { rpcClient } = useRpcContext();
 
     const [existingListeners, setExistingListeners] = useState<string[]>([]);
@@ -1296,6 +1352,7 @@ function AttachListenerModal(props: AttachListenerModalProps) {
                             <Typography variant="h3" sx={{ marginTop: '16px' }}>Loading...</Typography>
                         </S.LoadingContainer>
                     )}
+                    {props.assistRequest && <AssistAsk request={props.assistRequest} />}
                     {!isLoading && listenerModel && (
                         <ListenerConfigForm
                             listenerModel={listenerModel}

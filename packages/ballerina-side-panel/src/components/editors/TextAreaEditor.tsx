@@ -19,7 +19,7 @@
 import React, { useState } from "react";
 import { FormField } from "../Form/types";
 import { AutoResizeTextArea } from "@wso2/ui-toolkit";
-import { useFormContext } from "../../context";
+import { useAssistKey, useFormContext } from "../../context";
 import { S } from "./ExpressionEditor";
 import { Controller } from "react-hook-form";
 import { EditorMode, ExpandedEditor } from "./ExpandedEditor";
@@ -30,6 +30,8 @@ import { buildRequiredRule } from "./utils";
 import { buildValidate } from "../Form/validationRules";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FieldAssistContext } from "./FieldAssist/FieldAssist";
+import { usePlainTextFieldAssist } from "./FieldAssist/StructuredFieldAssist";
 
 interface TextAreaEditorProps {
     field: FormField;
@@ -43,11 +45,16 @@ const TextAreaContainer = styled.div`
     position: relative;
 
     #textarea-editor-expand {
+        display: flex;
+        align-items: center;
+        gap: 4px;
         opacity: 0;
         transition: opacity 0.2s ease-in-out;
     }
 
-    &:hover #textarea-editor-expand {
+    &:hover #textarea-editor-expand,
+    #textarea-editor-expand:focus-within,
+    #textarea-editor-expand:has([aria-pressed="true"]) {
         opacity: 1;
     }
 `;
@@ -57,6 +64,8 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
     const { form } = useFormContext();
     const { control, setValue, watch } = form;
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
+    const markKey = useAssistKey(field.key);
+    const assist = usePlainTextFieldAssist(field);
 
     const handleOpenExpandedMode = () => {
         setIsExpandedModalOpen(true);
@@ -114,22 +123,28 @@ export function TextAreaEditor(props: TextAreaEditorProps) {
                                 growRange={field.growRange ?? { start: 4, offset: 12 }}
                             />
                             <div id="textarea-editor-expand" style={{ position: 'absolute', bottom: '9px', right: '6px' }}>
+                                {assist.button}
                                 <FloatingToggleButton onClick={handleOpenExpandedMode} title="Expand Editor">
                                     <ExpandIcon />
                                 </FloatingToggleButton>
                             </div>
-                            <ExpandedEditor
-                                isOpen={isExpandedModalOpen}
-                                field={field}
-                                value={watch(field.key)}
-                                onClose={() => setIsExpandedModalOpen(false)}
-                                onSave={handleSaveExpandedMode}
-                                onChange={onChange}
-                                mode={inputMode}
-                            />
+                            <FieldAssistContext.Provider value={assist.context}>
+                                <ExpandedEditor
+                                    isOpen={isExpandedModalOpen}
+                                    field={field}
+                                    value={watch(field.key)}
+                                    onClose={() => setIsExpandedModalOpen(false)}
+                                    onSave={handleSaveExpandedMode}
+                                    onChange={onChange}
+                                    mode={inputMode}
+                                    assistPanel={isExpandedModalOpen ? assist.panel : undefined}
+                                    assistKey={markKey}
+                                />
+                            </FieldAssistContext.Provider>
                         </TextAreaContainer>
                     )}
                 />
+                {!isExpandedModalOpen && assist.panel}
             </S.Container>
         </>
     );

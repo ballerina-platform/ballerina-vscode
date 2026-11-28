@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { ProgressRing, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { ProgressRing, Typography, ViewContent } from "@wso2/ui-toolkit";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import {
     EVENT_TYPE, getPrimaryInputType, MACHINE_VIEW,
@@ -34,7 +34,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ArtifactForm } from "../Forms/ArtifactForm";
 import { FormHeader } from "../../../components/FormHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 
 const Container = styled.div`
     max-width: 600px;
@@ -209,7 +209,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
     }
 
     return (
-        <View>
+        <AssistView>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Service Class" subtitle="Edit Service Class" />
             <ViewContent padding>
@@ -245,6 +245,6 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
                     </Container>
                 }
             </ViewContent>
-        </View >
+        </AssistView >
     );
 }

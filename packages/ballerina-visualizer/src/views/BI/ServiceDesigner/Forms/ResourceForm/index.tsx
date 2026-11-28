@@ -25,8 +25,31 @@ import styled from '@emotion/styled';
 import { getDefaultResponse, HTTP_METHOD } from '../../utils';
 import { ConfigProperties, FunctionModel, ParameterModel, HttpPayloadContext, PropertyModel, ReturnTypeModel, ProjectStructureArtifactResponse } from '@wso2/ballerina-core';
 import { Parameters } from './Parameters/Parameters';
-import { PanelContainer } from '@wso2/ballerina-side-panel';
+import { FieldsFormAssist, PanelContainer, RunFormAssist } from '@wso2/ballerina-side-panel';
+import { useRpcContext } from '@wso2/ballerina-rpc-client';
+import { assistFormInForm } from '../../../Forms/form-utils';
 import { ResourceConfig } from './ResourceConfig/ResourceConfig';
+import { AssistSubject } from '../../../Forms/ArtifactForm';
+import { FILE_START, useEndOfFile } from '../../../../../hooks/useEndOfFile';
+
+const PARAMETER_KIND: Record<string, string> = { QUERY: "Query parameter", HEADER: "Header", PAYLOAD: "Payload" };
+
+// The form's Copilot sits on the advanced configuration only, so it gets the resource's code and what the rest of the form shows.
+function resourceSubject(model: FunctionModel): AssistSubject {
+	const method = model.accessor?.value?.toUpperCase() ?? "";
+	const path = model.name?.value ?? "";
+	return {
+		name: `the ${method} /${path} resource of an HTTP service`,
+		range: model.codedata?.lineRange,
+		shown: () => [
+			`HTTP method: ${method}`,
+			`Resource path: ${path}`,
+			...model.parameters.filter((param) => param.enabled !== false)
+				.map((param) => `${PARAMETER_KIND[param.httpParamType] ?? "Parameter"}: ${param.type?.value} ${param.name?.value}`),
+			...(model.returnType?.responses ?? []).map((response) => `Response: ${response.statusCode?.value} ${response.type?.value || response.body?.value}`),
+		],
+	};
+}
 
 namespace S {
 	export const Grid = styled.div<{ columns: number }>`
@@ -95,6 +118,12 @@ export interface ResourceFormProps {
 
 export function ResourceForm(props: ResourceFormProps) {
 	const { model, isSaving, onSave, onClose, isNew, payloadContext, filePath, existingResources } = props;
+	const { rpcClient } = useRpcContext();
+	// A new resource has no lines yet; its values are checked at the end of the service's file, where module names are in scope.
+	const endOfFile = useEndOfFile(isNew ? filePath : undefined);
+	const runAssist: RunFormAssist = (instruction, description, requestId, context) => assistFormInForm(rpcClient,
+		{ fileName: filePath, startLine: endOfFile.startLine },
+		{ requestId, instruction, node: "a new resource of an HTTP service", ...context, ...description });
 
 	const [functionModel, setFunctionModel] = useState<FunctionModel>(model);
 	const [isPathValid, setIsPathValid] = useState<boolean>(false);
@@ -130,13 +159,7 @@ export function ResourceForm(props: ResourceFormProps) {
 	}
 
 	const onPathChange = (method: PropertyModel, path: PropertyModel) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			accessor: method,
-			name: path,
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Path,Method Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, accessor: method, name: path }));
 	}
 
 	const onResourcePathError = (hasErros: boolean) => {
@@ -144,12 +167,7 @@ export function ResourceForm(props: ResourceFormProps) {
 	}
 
 	const handleParamChange = (params: ParameterModel[]) => {
-		const updatedFunctionModel = {
-			...functionModel,
-			parameters: params
-		};
-		setFunctionModel(updatedFunctionModel);
-		console.log("Parameter Change: ", updatedFunctionModel);
+		setFunctionModel((current) => ({ ...current, parameters: params }));
 	};
 
 	const handleResponseChange = (response: ReturnTypeModel) => {
@@ -203,7 +221,7 @@ export function ResourceForm(props: ResourceFormProps) {
 					/>
 					<Typography sx={{ marginBlockEnd: 10 }} variant="h4">Responses</Typography>
 					<ResourceResponse method={functionModel.accessor.value.toUpperCase() as HTTP_METHOD} response={functionModel.returnType} onChange={handleResponseChange} readonly={!functionModel.editable} />
-					<ResourceConfig properties={functionModel.properties} filePath={filePath} onChange={handleConfigChange} readonly={!functionModel.editable} />
+					<ResourceConfig properties={functionModel.properties} filePath={filePath} onChange={handleConfigChange} readonly={!functionModel.editable} assistSubject={resourceSubject(functionModel)} />
 					<ActionButtons
 						primaryButton={{ text: isSaving ? "Saving..." : "Save", onClick: handleSave, tooltip: isSaving ? "Saving..." : "Save", disabled: !isPathValid || isSaving || !functionModel.editable, loading: isSaving }}
 						secondaryButton={{ text: "Cancel", onClick: onClose, tooltip: "Cancel", disabled: isSaving }}
@@ -246,6 +264,9 @@ export function ResourceForm(props: ResourceFormProps) {
 					<>
 						{isSaving && <ProgressIndicator id="resource-loading-bar" />}
 						<SidePanelBody>
+							{filePath && endOfFile !== FILE_START && (
+								<FieldsFormAssist run={runAssist} abort={(requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId })} />
+							)}
 							<ResourcePath method={functionModel.accessor} path={functionModel.name} onChange={onPathChange} isNew={true} onError={onResourcePathError} existingResources={existingResources} />
 							<Divider />
 							<Parameters

@@ -17,8 +17,8 @@
  */
 
 import React from "react";
-import { AutoResizeTextArea } from "@wso2/ui-toolkit";
-import { ExpressionContainer } from "./styles";
+import { TextArea } from "@wso2/ui-toolkit";
+import { ExpressionContainer, FillTextArea } from "./styles";
 import { EditorModeExpressionProps } from "./types";
 
 export const SimpleStringMode = (props: EditorModeExpressionProps) => {
@@ -29,14 +29,15 @@ export const SimpleStringMode = (props: EditorModeExpressionProps) => {
 
     return (
         <ExpressionContainer>
-            <AutoResizeTextArea
-                placeholder="Enter text here..."
-                value={props.value}
-                onTextChange={handleChange}
-                resize="vertical"
-                sx={{ width: "100%", flex: 1, minHeight: "100%" }}
-                growRange={{ start: 38, offset: 50 }}
-            />
+            <FillTextArea>
+                <TextArea
+                    placeholder="Enter text here..."
+                    value={props.value}
+                    onTextChange={handleChange}
+                    resize="none"
+                    sx={{ width: "100%", height: "100%" }}
+                />
+            </FillTextArea>
         </ExpressionContainer>
     )
 };
