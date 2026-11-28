@@ -1,0 +1,188 @@
+{
+  "filePath": "proj",
+  "description": "Single type accepts a nested record that is missing required fields",
+  "typeMembers": [
+    {
+      "type": "Department",
+      "packageInfo": "org:source:0.3.0",
+      "packageName": "source",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "{name: \"R&D\", location: {city: \"\"}, branches: [{country: \"\"}]}",
+  "output": {
+    "recordConfig": {
+      "fields": [
+        {
+          "name": "name",
+          "typeName": "string",
+          "optional": false,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "value": "\"R&D\"",
+          "selected": true
+        },
+        {
+          "fields": [
+            {
+              "name": "street",
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "documentation": "",
+              "isRestType": false,
+              "selected": false
+            },
+            {
+              "name": "city",
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "documentation": "",
+              "isRestType": false,
+              "value": "\"\"",
+              "selected": true
+            },
+            {
+              "name": "country",
+              "typeName": "string",
+              "optional": false,
+              "defaultable": false,
+              "documentation": "",
+              "isRestType": false,
+              "selected": false
+            }
+          ],
+          "hasRestType": false,
+          "name": "location",
+          "typeName": "record",
+          "optional": false,
+          "typeInfo": {
+            "name": "Address",
+            "orgName": "org",
+            "moduleName": "source",
+            "version": "0.3.0"
+          },
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": true
+        },
+        {
+          "memberType": {
+            "fields": [
+              {
+                "name": "street",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "documentation": "",
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "city",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "documentation": "",
+                "isRestType": false,
+                "value": "\"\"",
+                "selected": true
+              },
+              {
+                "name": "country",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "documentation": "",
+                "isRestType": false,
+                "selected": false
+              }
+            ],
+            "hasRestType": false,
+            "name": "Address",
+            "typeName": "record",
+            "optional": false,
+            "typeInfo": {
+              "name": "Address",
+              "orgName": "org",
+              "moduleName": "source",
+              "version": "0.3.0"
+            },
+            "defaultable": false,
+            "documentation": "",
+            "isRestType": false,
+            "selected": false
+          },
+          "elements": [
+            {
+              "fields": [
+                {
+                  "name": "street",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "selected": false
+                },
+                {
+                  "name": "city",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "\"\"",
+                  "selected": true
+                },
+                {
+                  "name": "country",
+                  "typeName": "string",
+                  "optional": false,
+                  "defaultable": false,
+                  "documentation": "",
+                  "isRestType": false,
+                  "value": "\"\"",
+                  "selected": true
+                }
+              ],
+              "hasRestType": false,
+              "name": "Address",
+              "typeName": "record",
+              "optional": false,
+              "typeInfo": {
+                "name": "Address",
+                "orgName": "org",
+                "moduleName": "source",
+                "version": "0.3.0"
+              },
+              "defaultable": false,
+              "documentation": "",
+              "isRestType": false,
+              "selected": true
+            }
+          ],
+          "name": "branches",
+          "typeName": "array",
+          "optional": true,
+          "defaultable": false,
+          "documentation": "",
+          "isRestType": false,
+          "selected": true
+        }
+      ],
+      "hasRestType": false,
+      "name": "Department",
+      "typeName": "record",
+      "optional": false,
+      "defaultable": false,
+      "isRestType": false,
+      "selected": true
+    },
+    "typeName": "Department"
+  }
+}

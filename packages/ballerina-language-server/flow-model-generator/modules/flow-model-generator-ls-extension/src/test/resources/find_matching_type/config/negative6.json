@@ -1,0 +1,15 @@
+{
+  "filePath": "proj",
+  "description": "Single type rejects a value whose union array element matches no member",
+  "typeMembers": [
+    {
+      "type": "Payment",
+      "packageInfo": "org:source:0.3.0",
+      "packageName": "source",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "{id: \"\", method: {amount: 1}, splits: [{unknownField: 1}]}",
+  "output": {}
+}

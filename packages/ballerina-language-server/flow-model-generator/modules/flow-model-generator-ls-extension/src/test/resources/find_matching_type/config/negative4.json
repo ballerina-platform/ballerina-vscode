@@ -1,0 +1,15 @@
+{
+  "filePath": "proj",
+  "description": "Single type rejects a value whose record array element has an unknown field",
+  "typeMembers": [
+    {
+      "type": "Department",
+      "packageInfo": "org:source:0.3.0",
+      "packageName": "source",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "{name: \"R&D\", location: {city: \"\"}, branches: [{city: \"\", unknownField: 1}]}",
+  "output": {}
+}

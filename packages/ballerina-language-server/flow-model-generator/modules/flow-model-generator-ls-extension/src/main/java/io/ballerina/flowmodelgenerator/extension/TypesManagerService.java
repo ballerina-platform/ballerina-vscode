@@ -567,6 +567,9 @@ public class TypesManagerService implements ExtendedLanguageServerService {
             RecordConfigResponse response = new RecordConfigResponse();
             try {
                 String expression = request.expr();
+                // With a single candidate there is no member to tell apart, so accept a value still missing
+                // required fields and let the user complete it in the record config view.
+                boolean allowMissingRequired = request.typeMembers().size() == 1;
                 for (PropertyTypeMemberInfo memberInfo : request.typeMembers()) {
                     try {
                         FindTypeRequest.TypePackageInfo info = FindTypeRequest.TypePackageInfo
@@ -578,7 +581,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
                             continue;
                         }
                         Type type = TypeSymbolAnalyzerFromTypeModel.analyze(typeSymbol.get(), expression,
-                                semanticModel);
+                                semanticModel, allowMissingRequired);
                         if (type != null && type.selected) {
                             type.name = memberInfo.type();
                             serializeRecordConfig(type, response);
