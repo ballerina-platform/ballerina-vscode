@@ -638,7 +638,6 @@ const selectedKind = (slot: FormAssistSlot) => (slot.property.types?.find((optio
 // Fields whose value is a name, a type or a choice, which read as they are.
 const PLAIN_KINDS = ["SINGLE_SELECT", "MULTIPLE_SELECT", "FLAG", "IDENTIFIER", "TYPE"];
 const TEXT_KINDS = ["PROMPT", "TEXT", "STRING", "RAW_TEMPLATE"];
-const REFERENCE = /^[A-Za-z_]\w*(\??\.[A-Za-z_]\w*)*$/;
 
 // A template or string literal as its text, as the field shows it; anything else as it is.
 function asText(value: string): string {
@@ -680,7 +679,7 @@ function displayOf(slot: FormAssistSlot, value: string): ValueDisplay | undefine
     if (PLAIN_KINDS.includes(kind) || choiceOf(slot, value) || !trimmed || LITERAL.test(trimmed)) {
         return undefined;
     }
-    return REFERENCE.test(trimmed) ? "reference" : "code";
+    return "code";
 }
 
 // The model can copy a hand-off's values from the saved source; one that would undo an edit not saved yet is dropped.

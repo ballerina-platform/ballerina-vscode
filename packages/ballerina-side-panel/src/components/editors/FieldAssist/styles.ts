@@ -20,7 +20,6 @@ import styled from "@emotion/styled";
 import { css, keyframes } from "@emotion/react";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { FIELD_BORDER, FIELD_RADIUS } from "../MultiModeExpressionEditor/ChipExpressionEditor/constants";
-import { StandardChip } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 import type { ReviewSide } from "./AssistHost";
 
 // Copilot's accent and input look, so the helper reads as the same assistant as the orb chat.
@@ -954,12 +953,6 @@ export namespace S {
         line-height: 16px;
         color: var(--vscode-badge-foreground);
         background-color: var(--vscode-badge-background, rgba(128, 128, 128, 0.25));
-    `;
-
-    export const WasChip = styled(StandardChip)`
-        margin: 0 2px;
-        line-height: 1.4;
-        cursor: default;
     `;
 }
 

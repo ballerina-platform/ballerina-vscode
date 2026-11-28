@@ -21,8 +21,6 @@ import { createPortal } from "react-dom";
 import { clamp } from "lodash";
 import type { AssistFlowChange } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
-import { ChipText, StandardIcon, getTokenIconClass } from "../MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
-import { TokenType } from "../MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { AppliedChanges, AppliedMark, AssistFocus, AssistHostValue, ReviewFocus, ReviewSide, ValueDisplay, markUndone, scrollParent, undoAll } from "./AssistHost";
 import { PromptInput } from "./AssistShell";
 import { HandoffCard, handOffNote } from "./Handoff";
@@ -412,7 +410,7 @@ export function changeKind(before: string, after: string, display?: ValueDisplay
     if (!after.trim()) {
         return "cleared";
     }
-    const parts = display === "reference" ? [] : wordDiff(before, after, display === "code");
+    const parts = wordDiff(before, after, display === "code");
     return parts.length && !isRewrite(parts) ? "edited" : "replaced";
 }
 
@@ -423,7 +421,7 @@ export function ReviewDiff({ before, after, display }: { before: string; after: 
         return null;
     }
     if (kind !== "edited") {
-        return removedLine(<Value text={before} display={display} />);
+        return removedLine(before);
     }
     return (
         <S.DiffLine kind="edit">
@@ -432,13 +430,4 @@ export function ReviewDiff({ before, after, display }: { before: string; after: 
             </S.NewValue>
         </S.DiffLine>
     );
-}
-
-function Value({ text, display }: { text: string; display?: ValueDisplay }) {
-    return display === "reference" ? (
-        <S.WasChip chipType={TokenType.VARIABLE}>
-            <StandardIcon chipType={TokenType.VARIABLE} className={getTokenIconClass(TokenType.VARIABLE)} />
-            <ChipText>{text.trim()}</ChipText>
-        </S.WasChip>
-    ) : <>{text}</>;
 }
