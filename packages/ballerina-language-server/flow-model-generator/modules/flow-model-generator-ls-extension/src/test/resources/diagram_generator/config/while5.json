@@ -1617,7 +1617,7 @@
                         "selected": true
                       }
                     ],
-                    "value": "http:Client|http:ClientError",
+                    "value": "http:Client",
                     "placeholder": "var",
                     "optional": false,
                     "editable": false,

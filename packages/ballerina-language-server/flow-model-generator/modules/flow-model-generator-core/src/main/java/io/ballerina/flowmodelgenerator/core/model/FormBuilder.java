@@ -338,9 +338,8 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
         } else if (node.typeDescriptor().kind() == SyntaxKind.VAR_TYPE_DESC) {
             typeName = "var";
         } else {
-            // The declared type is written back as the variable's type, so it keeps any error member.
             typeName = CommonUtils.getTypeSymbol(semanticModel, node)
-                    .map(typeSymbol -> CommonUtils.getTypeSignature(semanticModel, typeSymbol, false, moduleInfo))
+                    .map(typeSymbol -> CommonUtils.getTypeSignature(semanticModel, typeSymbol, true, moduleInfo))
                     .orElse(CommonUtils.getVariableName(node));
         }
         return type(typeName, typeLabel, typeDoc, editable, null,

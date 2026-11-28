@@ -89,7 +89,7 @@
             "selected": true
           }
         ],
-        "value": "string|error",
+        "value": "string",
         "placeholder": "var",
         "optional": false,
         "editable": false,
@@ -125,7 +125,7 @@
             "selected": true
           }
         ],
-        "value": false,
+        "value": true,
         "optional": false,
         "editable": true,
         "advanced": true,

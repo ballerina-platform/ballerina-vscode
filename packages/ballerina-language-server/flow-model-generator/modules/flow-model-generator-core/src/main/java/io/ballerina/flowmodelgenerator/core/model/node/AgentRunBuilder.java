@@ -89,10 +89,6 @@ public class AgentRunBuilder extends CallBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         FlowNode callTemplate = getOrCreateCallFunctionTemplate(context);
         restoreFromTemplate(callTemplate);
-        // The cached template is the same at every position, so it checks the call even where the error can't go.
-        if (properties().build().containsKey(Property.CHECK_ERROR_KEY) && checkHasNowhereToGo(context)) {
-            properties().checkError(false);
-        }
         fixQueryPromptType(this, true);
 
         Codedata contextCd = context.codedata();
@@ -239,8 +235,7 @@ public class AgentRunBuilder extends CallBuilder {
             }
         }
 
-        String writtenType = FlowNodeUtil.withErrorWhenUnchecked(flowNode, typeName);
-        sourceBuilder.token().expressionWithType(writtenType, variable.get()).keyword(SyntaxKind.EQUAL_TOKEN);
+        sourceBuilder.token().expressionWithType(typeName, variable.get()).keyword(SyntaxKind.EQUAL_TOKEN);
     }
 
     @Override

@@ -213,7 +213,7 @@
                 "selected": true
               }
             ],
-            "value": "MultiResult|error",
+            "value": "MultiResult",
             "placeholder": "var",
             "optional": false,
             "editable": true,
