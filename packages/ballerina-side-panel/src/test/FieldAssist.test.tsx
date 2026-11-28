@@ -32,6 +32,7 @@ import { FormAssistDescription, changesOf, keepUnsavedEdits } from "../component
 import { AppliedMark, AssistHeaderButton, AssistHostProvider, AssistHostValue, FormController, markUndone, useAssistHost } from "../components/editors/FieldAssist/AssistHost";
 import { FormExpressionEditorProps, FormField } from "../components/Form/types";
 import { AssistShell } from "../components/editors/FieldAssist/AssistShell";
+import { ReviewDiff } from "../components/editors/FieldAssist/ChangeReview";
 
 interface HarnessProps {
     initial: string;
@@ -516,5 +517,13 @@ describe("Revise from a field's change card", () => {
 
     it("opens the thread for an answer the card can't show, e.g. a question", async () => {
         expect((await revise({ question: { text: "Which total?", options: ["a", "b"] } })).scope).toBe("field:expression");
+    });
+});
+
+describe("ReviewDiff", () => {
+    it("shows a replaced expression as code, with no chip for a value it names", () => {
+        const { container } = render(<ReviewDiff before="order.total" after="{amount: 0d}" display="code" />);
+        expect(container.textContent).toBe("−order.total");
+        expect(container.querySelector("i, [class*='codicon'], [class*='fw-']")).toBeNull();
     });
 });

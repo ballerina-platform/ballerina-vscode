@@ -147,7 +147,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
-import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
+import { getTypeInputModes, getVariableExpressionTypes, withVariableType } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -1551,9 +1551,10 @@ const FlowNodeFormContent = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 const mergedImports = newImports
                     ? { ...(existingImports || {}), ...newImports }
                     : existingImports;
+                const types = withVariableType(property.types, shouldUpdateNode ? variableType : undefined);
                 const updatedProperty = mergedImports !== undefined
-                    ? { ...property, imports: mergedImports, types: property.types.map(t => ({ ...t })) }
-                    : { ...property, types: property.types.map(t => ({ ...t })) };
+                    ? { ...property, imports: mergedImports, types }
+                    : { ...property, types };
 
                 try {
                     const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({

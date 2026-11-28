@@ -1,0 +1,90 @@
+{
+  "source": "check_error_default.bal",
+  "position": {
+    "line": 9,
+    "offset": 0
+  },
+  "description": "An error-only call in a function without an error return keeps its error in a result",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "$anon",
+    "module": ".",
+    "packageName": ".",
+    "symbol": "failOnly",
+    "version": "0.0.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "failOnly",
+      "description": "",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
+    },
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "$anon",
+      "module": ".",
+      "packageName": ".",
+      "symbol": "failOnly",
+      "version": "0.0.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "error?",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "errorResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": false,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

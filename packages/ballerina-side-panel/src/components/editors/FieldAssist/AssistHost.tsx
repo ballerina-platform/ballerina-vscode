@@ -51,7 +51,7 @@ export interface FormController {
 }
 
 // How a value reads outside its field: text with its inserted values as chips, a reference as a chip, or code.
-export type ValueDisplay = "text" | "reference" | "code";
+export type ValueDisplay = "text" | "code";
 
 // The side of the form a change card sits on when it fits there: a side panel's canvas side, or a page's empty margin.
 export type ReviewSide = "start" | "end";

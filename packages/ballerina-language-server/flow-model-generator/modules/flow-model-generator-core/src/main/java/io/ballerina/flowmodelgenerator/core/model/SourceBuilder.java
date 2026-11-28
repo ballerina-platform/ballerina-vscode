@@ -74,6 +74,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.ballerina.flowmodelgenerator.core.model.Property.PROPERTY_TYPE_LIST_TYPE_TOKEN;
@@ -350,7 +351,7 @@ public class SourceBuilder {
             //  to assign the error to a variable and handle it.
             // Add the import statements if exists in the return type
             if (type.imports() != null && getProperty(Property.CHECK_ERROR_KEY)
-                    .map(property -> property.value().equals("false")).orElse(true)) {
+                    .map(property -> "false".equals(String.valueOf(property.value()))).orElse(true)) {
                 // TODO: Improve this logic to process all the imports at once
                 type.imports().values().forEach(moduleId -> {
                     String[] importParts = moduleId.split("/");
@@ -1188,9 +1189,30 @@ public class SourceBuilder {
 
         // Remove the existing imports
         removeExistingImports(syntaxTree);
+        dropUnusedClientImport();
 
         // Generate the text edits for the imports
         generateImportsTextEdits(filePath, startLineRange);
+    }
+
+    // An action call goes through its connection, so its client's module is imported only if the text uses it.
+    private void dropUnusedClientImport() {
+        Codedata codedata = flowNode.codedata();
+        if (codedata == null || (codedata.node() != NodeKind.REMOTE_ACTION_CALL
+                && codedata.node() != NodeKind.RESOURCE_ACTION_CALL)) {
+            return;
+        }
+        String signature = CommonUtils.getImportStatement(codedata.org(), codedata.module(), codedata.module());
+        String prefix = imports.get(signature);
+        if (prefix == null || prefix.isEmpty()) {
+            return;
+        }
+        Pattern qualifier = Pattern.compile("(?<![\\w.'])" + Pattern.quote(prefix) + ":");
+        boolean used = textEditsMap.getOrDefault(filePath, List.of()).stream()
+                .anyMatch(edit -> qualifier.matcher(edit.getNewText()).find());
+        if (!used) {
+            imports.remove(signature);
+        }
     }
 
     private void cleanImportsForModuleImportsInSamePackage(String orgName, String moduleName) {

@@ -512,9 +512,8 @@ function otherParts(parts: string[] | undefined, label: string): string[] | unde
     return others?.length ? others : undefined;
 }
 
-// An expression that only names a value shows as the editor's chip; other expressions as code, and text as prose.
-const reviewDisplay = (inputMode: InputMode, before: string): ValueDisplay | undefined =>
-    inputMode !== InputMode.EXP ? undefined : /^[A-Za-z_][\w.]*$/.test(before.trim()) ? "reference" : "code";
+// An expression shows as code, as the editor shows it; text as prose.
+const reviewDisplay = (inputMode: InputMode): ValueDisplay | undefined => (inputMode === InputMode.EXP ? "code" : undefined);
 
 // Wires the AI helper to one field: which modes take it, where the panel shows, and how a proposal lands in the editor.
 function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
@@ -636,7 +635,7 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
         host?.setApplied((current) => withFieldChange(current, markKey, {
             before: display(before),
             after: display(proposal.expression),
-            display: reviewDisplay(inputMode, before),
+            display: reviewDisplay(inputMode),
             request,
             label: field.label,
             note: reviewNote(proposal, before),

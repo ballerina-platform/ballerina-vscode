@@ -31,7 +31,8 @@ ${NIL_RULES}
 - An optional list has no ?[ ]: default it, then guard the index: let var xs = a.list ?: [] in xs.length() > 0 ? xs[0] : ().
 - Lang library methods are called on the value: s.trim(), s.length(), xs.length(), d.round(2), s.toUpperAscii().
   A method declared with no return type gives nil, so a call to it never yields the object it changed.
-- Conversions such as int:fromString(s) return a value or an error; use check only if the expected type allows the error.
+- Conversions such as int:fromString(s) return a value or an error. check hands the error to the enclosing function or
+  to an on fail around the node, so it works whenever either takes an error, whatever the expected type.
 - Numbers do not mix: convert with <decimal>x, <int>x or <float>x. Every literal in a decimal expression needs d: 0.5d.
 - Text values are string literals in double quotes. String templates: string \`Hello \${name}\`. a + b joins strings, never nil:
   write (x ?: "") for an optional string.
@@ -47,7 +48,8 @@ ${NIL_RULES}
 - json: field access returns json|error, an error when the key is missing; check fails the whole node on it. A json
   number may be an int, float or decimal: convert it with ensureType, never an is test: check (check j.amount).ensureType(decimal).
   To fall back when a key is missing, narrow instead: let json|error v = j.key in v is string ? v : "".
-  ensureType takes no type with []; test those with is.
+  A json object or array never passes an is test or ensureType as a record or a typed list (T[]): convert it with
+  cloneWithType, which takes the expected type: check (check j.key).cloneWithType().
 - Add a field to a json value: x is map<json> ? check x.clone().mergeJson({k: v}) : {value: x, k: v}. mergeJson changes
   its first value, so clone it first; never spread json.
 - xml: (doc/<name>).data() is the text of an element.
@@ -377,6 +379,13 @@ const optionalAccess = (span: string, why: string): string => `Write ${span.repl
     + "and every field after it with ?., and default the result with ?: where a value is needed. A != () or is check does not narrow a field access.";
 const leftOfDefault = (span: string): string => span.replace(/\s*\?:[\s\S]*$/, "");
 
+// json's own simple types pass an is test; numbers, records, lists and maps need converting.
+const JSON_TESTABLE = new Set(["string", "boolean"]);
+const jsonCallee = (span: string, found: string): string => /\berror\b/.test(found) ? `(check ${span})` : /^[\w.']+$/.test(span) ? span : `(${span})`;
+const jsonFix = (span: string, [, type, found]: RegExpMatchArray): string => JSON_TESTABLE.has(type.replace(/\?$/, ""))
+    ? `${span} is json: narrow it, e.g. let json|error value = ${span.replace(/^check\s+/, "")} in value is ${type} ? value : ${nilDefault(type)}.`
+    : `${span} is json: convert it to ${type} with check ${jsonCallee(span, found)}.cloneWithType().`;
+
 // `a + b` where one side can be nil: the last operator splits the span, and the nilable side gets the default.
 function nilOperand(span: string, [, operator, left, right]: RegExpMatchArray): string | undefined {
     const at = span.lastIndexOf(` ${operator} `);
@@ -389,8 +398,7 @@ const DIAGNOSTIC_FIXES: { code: string; message?: RegExp; fix: (span: string, ma
     { code: "BCE2118", fix: (span) => optionalAccess(span, "that field is optional and can be nil") },
     { code: "BCE2556", message: /'[^']*\?' does not support/, fix: (span) => optionalAccess(span, "the value before the last dot can be nil") },
     { code: "BCE2066", message: /expected '(\w+)', found '\1\?'/, fix: (span, [, type]) => `${span} can be nil: write (${span} ?: ${nilDefault(type)}).` },
-    { code: "BCE2066", message: /expected '(\w+)', found '[^']*json[^']*'/,
-        fix: (span, [, type]) => `${span} is json: narrow it, e.g. let json|error value = ${span.replace(/^check\s+/, "")} in value is ${type} ? value : ${nilDefault(type)}.` },
+    { code: "BCE2066", message: /expected '([\w:[\]<>?]+)', found '([^']*json[^']*)'/, fix: jsonFix },
     { code: "BCE2066", message: /found '\(.*\|error\)'/, fix: (span) => `${span} can also be an error: write check ${span}, or narrow it with is first.` },
     { code: "BCE2642", message: /type '[^']*error[^']*'/, fix: (span) => `${leftOfDefault(span)} can be an error but never nil: drop the ?: default, and use check or narrow it with is.` },
     { code: "BCE2642", fix: (span) => `${leftOfDefault(span)} is never nil, so drop the ?: default.` },
@@ -476,6 +484,7 @@ export const ERROR_HINTS: { test: RegExp; hint: string }[] = [
     { test: /incompatible mapping constructor/, hint: "Cast the mapping to the record you mean: <T>{...}." },
     { test: /expected '(ai:)?Prompt', found 'string'/, hint: "A prompt is a bare backtick template, with no string tag in front." },
     { test: /expected '[^']*error[^']*', found '\(error\|\(\)\)'|found '\(\(\)\|error\)'/, hint: "A value that is an error only sometimes needs an If around the node instead; set the error alone." },
+    { test: /invalid usage of the 'check' expression operator/, hint: "Neither the function nor an on fail around the node takes an error here: drop check and narrow the result, e.g. let int|error v = int:fromString(s) in v is int ? v : 0." },
     { test: /redeclared symbol|already (defined|declared)/, hint: "That name is already in use here. Pick a different, descriptive name and submit again; a taken name is never a reason for cannot_do." },
 ];
 

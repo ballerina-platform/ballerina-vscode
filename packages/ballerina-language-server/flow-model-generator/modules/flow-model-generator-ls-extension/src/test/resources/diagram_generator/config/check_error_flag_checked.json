@@ -1,0 +1,464 @@
+{
+  "start": {
+    "line": 27,
+    "offset": 0
+  },
+  "end": {
+    "line": 30,
+    "offset": 1
+  },
+  "source": "check_error_flag.bal",
+  "description": "Writes checkError true for checked calls",
+  "diagram": {
+    "fileName": "check_error_flag.bal",
+    "nodes": [
+      {
+        "id": "60110",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Function",
+            "label": "checkedCalls",
+            "isServiceFunction": false,
+            "parameters": [
+              "string id"
+            ],
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "check_error_flag.bal",
+            "startLine": {
+              "line": 27,
+              "offset": 48
+            },
+            "endLine": {
+              "line": 30,
+              "offset": 1
+            }
+          },
+          "sourceCode": "function checkedCalls(string id) returns error? {\n    int inserted = check store->insert(id);\n    string value = check mayFail(id);\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "59687",
+        "metadata": {
+          "label": "insert",
+          "description": ""
+        },
+        "codedata": {
+          "node": "REMOTE_ACTION_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "object": "Store",
+          "symbol": "insert",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "check_error_flag.bal",
+            "startLine": {
+              "line": 28,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 28,
+              "offset": 43
+            }
+          },
+          "sourceCode": "int inserted = check store->insert(id);"
+        },
+        "returning": false,
+        "properties": {
+          "connection": {
+            "metadata": {
+              "label": "Connection",
+              "description": "Connection to use",
+              "data": {
+                "connectorType": "Default"
+              }
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "selected": true
+              }
+            ],
+            "value": "store",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true
+          },
+          "row": {
+            "metadata": {
+              "label": "Row"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "id",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "row"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "inserted",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "check_error_flag.bal",
+                "startLine": {
+                  "line": 28,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 28,
+                  "offset": 16
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "60673",
+        "metadata": {
+          "label": "mayFail",
+          "description": ""
+        },
+        "codedata": {
+          "node": "FUNCTION_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "symbol": "mayFail",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "check_error_flag.bal",
+            "startLine": {
+              "line": 29,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 29,
+              "offset": 37
+            }
+          },
+          "sourceCode": "string value = check mayFail(id);"
+        },
+        "returning": false,
+        "properties": {
+          "view": {
+            "metadata": {
+              "label": "View",
+              "description": "Function definition location"
+            },
+            "types": [
+              {
+                "fieldType": "VIEW",
+                "selected": true
+              }
+            ],
+            "value": {
+              "fileName": "check_error_flag.bal",
+              "startLine": {
+                "line": 12,
+                "offset": 0
+              },
+              "endLine": {
+                "line": 14,
+                "offset": 1
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "id": {
+            "metadata": {
+              "label": "Id"
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "id",
+            "placeholder": "\"\"",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "id"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Result",
+              "description": "Name of the result variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "value",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "check_error_flag.bal",
+                "startLine": {
+                  "line": 29,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 29,
+                  "offset": 16
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Result Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "string",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      }
+    ],
+    "connections": [
+      {
+        "id": "41688",
+        "metadata": {
+          "label": "Store",
+          "description": "",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png"
+        },
+        "codedata": {
+          "node": "NEW_CONNECTION",
+          "org": "$anon",
+          "module": ".",
+          "object": "Store",
+          "symbol": "init",
+          "lineRange": {
+            "fileName": "check_error_flag.bal",
+            "startLine": {
+              "line": 10,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 10,
+              "offset": 24
+            }
+          },
+          "sourceCode": "final Store store = new;",
+          "data": {
+            "summary": true
+          }
+        },
+        "returning": false,
+        "properties": {
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Connection Name",
+              "description": "Name of the connection"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "store",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "check_error_flag.bal",
+                "startLine": {
+                  "line": 10,
+                  "offset": 12
+                },
+                "endLine": {
+                  "line": 10,
+                  "offset": 17
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Connection Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "Store",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {}
+          }
+        },
+        "flags": 0
+      }
+    ]
+  }
+}
