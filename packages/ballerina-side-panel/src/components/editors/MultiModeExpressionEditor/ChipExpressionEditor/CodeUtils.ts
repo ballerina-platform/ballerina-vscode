@@ -1029,8 +1029,9 @@ export const isSelectionOnToken = (from: number, to: number, view: EditorView): 
     );
     return matchingToken;
 };
-// Dropping on a call's name or an empty "()" lands inside the parentheses.
-export const callArgumentPos = (doc: string, pos: number): number => {
+// Dropping inside a word lands at its end; on a call's name or an empty "()", inside the parentheses.
+export const callArgumentPos = (doc: string, at: number): number => {
+    const pos = /\w/.test(doc[at - 1] ?? "") ? at + /^[\w.:]*/.exec(doc.slice(at))[0].length : at;
     const callHead = /^[\w:]*\(/.exec(doc.slice(pos));
     // A "(" with no name right before it groups an expression; it is not a call.
     if (callHead && /[\w:]/.test(doc[pos + callHead[0].length - 2] ?? "")) {
@@ -1039,23 +1040,22 @@ export const callArgumentPos = (doc: string, pos: number): number => {
     return doc.slice(pos - 2, pos) === "()" ? pos - 1 : pos;
 };
 
-const ENDS_OPERAND = /[\w)\]"'`=<>&|+\-*/%]/;
-const STARTS_OPERAND = /[\w("'`]/;
+const ENDS_OPERAND = /[\w)\]"'`=<>&|+\-*/%]$/;
+const STARTS_OPERAND = /^[\w("'`]/;
+const CALL_OPEN = /[\w:]\($/;
 
+// `before` holds the two characters before the value, so a call's "(" can be told from a grouping one.
 export const operandPadding = (before: string, after: string): [string, string] => [
     ENDS_OPERAND.test(before) ? " " : "",
-    STARTS_OPERAND.test(after) ? " " : "",
+    CALL_OPEN.test(before) && after && after !== ")" ? ", " : STARTS_OPERAND.test(after) ? " " : "",
 ];
 
 export const neighbourPadding = (state: EditorState, from: number, to: number): [string, string] =>
-    operandPadding(state.sliceDoc(from - 1, from), state.sliceDoc(to, to + 1));
+    operandPadding(state.sliceDoc(from - 2, from), state.sliceDoc(to, to + 1));
 
 const insertAtDropPos = (view: EditorView, event: MouseEvent, text: string) => {
     const { state } = view;
     const pos = callArgumentPos(state.doc.toString(), view.posAtCoords({ x: event.clientX, y: event.clientY }, false));
-    if (state.sliceDoc(pos - 1, pos) === "(" && state.sliceDoc(pos, pos + 1) !== ")") {
-        return { pos, insert: `${text}, ` };
-    }
     const [before, after] = neighbourPadding(state, pos, pos);
     return { pos, insert: before + text + after };
 };

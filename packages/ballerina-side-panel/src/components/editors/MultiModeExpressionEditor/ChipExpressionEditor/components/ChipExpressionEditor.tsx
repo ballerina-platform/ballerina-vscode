@@ -337,10 +337,7 @@ export const ChipExpressionEditorComponent = (props: ChipExpressionEditorCompone
         drop: (event, view) => moveDraggedChip(view, event) || dropInsert(event, () => {
             const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos !== null) {
-                const doc = view.state.doc.toString();
-                const argPos = callArgumentPos(doc, pos);
-                // Only an empty call takes a value without a separating comma.
-                view.dispatch({ selection: { anchor: doc[argPos] === ")" ? argPos : pos } });
+                view.dispatch({ selection: { anchor: callArgumentPos(view.state.doc.toString(), pos) } });
             }
         }),
     });

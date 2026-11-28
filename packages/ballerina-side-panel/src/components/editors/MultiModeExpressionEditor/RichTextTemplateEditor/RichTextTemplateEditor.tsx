@@ -53,7 +53,7 @@ import {
 } from "./plugins/markdownCommands";
 import { HELPER_PANE_WIDTH } from "../ChipExpressionEditor/constants";
 import { calculateHelperPanePosition, isInsideInterpolation, processFunctionWithArguments } from "../ChipExpressionEditor/utils";
-import { operandPadding } from "../ChipExpressionEditor/CodeUtils";
+import { callArgumentPos, operandPadding } from "../ChipExpressionEditor/CodeUtils";
 import { useHelperPaneClickOutside, useHelperPane } from "../ChipExpressionEditor/hooks/useHelperPane";
 import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionEditor/ChipExpressionDefaultConfig";
 import { useInsertTarget } from "../../../../context/insertTarget";
@@ -65,11 +65,10 @@ const placeDrop = (view: EditorView, pos: number): number => {
     const { doc } = view.state;
     const $pos = doc.resolve(pos);
     const after = $pos.nodeAfter?.isText ? $pos.nodeAfter.text : "";
-    if (isInCode(view, pos)) {
-        const callHead = /^[\w:]*\(/.exec(after);
-        return callHead ? pos + callHead[0].length : doc.textBetween(Math.max(0, pos - 2), pos) === "()" ? pos - 1 : pos;
-    }
     const before = $pos.nodeBefore?.isText ? $pos.nodeBefore.text : "";
+    if (isInCode(view, pos)) {
+        return pos + callArgumentPos(before + after, before.length) - before.length;
+    }
     return /\w$/.test(before) ? pos + (/^\w*/.exec(after)?.[0].length ?? 0) : pos;
 };
 
@@ -85,12 +84,12 @@ const dropTarget = (view: EditorView, event: MouseEvent): number | null => {
 // Keeps an inserted value from running into the word or value beside it.
 const neighbourSpaces = (view: EditorView, from: number, to: number): [string, string] => {
     const { doc } = view.state;
-    const before = doc.textBetween(Math.max(0, from - 1), from);
+    const before = doc.textBetween(Math.max(0, from - 2), from);
     const after = doc.textBetween(to, Math.min(doc.content.size, to + 1));
     if (isInCode(view, from)) {
         return operandPadding(before, after);
     }
-    return [/[^\s([{"'`]/.test(before) ? " " : "", /[\w$]/.test(after) ? " " : ""];
+    return [/[^\s([{"'`]$/.test(before) ? " " : "", /[\w$]/.test(after) ? " " : ""];
 };
 
 // The dragged slice shares its node with the document, which gives the drag's source range.

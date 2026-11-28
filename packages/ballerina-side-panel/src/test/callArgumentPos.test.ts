@@ -21,6 +21,7 @@ import { EditorView } from "@codemirror/view";
 import {
     callArgumentPos,
     chipPlugin,
+    operandPadding,
     moveDraggedChip,
     tokenField,
     tokensChangeEffect,
@@ -46,6 +47,31 @@ describe("callArgumentPos", () => {
         expect(callArgumentPos(doc, doc.indexOf("total"))).toBe(doc.indexOf("total"));
         expect(callArgumentPos(doc, doc.length)).toBe(doc.length);
         expect(callArgumentPos("total * (a + b)", 8)).toBe(8);
+        expect(callArgumentPos("total * (a + b)", 9)).toBe(9);
+    });
+
+    it("moves a drop inside a word to the word's end", () => {
+        expect(callArgumentPos("total + 1", 2)).toBe(5);
+        expect(callArgumentPos("ord.items + 1", 1)).toBe(9);
+        expect(callArgumentPos("string:trim(name)", doc.indexOf("am"))).toBe(16);
+    });
+});
+
+describe("operandPadding", () => {
+    it("separates a value placed first in a call's arguments with a comma", () => {
+        expect(operandPadding("o(", "a")).toEqual(["", ", "]);
+        expect(operandPadding("m:trim(", "name")).toEqual(["", ", "]);
+    });
+
+    it("adds no comma in an empty call or after a grouping parenthesis", () => {
+        expect(operandPadding("o(", ")")).toEqual(["", ""]);
+        expect(operandPadding(" (", "a")).toEqual(["", " "]);
+        expect(operandPadding("(", "a")).toEqual(["", " "]);
+    });
+
+    it("spaces a value from the operands beside it", () => {
+        expect(operandPadding("a", "b")).toEqual([" ", " "]);
+        expect(operandPadding("+ ", " ")).toEqual(["", ""]);
     });
 });
 
@@ -71,6 +97,10 @@ describe("moveDraggedChip", () => {
             moved: true,
             result: " + string:trim(ord.items, ord.id)",
         });
+    });
+
+    it("moves a chip after a grouping parenthesis without a comma", () => {
+        expect(dragChipTo("ord.items + (a + bcd) + ord.id", 0, 13).result).toBe(" + (ord.items a + bcd) + ord.id");
     });
 
     it("moves a chip to another place in the field", () => {
