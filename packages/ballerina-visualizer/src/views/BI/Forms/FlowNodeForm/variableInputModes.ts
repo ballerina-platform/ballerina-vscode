@@ -229,3 +229,7 @@ export const getExpressionFieldTypes = (typeName?: string): InputType[] => {
 export const getVariableExpressionTypes = (typeModes: InputType[], serverExpressionType?: InputType["fieldType"]): InputType[] => {
     return [...typeModes, { fieldType: serverExpressionType ?? "EXPRESSION", selected: false }];
 };
+
+// The expression mode has no type of its own, so its check would compile `any|error x = <expr>;` instead of the variable's statement.
+export const withVariableType = (types: InputType[], variableType?: string): InputType[] =>
+    types.map((type) => (variableType?.trim() && !type.ballerinaType ? { ...type, ballerinaType: variableType.trim() } : { ...type }));

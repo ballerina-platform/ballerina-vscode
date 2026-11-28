@@ -17,7 +17,7 @@
  */
 
 import type { InputType, TemplateType } from "@wso2/ballerina-core";
-import { getExpressionFieldTypes, getTypeInputModes, getVariableExpressionTypes } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
+import { getExpressionFieldTypes, getTypeInputModes, getVariableExpressionTypes, withVariableType } from "../../../../../views/BI/Forms/FlowNodeForm/variableInputModes";
 
 const NAMED_TYPES: [string, InputType["fieldType"]][] = [
     ["int", "NUMBER"], ["int:Signed8", "NUMBER"], ["int:Unsigned8", "NUMBER"], ["int:Signed16", "NUMBER"],
@@ -181,5 +181,23 @@ describe("getVariableExpressionTypes", () => {
 
     it("falls back to an expression when the server sent no expression mode", () => {
         expect(getVariableExpressionTypes([RECORD]).at(-1)).toEqual({ fieldType: "EXPRESSION", selected: false });
+    });
+});
+
+describe("withVariableType", () => {
+    const modes: InputType[] = [
+        { fieldType: "REPEATABLE_LIST", ballerinaType: "string[]", selected: false },
+        { fieldType: "ACTION_OR_EXPRESSION", selected: true },
+    ];
+
+    it("gives the expression mode the variable's type and keeps every mode's own", () => {
+        expect(withVariableType(modes, "string[]").map((mode) => mode.ballerinaType)).toEqual(["string[]", "string[]"]);
+        expect(withVariableType([{ fieldType: "EXPRESSION", ballerinaType: "string", selected: true }], "string[]")[0].ballerinaType).toBe("string");
+    });
+
+    it("leaves the modes as they are without a variable type, and never changes the ones it was given", () => {
+        expect(withVariableType(modes, " ")[1].ballerinaType).toBeUndefined();
+        withVariableType(modes, "Card");
+        expect(modes[1].ballerinaType).toBeUndefined();
     });
 });

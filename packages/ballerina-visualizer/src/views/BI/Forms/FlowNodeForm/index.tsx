@@ -120,7 +120,11 @@ import {
     processFormData,
     removeEmptyNodes,
     updateNodeWithProperties,
+    assistExpressionInForm,
+    runAssistActions,
+    AssistInput,
 } from "../form-utils";
+import { NodeFormAssist, hasNodeFormAssist } from "../form-assist/NodeFormAssist";
 import ForkForm from "../ForkForm";
 import { FormTypeEditor } from "../../TypeEditor";
 import { getTypeHelper } from "../../TypeHelper";
@@ -142,7 +146,7 @@ import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArrayElementValues, getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
 import { useAssistantName } from "../../../../hooks/useProductMode";
-import { getTypeInputModes, getVariableExpressionTypes } from "./variableInputModes";
+import { getTypeInputModes, getVariableExpressionTypes, withVariableType } from "./variableInputModes";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -215,9 +219,12 @@ interface FlowNodeFormProps {
     customValidator?: (fieldKey: string, value: any, allValues: FormValues) => string | undefined; // Custom validation function for form fields
     defaultExpandAdvanced?: boolean;
     onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
+    onClose?: () => void;
 }
 
 const SUPERSEDED = Symbol("superseded");
+// Nodes with their own form; the others are rebuilt from their properties.
+const CUSTOM_FORM_NODES = new Set(["IF", "MATCH", "FORK"]);
 
 const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION",
@@ -503,8 +510,18 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         });
     }
 
+    // Each popup edits its own level, so the parent's edits never land on the type created from one of its fields.
+    const levelEditorContext = (level: number) => ({
+        stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack,
+        replaceTop: (item: StackItem) => {
+            setStack((prev) => prev.map((current, i) =>
+                i === level ? { ...item, fieldIndex: item.fieldIndex ?? current.fieldIndex } : current));
+        },
+    });
+
+    // Called when a popup opens, not only on close: the closing popup's editor can still write to the stack.
     const resetStack = () => {
-        setStack([getDefaultValue()]);
+        setStack([{ isDirty: false, type: undefined }]);
     }
 
     const setRefetchForCurrentModal = (shouldRefetch: boolean) => {
@@ -641,6 +658,21 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             }
             return field;
         });
+    };
+
+    // The form assist rebuilds the form from the node it filled; a new node from outside starts over.
+    const formValuesRef = useRef<FormValues>({});
+    const [assistSeed, setAssistSeed] = useState<{ node: FlowNode; key: number }>();
+    useEffect(() => {
+        setAssistSeed(undefined);
+        formValuesRef.current = {};
+    }, [node]);
+    const trackFormValues = (_key: string, _value: unknown, allValues: FormValues) => { formValuesRef.current = allValues; };
+    const reseedForm = (patched: FlowNode) => {
+        if (!CUSTOM_FORM_NODES.has(patched.codedata.node)) {
+            initForm(patched);
+        }
+        setAssistSeed((seed) => ({ node: patched, key: (seed?.key ?? 0) + 1 }));
     };
 
     const initForm = (node: FlowNode) => {
@@ -992,6 +1024,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             if (isFieldDirty) {
                 setFormDiagnostics(prev => prev.length > 0 ? [] : prev);
             }
+            formValuesRef.current = allValues;
             void retypeDependentFields(fieldKey, value);
             onChange?.(fieldKey, value, allValues);
         },
@@ -1051,6 +1084,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         setBaseFields(updatedFields);
         const newTypeValue = typeof newType === 'string' ? newType : f[editingField?.key];
         typeHelperOnChangeRef.current = undefined;
+        resetStack();
         setTypeEditorState({ isOpen, fieldKey: editingField?.key, newTypeValue, typedesc: takesTypedesc(editingField?.types) });
     };
 
@@ -1517,9 +1551,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 const mergedImports = newImports
                     ? { ...(existingImports || {}), ...newImports }
                     : existingImports;
+                const types = withVariableType(property.types, shouldUpdateNode ? variableType : undefined);
                 const updatedProperty = mergedImports !== undefined
-                    ? { ...property, imports: mergedImports, types: property.types.map(t => ({ ...t })) }
-                    : { ...property, types: property.types.map(t => ({ ...t })) };
+                    ? { ...property, imports: mergedImports, types }
+                    : { ...property, types };
 
                 try {
                     const response = await rpcClient.getBIDiagramRpcClient().getExpressionDiagnostics({
@@ -1531,6 +1566,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             offset: 0,
                             codedata: node.codedata,
                             property: updatedProperty,
+                            fieldKey: key,
                         },
                     });
 
@@ -1552,6 +1588,16 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         ),
         [rpcClient, fileName, targetLineRange, node, formImportsRef.current]
     );
+
+    const handleAssistExpression = useCallback((input: AssistInput) => {
+        ensureFormOpened();
+        return assistExpressionInForm(rpcClient, {
+            fileName,
+            startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine,
+            codedata: node.codedata,
+            imports: formImportsRef.current[input.key],
+        }, input);
+    }, [rpcClient, fileName, targetLineRange, node]);
 
     const handleCompletionItemSelect = async (
         value: string,
@@ -1713,6 +1759,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         const handleCreateNewType = (typeName: string) => {
             typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
+            resetStack();
             setTypeEditorState({ isOpen: true, newTypeValue: typeName, fieldKey: fieldKey, typedesc: takesTypedesc(types) });
         }
 
@@ -1767,12 +1814,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, imports?: Imports) => void;
     }>({
         isOpen: false
     });
 
-    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string, imports?: Imports) => void) => {
 
         setRecordConfigPageState({
             isOpen: true,
@@ -1812,6 +1859,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
             onOpenRecordConfigPage: openRecordConfigPage,
+            assistExpression: handleAssistExpression,
+            abortExpressionAssist: (requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            runAssistActions: (actions, fieldValue) => runAssistActions(rpcClient, fileName, actions, fieldValue),
             helperPaneOrigin: "vertical" as const,
             helperPaneHeight: "default" as const,
         } satisfies FormExpressionEditorProps;
@@ -1824,10 +1874,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         handleGetVisibleTypes,
         handleGetHelperPane,
         handleExpressionFormDiagnostics,
+        handleAssistExpression,
         handleCompletionItemSelect,
         handleExpressionEditorBlur,
         handleExpressionEditorCancel,
         openRecordConfigPage,
+        fileName,
     ]);
 
     const fetchVisualizableFields = async (filePath: string, typeName?: string) => {
@@ -1868,6 +1920,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 newStack[newStack.length - 2] = newTop;
                 newStack.pop();
                 setStack(newStack);
+                // The closed popup's entry goes with it, so the refetch below reaches the popup that holds the new type's field.
+                setRefetchStates((prev) => prev.slice(0, -1));
             }
             setRefetchForCurrentModal(true);
         }
@@ -2135,12 +2189,42 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         pushTypeStack(getDefaultValue(typeName));
     }
 
+    const typeEditorAt = (item: StackItem, i: number) => (
+        <EditorContext.Provider value={levelEditorContext(i)}>
+            <FormTypeEditor
+                type={item.type}
+                newType={item.isDirty}
+                newTypeValue={typeEditorState.newTypeValue}
+                isGraphql={isGraphql}
+                onTypeChange={(type) => onTypeChange(type, i === 0)}
+                onSaveType={onSaveType}
+                onTypeCreate={() => { }}
+                isPopupTypeForm={true}
+                getNewTypeCreateForm={getNewTypeCreateForm}
+                refetchTypes={refetchStates[i]}
+            />
+        </EditorContext.Provider>
+    );
+
+    const nodeAssist = (toNode: () => FlowNode) => (
+        <NodeFormAssist
+            node={assistSeed?.node ?? node}
+            saved={node}
+            location={{ fileName, startLine: targetLineRange.startLine, codedata: (assistSeed?.node ?? node).codedata }}
+            toNode={toNode}
+            reseed={reseedForm}
+            onClose={props.onClose}
+        />
+    );
+
     // handle if node form
     if (node?.codedata.node === "IF") {
         return (
             <IfForm
+                key={assistSeed?.key}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
+                assist={nodeAssist}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 showProgressIndicator={showProgressIndicator}
@@ -2157,8 +2241,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     if (node?.codedata.node === "MATCH") {
         return (
             <MatchForm
+                key={assistSeed?.key}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
+                assist={nodeAssist}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 onSubmit={onSubmit}
@@ -2176,8 +2262,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         return (
             <EditorContext.Provider value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}>
                 <ForkForm
+                    key={assistSeed?.key}
                     fileName={fileName}
-                    node={node}
+                    node={assistSeed?.node ?? node}
+                    assist={nodeAssist}
                     targetLineRange={targetLineRange}
                     openRecordEditor={handleOpenTypeEditor}
                     expressionEditor={expressionEditor}
@@ -2210,18 +2298,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             </BreadcrumbContainer>
                         )}
                         <div style={{ height: '560px', overflow: 'auto' }}>
-                            <FormTypeEditor
-                                type={peekTypeStack()?.type}
-                                newType={peekTypeStack() ? peekTypeStack().isDirty : false}
-                                newTypeValue={typeEditorState.newTypeValue}
-                                isGraphql={isGraphql}
-                                onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                onSaveType={onSaveType}
-                                onTypeCreate={() => { }}
-                                isPopupTypeForm={true}
-                                getNewTypeCreateForm={getNewTypeCreateForm}
-                                refetchTypes={refetchStates[i]}
-                            />
+                            {typeEditorAt(item, i)}
                         </div>
                     </DynamicModal>)
                 }
@@ -2229,12 +2306,25 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         );
     }
 
+    const formAssist = node && targetLineRange && (
+        <NodeFormAssist
+            node={node}
+            location={{ fileName, startLine: updateLineRange(targetLineRange, expressionOffsetRef.current).startLine, codedata: node.codedata }}
+            toNode={() => mergeFormDataWithFlowNode(formValuesRef.current, targetLineRange)}
+            reseed={reseedForm}
+            onClose={props.onClose}
+        />
+    );
+
     // handle vector knowledge base form
     if (node?.codedata.node === "KNOWLEDGE_BASE") {
         return (
             <KnowledgeBaseForm
+                key={assistSeed?.key}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
+                onChange={trackFormValues}
+                injectedComponents={[{ component: formAssist, index: 0 }]}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 showProgressIndicator={showProgressIndicator}
@@ -2283,9 +2373,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         return (
             <EditorContext.Provider value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}>
                 <VariableForm
+                    key={assistSeed?.key}
                     formFields={fields}
                     projectPath={projectPath}
                     selectedNode={node.codedata.node}
+                    onChange={trackFormValues}
+                    injectedComponents={[{ component: formAssist, index: 0 }]}
                     openRecordEditor={handleOpenTypeEditor}
                     onSubmit={handleOnSubmit}
                     onBlur={handleOnBlur}
@@ -2353,18 +2446,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             </BreadcrumbContainer>
                         )}
                         <div style={{ height: '560px', overflow: 'auto' }}>
-                            <FormTypeEditor
-                                type={peekTypeStack()?.type}
-                                newType={peekTypeStack() ? peekTypeStack().isDirty : false}
-                                newTypeValue={typeEditorState.newTypeValue}
-                                isGraphql={isGraphql}
-                                onTypeChange={(type) => onTypeChange(type, i === 0)}
-                                onSaveType={onSaveType}
-                                onTypeCreate={() => { }}
-                                isPopupTypeForm={true}
-                                getNewTypeCreateForm={getNewTypeCreateForm}
-                                refetchTypes={refetchStates[i]}
-                            />
+                            {typeEditorAt(item, i)}
                         </div>
                     </DynamicModal>)
                 }
@@ -2389,8 +2471,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                             <ConfigureRecordPage
                                 fileName={fileName}
                                 targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
-                                onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                    recordConfigPageState.onChangeCallback!(value);
+                                onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                    recordConfigPageState.onChangeCallback!(value, imports);
                                 }}
                                 currentValue={recordConfigPageState.currentValue || ""}
                                 recordTypeField={recordConfigPageState.recordTypeField}
@@ -2419,8 +2501,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     if (node?.codedata.node === "SEND_DATA" || node?.codedata.node === "CHILD_WORKFLOW_SEND_DATA") {
         return (
             <SendEventForm
+                key={assistSeed?.key}
                 fileName={fileName}
-                node={node}
+                node={assistSeed?.node ?? node}
                 targetLineRange={targetLineRange}
                 expressionEditor={expressionEditor}
                 formFields={fields}
@@ -2434,9 +2517,12 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                 submitText={submitText}
                 footerActionButton={footerActionButton}
                 scopeFieldAddon={scopeFieldAddon}
-                onChange={onChange}
+                onChange={(fieldKey, value, allValues) => {
+                    formValuesRef.current = allValues;
+                    onChange?.(fieldKey, value, allValues);
+                }}
                 projectPath={projectPath}
-                injectedComponents={injectedComponents}
+                injectedComponents={[...(injectedComponents ?? []), { component: formAssist, index: 0 }]}
             />
         );
     }
@@ -2448,10 +2534,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         >
             {fields && (
                 <Form
+                    key={assistSeed?.key}
                     ref={ref}
                     formFields={fields}
                     formDiagnostics={formDiagnostics}
-                    formDiagnosticsAction={formDiagnostics.length > 0 ? (
+                    formDiagnosticsAction={formDiagnostics.length > 0 && !hasNodeFormAssist(node) ? (
                         <Tooltip content={formDiagnosticsFixTooltip}>
                             <span style={{ display: "block" }}>
                                 <ActionButton onClick={handleFixFormDiagnostics} disabled={!canFixFormDiagnostics} appearance='primary'>
@@ -2505,7 +2592,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     }
                     scopeFieldAddon={scopeFieldAddon}
                     onChange={handleFormChange}
-                    injectedComponents={injectedComponents}
+                    injectedComponents={[...(injectedComponents ?? []), { component: formAssist, index: 0 }]}
                     derivedFields={props.derivedFields}
                     bottomFields={props.bottomFields}
                     updateImports={handleUpdateImports}
@@ -2553,18 +2640,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         </BreadcrumbContainer>
                     )}
                     <div style={{ height: '560px', overflow: 'auto' }}>
-                        <FormTypeEditor
-                            type={peekTypeStack()?.type}
-                            newType={peekTypeStack() ? peekTypeStack().isDirty : false}
-                            newTypeValue={typeEditorState.newTypeValue}
-                            isPopupTypeForm={true}
-                            isGraphql={isGraphql}
-                            onTypeChange={(type) => onTypeChange(type, i === 0)}
-                            onSaveType={onSaveType}
-                            onTypeCreate={() => { }}
-                            getNewTypeCreateForm={getNewTypeCreateForm}
-                            refetchTypes={refetchStates[i]}
-                        />
+                        {typeEditorAt(item, i)}
                     </div>
                 </DynamicModal>
             ))}
@@ -2589,8 +2665,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         <ConfigureRecordPage
                             fileName={fileName}
                             targetLineRange={updateLineRange(targetLineRange, expressionOffsetRef.current)}
-                            onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                recordConfigPageState.onChangeCallback!(value);
+                            onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                recordConfigPageState.onChangeCallback!(value, imports);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
                             recordTypeField={recordConfigPageState.recordTypeField}

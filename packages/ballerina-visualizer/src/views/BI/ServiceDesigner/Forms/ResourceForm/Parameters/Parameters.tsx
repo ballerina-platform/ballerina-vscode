@@ -19,12 +19,14 @@
 
 import React, { useState } from 'react';
 
-import { Codicon, Divider, LinkButton, Typography, CheckBox, CheckBoxGroup, ThemeColors } from '@wso2/ui-toolkit';
+import { Codicon, Divider, LinkButton, Typography, ThemeColors } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { ParamEditor } from './ParamEditor';
 import { ParamItem } from './ParamItem';
 import { ConfigProperties, ParameterModel, HttpPayloadContext, PropertyModel, Type, Imports } from '@wso2/ballerina-core';
 import { EntryPointTypeCreator } from '../../../../../../components/EntryPointTypeCreator';
+import { AssistMark, CheckBoxField, useAssistSource } from '@wso2/ballerina-side-panel';
+import { applyParameters, describeParameters, PARAMETER_GROUP } from './parametersAssist';
 
 export interface ParametersProps {
     parameters: ParameterModel[];
@@ -64,8 +66,10 @@ const OptionalConfigButtonContainer = styled.div`
 `;
 
 const OptionalConfigContent = styled.div`
-    margin-top: 16px;
-    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
 `;
 
 export function Parameters(props: ParametersProps) {
@@ -80,6 +84,11 @@ export function Parameters(props: ParametersProps) {
     const advancedDisabledParameters = parameters.filter(param => !param.httpParamType && !param.enabled);
     const advancedEnabledParameters = parameters.filter(param => !param.httpParamType && param.enabled);
     const advancedAllParameters = parameters.filter(param => !param.httpParamType).sort((a, b) => b.metadata.label.localeCompare(a.metadata.label));
+
+    useAssistSource({
+        describe: () => ({ slots: [], groups: readonly ? [] : describeParameters(parameters, schemas, showPayload) }),
+        apply: ({ groups = {} }) => onChange(applyParameters(parameters, schemas, groups)),
+    });
 
     const [showOptionalConfigurations, setShowOptionalConfigurations] = useState(advancedEnabledParameters.length > 0);
 
@@ -287,6 +296,7 @@ export function Parameters(props: ParametersProps) {
     return (
         <div>
             {/* <---------------- Query Parameters Start ----------------> */}
+            <div>
             {normalParameters.filter((param: ParameterModel) => param.httpParamType === "QUERY").length > 0 && (
                 <Typography sx={{ marginBlockEnd: 10 }} variant="h4">Query Parameters</Typography>
             )}
@@ -319,9 +329,11 @@ export function Parameters(props: ParametersProps) {
                     </LinkButton>
                 </AddButtonWrapper>
             )}
+            <AssistMark fieldKey={PARAMETER_GROUP.QUERY} />
+            </div>
 
             {/* <---------------- Header Parameters Start ----------------> */}
-            <>
+            <div>
                 {normalParameters.filter((param: ParameterModel) => param.httpParamType === "HEADER").length > 0 && (
                     <Typography sx={{ marginBlockEnd: 10, marginTop: 20 }} variant="h4">Headers</Typography>
                 )}
@@ -354,11 +366,13 @@ export function Parameters(props: ParametersProps) {
                         </LinkButton>
                     </AddButtonWrapper>
                 )}
-            </>
+                <AssistMark fieldKey={PARAMETER_GROUP.HEADER} />
+            </div>
 
             {/* <---------------- Normal Parameters End Query|HEADER ----------------> */}
 
             {/* <-------------------- Payload Parameters Start --------------------> */}
+            <div>
             {showPayload && (
                 <>
                     {payloadParameters.length > 0 && (
@@ -395,6 +409,8 @@ export function Parameters(props: ParametersProps) {
                     </LinkButton>
                 </AddButtonWrapper>
             )}
+            <AssistMark fieldKey={PARAMETER_GROUP.PAYLOAD} />
+            </div>
             {/* <-------------------- Payload Parameters End --------------------> */}
 
             {/* <-------------------- Advanced Parameters Start --------------------> */}
@@ -466,27 +482,25 @@ export function Parameters(props: ParametersProps) {
                     )}
                     {showOptionalConfigurations && (
                         <OptionalConfigContent>
-                            <CheckBoxGroup direction="vertical">
-                                {!readonly && advancedAllParameters.map((param: ParameterModel, index) => (
-                                    <CheckBox
-                                        key={index}
-                                        label={param.metadata.label.charAt(0).toUpperCase() + param.metadata.label.slice(1)}
-                                        checked={param.enabled}
-                                        onChange={(checked) => onAdvancedChecked(param, checked)}
-                                        sx={{ description: getParameterDescription(param.metadata.label) }}
-                                    />
-                                ))}
-                                {readonly && advancedEnabledParameters.map((param: ParameterModel, index) => (
-                                    <CheckBox
-                                        key={index}
-                                        disabled={true}
-                                        label={param.metadata.label.charAt(0).toUpperCase() + param.metadata.label.slice(1)}
-                                        checked={param.enabled}
-                                        onChange={(checked) => onAdvancedChecked(param, checked)}
-                                        sx={{ description: getParameterDescription(param.metadata.label) }}
-                                    />
-                                ))}
-                            </CheckBoxGroup>
+                            {!readonly && advancedAllParameters.map((param: ParameterModel, index) => (
+                                <CheckBoxField
+                                    key={index}
+                                    label={param.metadata.label.charAt(0).toUpperCase() + param.metadata.label.slice(1)}
+                                    description={getParameterDescription(param.metadata.label)}
+                                    checked={param.enabled}
+                                    onChange={(checked) => onAdvancedChecked(param, checked)}
+                                />
+                            ))}
+                            {readonly && advancedEnabledParameters.map((param: ParameterModel, index) => (
+                                <CheckBoxField
+                                    key={index}
+                                    disabled={true}
+                                    label={param.metadata.label.charAt(0).toUpperCase() + param.metadata.label.slice(1)}
+                                    description={getParameterDescription(param.metadata.label)}
+                                    checked={param.enabled}
+                                    onChange={(checked) => onAdvancedChecked(param, checked)}
+                                />
+                            ))}
                         </OptionalConfigContent>
                     )}
                     <Divider />

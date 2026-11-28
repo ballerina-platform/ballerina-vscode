@@ -39,9 +39,11 @@ interface ModeSwitcherProps {
     onChange: (value: InputMode) => void;
     types: InputType[];
     fieldKey: string;
+    // Shown before the switcher, e.g. the field's Copilot button; null still keeps the row.
+    assist?: React.ReactNode;
 }
 
-const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, onChange, types, fieldKey }) => {
+const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, onChange, types, fieldKey, assist }) => {
 
     const { form } = useFormContext();
     const { getValues, setValue } = form;
@@ -99,7 +101,7 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
     const defaultLabel = getInputModeLabel(defaultMode);
     const secondaryLabel = getInputModeLabel(secondaryMode);
 
-    return (
+    const switcher = (
         <>
             <SwitchWrapper>
                 <Slider checked={isChecked} data-testid={`mode-switcher-slider-${fieldKey}`}>
@@ -114,6 +116,7 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, isRecordTypeField, o
             />
         </>
     );
+    return assist === undefined ? switcher : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>{assist}{switcher}</span>;
 };
 
 export default ModeSwitcher;

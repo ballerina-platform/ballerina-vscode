@@ -84,7 +84,8 @@ import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../Flo
 import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
-import { deserializeForDiagnosticsAPI } from "../form-utils";
+import { assistExpressionInForm, assistFormInForm, continueInChat, deserializeForDiagnosticsAPI, formValuesNote, runAssistActions } from "../form-utils";
+import { useAssistTarget } from "../../AIChatAgent/agentScope";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
@@ -129,7 +130,7 @@ interface ArtifactFormProps {
         advanced?: boolean;
     }[];
     changeOptionalFieldTitle?: string;
-    onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
+    onChange?: (fieldKey: string, value: any, allValues: FormValues, formImports: FormImports) => void;
     hideSaveButton?: boolean;
     // Optional extra primary action next to the submit button (e.g. a "Next" that submits and
     // continues to a following step). Validated through the same path as submit.
@@ -146,7 +147,23 @@ interface ArtifactFormProps {
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
     footerCancelButton?: boolean;
+    // The node the fields configure, so field checks can resolve its module's types.
+    nodeCodedata?: CodeData;
+    // What the form's Copilot is told about the thing the form edits, where the form's own location is only where values are checked.
+    assistSubject?: AssistSubject;
 }
+
+export interface AssistSubject {
+    // e.g. "the POST /tickets resource of an HTTP service"
+    name: string;
+    // Where it sits in the source, so its code can be read.
+    range?: LineRange;
+    // What the form shows besides its fields, read-only to its Copilot.
+    shown?: () => string[];
+}
+
+// What the form configures, e.g. "ModelProvider from ai.openai", so its Copilot never takes it for another connector.
+const connectorOf = (codedata?: CodeData) => codedata?.module && `${codedata.object ?? codedata.node} from ${codedata.module}`;
 
 export function ArtifactForm(props: ArtifactFormProps) {
     const {
@@ -191,11 +208,15 @@ export function ArtifactForm(props: ArtifactFormProps) {
         secondarySubmitText,
         onSecondarySubmit,
         serverValidationErrors,
+        assistSubject,
         footerActionButton,
-        footerCancelButton
+        footerCancelButton,
+        nodeCodedata
     } = props;
 
     const { rpcClient } = useRpcContext();
+    const target = useAssistTarget(rpcClient);
+    const close = target.close;
     // Hosts (e.g. the pre-project Add Integration wizard) can restrict what forms
     // mounted beneath them may offer; unrestricted when no provider is present.
     const hostCapabilities = useContext(FormHostCapabilitiesContext);
@@ -235,7 +256,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         fieldKey?: string;
         currentValue?: string;
         recordTypeField?: RecordTypeField;
-        onChangeCallback?: (value: string) => void;
+        onChangeCallback?: (value: string, imports?: Imports) => void;
     }>({
         isOpen: false
     });
@@ -426,7 +447,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
     const handleFieldChange = (fieldKey: string, value: any, allValues: FormValues) => {
         const updated = fieldsValues.map(f => f.key === fieldKey ? { ...f, value: String(value) } : f);
         fieldsValuesRef.current = updated;
-        onChange?.(fieldKey, value, allValues);
+        onChange?.(fieldKey, value, allValues, formImportsRef.current);
     };
 
     const defaultType = (typeName?: string): Type => {
@@ -772,7 +793,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                 }
 
                 try {
-                    const field = fieldsRef.current.find(f => f.key === key);
+                    // A record's member is checked under its record field's key, e.g. `config__name`.
+                    const field = fieldsRef.current.find(f => f.key === key || key.startsWith(`${f.key}__`));
                     if (field) {
                         const propertyPrimaryFieldType = getPrimaryInputType(property.types);
                         if (property.types.length > 1 && propertyPrimaryFieldType.fieldType !== "REPEATABLE_LIST" && propertyPrimaryFieldType.fieldType !== "REPEATABLE_MAP") {
@@ -796,8 +818,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
                                 startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
                                 lineOffset: 0,
                                 offset: 0,
-                                codedata: field.codedata,
+                                codedata: nodeCodedata ?? field.codedata,
                                 property: updatedProperty,
+                                fieldKey: key,
                             },
                         });
 
@@ -1072,7 +1095,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         })
     }
 
-    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string) => void) => {
+    const openRecordConfigPage = (fieldKey: string, currentValue: string, recordTypeField: RecordTypeField, onChangeCallback: (value: string, imports?: Imports) => void) => {
         setRecordConfigPageState({
             isOpen: true,
             fieldKey,
@@ -1104,6 +1127,31 @@ export function ArtifactForm(props: ArtifactFormProps) {
             getTypeHelper: handleGetTypeHelper,
             getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
             checkTypeDiagnostics,
+            assistExpression: (input) => assistExpressionInForm(rpcClient, {
+                fileName,
+                startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                // As the diagnostics do: the node's codedata brings its module, e.g. ai.anthropic for a model provider.
+                codedata: nodeCodedata ?? fieldsRef.current.find((field) => field.key === input.key)?.codedata,
+                imports: formImportsRef.current[input.key],
+            }, input),
+            abortExpressionAssist: (requestId) => rpcClient.getAiPanelRpcClient().abortExpressionAssist({ requestId }),
+            assistForm: (instruction, description, requestId, context) => assistFormInForm(rpcClient, {
+                fileName,
+                startLine: getAdjustedStartLine(targetLineRange, expressionOffsetRef.current),
+                codedata: nodeCodedata,
+            }, {
+                requestId,
+                instruction,
+                node: assistSubject?.name ?? ([selectedNode, connectorOf(nodeCodedata), target.subject].filter(Boolean).join(", ") || "this form"),
+                agent: target.agent,
+                subjectRange: assistSubject?.range,
+                shown: assistSubject?.shown?.(),
+                ...context,
+                ...description,
+            }),
+            runAssistActions: (actions, fieldValue) => runAssistActions(rpcClient, fileName, actions, fieldValue),
+            continueFormInChat: close && (async (request, values, context) =>
+                continueInChat(rpcClient, request, [...await target.handoffContext(), formValuesNote(values), context], close)),
             onCompletionItemSelect: handleCompletionItemSelect,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
@@ -1126,6 +1174,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         openRecordConfigPage,
         types,
         checkTypeDiagnostics,
+        nodeCodedata,
+        selectedNode,
     ]);
 
     const handleSubmit = (values: FormValues) => {
@@ -1174,6 +1224,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     changeOptionalFieldTitle={changeOptionalFieldTitle}
                     serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
+                    updateImports={handleUpdateImports}
                     hideSaveButton={hideSaveButton}
                     groups={groups}
                     opensPrefilled={opensPrefilled}
@@ -1263,8 +1314,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         <ConfigureRecordPage
                             fileName={fileName}
                             targetLineRange={targetLineRange ? updateLineRange(targetLineRange, expressionOffsetRef.current) : undefined}
-                            onChange={(value: string, isRecordConfigureChange: boolean) => {
-                                recordConfigPageState.onChangeCallback!(value);
+                            onChange={(value: string, isRecordConfigureChange: boolean, imports?: Imports) => {
+                                recordConfigPageState.onChangeCallback!(value, imports);
                             }}
                             currentValue={recordConfigPageState.currentValue || ""}
                             recordTypeField={recordConfigPageState.recordTypeField}

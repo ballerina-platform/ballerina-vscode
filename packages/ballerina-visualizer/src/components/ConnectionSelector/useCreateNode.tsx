@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Suspense, lazy, useContext, useRef } from "react";
+import { ReactNode, Suspense, lazy, useContext, useRef } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { formatMethodName } from "@wso2/ballerina-side-panel";
 import { CodeData, FlowNode, ProjectStructureArtifactResponse, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
@@ -24,6 +24,7 @@ import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOve
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
 import { useModalStack } from "../../Context";
 import { WSO2_CLOUD_KNOWLEDGE_BASE_PACKAGE } from "../../constants";
+import { AgentScopeProvider, nestedScope, useAgentScope } from "../../views/BI/AIChatAgent/agentScope";
 
 const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateMemoryForm"));
 const CreateAgentForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateAgentForm"));
@@ -50,7 +51,14 @@ export function useCreateNode(
     const { rpcClient } = useRpcContext();
     const panelOverlayContext = useContext(PanelOverlayContext);
     const panelOverlay = options?.preferModal ? undefined : panelOverlayContext;
-    const { modalStack, addModal, updateModal, closeModal, popToModal, clearModals } = useModalStack();
+    const modals = useModalStack();
+    const { modalStack, closeModal, popToModal, clearModals } = modals;
+    // Modals render outside the panel, so a create started from an agent form brings its agent along.
+    const scope = nestedScope(useAgentScope());
+    const scoped = (content: ReactNode) => <AgentScopeProvider value={scope}>{content}</AgentScopeProvider>;
+    const addModal: typeof modals.addModal = (content, ...rest) => modals.addModal(scoped(content), ...rest);
+    const updateModal: typeof modals.updateModal = (id, updates) =>
+        modals.updateModal(id, updates.modal ? { ...updates, modal: scoped(updates.modal) } : updates);
 
     // Read at callback time, since a flow can outlive the render that started it.
     const stackRef = useRef(modalStack);

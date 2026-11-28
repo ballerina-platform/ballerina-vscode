@@ -18,6 +18,8 @@
 // tslint:disable: no-explicit-any
 import { CSSObject } from "@emotion/react";
 import styled from "@emotion/styled";
+import { FIELD_RADIUS } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { CHANGED_FIELD } from "../editors/FieldAssist/styles";
 
 export interface ContainerProps {
     readonly?: boolean;
@@ -131,11 +133,17 @@ export const HeaderLabel = styled.div`
     display: flex;
     background: var(--vscode-editor-background);
     border: 1px solid var(--vscode-dropdown-border);
+    border-radius: ${FIELD_RADIUS};
+    overflow: hidden;
     margin-top: 8px;
     display: flex;
     width: 100%;
     height: 32px;
     align-items: center;
+    &[${CHANGED_FIELD}] {
+        border-color: var(--field-changed-border);
+        background: var(--field-changed-background);
+    }
 `;
 
 export const ActionIconWrapper = styled.div`

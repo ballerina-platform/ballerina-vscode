@@ -21,7 +21,9 @@ import styled from "@emotion/styled";
 import { CheckBox, CheckBoxGroup, Dropdown, RadioButtonGroup, Typography } from "@wso2/ui-toolkit";
 import { Diagnostic, DropdownType, Imports, LineRange, PropertyModel } from "@wso2/ballerina-core";
 
+import { AssistMark, useAssistSource } from "@wso2/ballerina-side-panel";
 import { AnnotationExpressionField, AnnotationExpressionFieldHandle } from "./AnnotationExpressionField";
+import { annotationPath, applyAnnotation, describeAnnotation } from "./annotationAssist";
 import { CODEDATA_FIELD_VALUE_CHOICE } from "./payloadComposer";
 
 const SectionHeader = styled.div`
@@ -151,6 +153,19 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
         onImportsChange, registerFieldRef, onDiagnosticsChange, onValidationStateChange, plain,
         isFieldShown } = props;
 
+    useAssistSource({
+        describe: () => ({
+            slots: disabled ? [] : describeAnnotation(annotationKey, annotation, (fieldKey) => !isFieldShown || isFieldShown(fieldKey, annotation)),
+            groups: [],
+        }),
+        apply: ({ values = {} }) => {
+            const updated = applyAnnotation(annotationKey, annotation, values);
+            if (updated) {
+                onChange(annotationKey, updated);
+            }
+        },
+    });
+
     const renderLeaf = (stateKey: string, field: PropertyModel, onValueChange: (value: string) => void) => (
         <AnnotationExpressionField
             key={stateKey}
@@ -174,8 +189,12 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
         // A whole-value ANNOTATION_ATTACHMENT leaf (no granular fields) already renders its own
         // label and description via AnnotationExpressionField -> FieldFactory, so wrapping it in
         // another SectionHeader here would just repeat the same label a second time.
-        return renderLeaf(annotationKey, annotation,
-            (value) => onChange(annotationKey, { ...annotation, value }));
+        return (
+            <div style={{ width: "100%" }}>
+                {renderLeaf(annotationKey, annotation, (value) => onChange(annotationKey, { ...annotation, value }))}
+                <AssistMark fieldKey={annotationPath(annotationKey)} />
+            </div>
+        );
     }
 
     const updateField = (fieldKey: string, updated: PropertyModel) => {
@@ -282,6 +301,7 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
                                         {field.metadata.description}
                                     </PlainDescription>
                                 )}
+                                <AssistMark fieldKey={annotationPath(annotationKey, fieldKey)} />
                                 <PlainSelect>
                                     <Dropdown
                                         id={`trigger-annotation-${annotationKey}-${fieldKey}`}
@@ -305,6 +325,7 @@ export function AnnotationConfigSection(props: AnnotationConfigSectionProps) {
                     const valueNodes = Object.entries(field.properties ?? {}) as [string, PropertyModel][];
                     return (
                         <div key={fieldKey}>
+                            <AssistMark fieldKey={annotationPath(annotationKey, fieldKey)} />
                             <CheckBoxGroup direction="vertical">
                                 <CheckBox
                                     label={field.metadata?.label || fieldKey}

@@ -299,6 +299,13 @@ export const TypeField = forwardRef<HTMLInputElement, TypeFieldProps>((props, re
         validateType(memberName);
     }, []);
 
+    // A type saved after this field named it, e.g. from the popup the field opened, is known once the type list reloads.
+    useEffect(() => {
+        if (typeError) {
+            validateType(memberName);
+        }
+    }, [rest.referenceTypes]);
+
     const toggleModifier = (modifier: TypeModifier) => {
         if (nonNullToggle && modifier === 'nullable' && !shape.base) {
             setNullableWhileEmpty(!shape.nullable);

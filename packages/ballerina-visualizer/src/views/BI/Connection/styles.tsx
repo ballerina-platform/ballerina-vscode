@@ -16,14 +16,16 @@
  * under the License.
  */
 
+import React, { forwardRef } from "react";
 import styled from "@emotion/styled";
+import { AssistHostProvider } from "@wso2/ballerina-side-panel";
 import { Button, Codicon, Overlay, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
 export const PopupOverlay = styled(Overlay)`
     z-index: 1999;
 `;
 
-export const PopupContainer = styled.div`
+const PopupBox = styled.div`
     position: fixed;
     top: 50%;
     left: 50%;
@@ -41,6 +43,13 @@ export const PopupContainer = styled.div`
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 `;
+
+// Covers the page, so a form inside gets a Copilot of its own instead of the page's hidden one.
+export const PopupContainer = forwardRef<HTMLDivElement, React.ComponentProps<typeof PopupBox>>(({ children, ...props }, ref) => (
+    <PopupBox ref={ref} {...props}>
+        <AssistHostProvider>{children}</AssistHostProvider>
+    </PopupBox>
+));
 
 export const PopupHeader = styled.div`
     display: flex;

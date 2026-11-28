@@ -29,6 +29,7 @@ import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
 import { WarningBanner } from "../Form/WarningBanner";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { FIELD_RADIUS } from "./MultiModeExpressionEditor/ChipExpressionEditor/constants";
 
 interface AutoCompleteEditorProps {
     field: FormField;
@@ -99,7 +100,14 @@ export function AutoCompleteEditor(props: AutoCompleteEditorProps) {
                     marginRight: "-4px",
                     "& [id='dropdown-container']": {
                         width: "292px",
-                    }
+                    },
+                    // The input and the chevron button draw the two halves of one bordered box.
+                    "& input": {
+                        borderRadius: `${FIELD_RADIUS} 0 0 ${FIELD_RADIUS}`,
+                    },
+                    "& [id^='autocomplete-dropdown-button']": {
+                        borderRadius: `0 ${FIELD_RADIUS} ${FIELD_RADIUS} 0`,
+                    },
                 }}
             />
             {warningMsg && <WarningBanner warningMsg={warningMsg} />}

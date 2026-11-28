@@ -390,6 +390,28 @@ export const SpinArc = styled.div`
     }
 `;
 
+const ringPulse = keyframes`
+    50% { opacity: 0.35; }
+`;
+
+/** The working orb's breathing ring. */
+export const PulseRing = styled.div`
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--vscode-button-background) 70%, #ffffff);
+    body.vscode-light &,
+    body.vscode-high-contrast-light & {
+        border-color: var(--vscode-button-background);
+    }
+    animation: ${ringPulse} 1.2s ease-in-out infinite;
+    pointer-events: none;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+`;
+
 /** Glass reflection overlay — sits on top of both the shader and CSS spheres. */
 export const Gloss = styled.div`
     position: absolute;
@@ -587,10 +609,10 @@ export const isMiniChatShortcut = (
 
 /**
  * Ask the ambient Copilot surface to open with a contextual prompt.
- * Returns false only when the orb has not mounted, allowing a full-panel fallback.
+ * Returns false when the orb has not mounted or the view hides it, allowing a full-panel fallback.
  */
 export function requestMiniChatOpen(prompt: MiniChatPrompt): boolean {
-    if (miniChatOpenListeners.size === 0) {
+    if (miniChatOpenListeners.size === 0 || orbSuppressCount > 0) {
         return false;
     }
     miniChatOpenListeners.forEach((listener) => listener(prompt));

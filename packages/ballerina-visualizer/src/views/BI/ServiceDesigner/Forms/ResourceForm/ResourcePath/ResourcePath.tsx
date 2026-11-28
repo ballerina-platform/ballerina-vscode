@@ -19,8 +19,8 @@
 import React, { useEffect, useState } from 'react';
 import { Codicon, Dropdown, LinkButton, TextField, Typography } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
-import { ParameterModel, ProjectStructureArtifactResponse, PropertyModel, toDisplayPath } from '@wso2/ballerina-core';
-import { SegmentParam } from '@wso2/ballerina-side-panel';
+import { ExpressionProperty, FormAssistSlot, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, toDisplayPath } from '@wso2/ballerina-core';
+import { AssistMark, SegmentParam, useAssistSource } from '@wso2/ballerina-side-panel';
 import { parseResourcePath } from '../Utils/ResourcePathParser';
 import { getColorByMethod } from '../../../../../../utils/utils';
 import { ParamEditor } from '../Parameters/ParamEditor';
@@ -158,6 +158,26 @@ function isDuplicateResourcePath(pathID: string, existingPathID: string): boolea
 	return method === existingMethod && hasSameResourcePathPattern(path, existingPath);
 }
 
+const METHOD_SLOT = "resource.method";
+const PATH_SLOT = "resource.path";
+
+const slotProperty = (type: object) => ({ types: [{ selected: true, ...type }] }) as unknown as ExpressionProperty;
+
+/** The method and path as the form's Copilot reads and fills them. */
+function resourceSlots(method: PropertyModel, path: PropertyModel, methodEditable: boolean): FormAssistSlot[] {
+	const methodSlot: FormAssistSlot = {
+		path: METHOD_SLOT, label: "HTTP Method", value: (method.value ?? "").toUpperCase(),
+		property: slotProperty({ fieldType: "SINGLE_SELECT", options: verbs.map(({ value }) => ({ value, label: value })) }),
+	};
+	return [
+		...(methodEditable ? [methodSlot] : []),
+		{
+			path: PATH_SLOT, label: "Resource Path", value: toDisplayPath(path.value ?? ""), property: slotProperty({ fieldType: "STRING" }),
+			description: "The path after the service's base path; a segment in brackets, e.g. [string id], is a path parameter.",
+		},
+	];
+}
+
 export function ResourcePath(props: ResourcePathProps) {
 	const { method, path, onChange, onError, isNew, readonly, existingResources } = props;
 	const methodIsFixed = props.fixedMethod ?? isNew;
@@ -167,6 +187,20 @@ export function ResourcePath(props: ResourcePathProps) {
 	const [resourcePathErrors, setResourcePathErrors] = useState<string>("");
 	const [editModel, setEditModel] = useState<ParameterModel | undefined>(undefined);
 	const [showParamEditor, setShowParamEditor] = useState<boolean>(false);
+
+	useAssistSource({
+		describe: () => ({ slots: readonly ? [] : resourceSlots(method, path, !methodIsFixed), groups: [] }),
+		apply: ({ values = {} }) => {
+			const nextMethod = values[METHOD_SLOT] ? { ...method, value: values[METHOD_SLOT].toLowerCase() } : method;
+			const nextPath = values[PATH_SLOT] !== undefined ? { ...path, value: values[PATH_SLOT] } : path;
+			setInputValue(nextPath.value ?? "");
+			onChange(nextMethod, nextPath);
+			// A new path is checked when it lands; the same path under another method is checked here.
+			if ((nextPath.value ?? "") === inputValue) {
+				handleBlur(nextMethod);
+			}
+		},
+	});
 
 	useEffect(() => {
 		const resourePathStr = path.value ? path.value : "";
@@ -288,6 +322,8 @@ export function ResourcePath(props: ResourcePathProps) {
 
 	return (
 		<>
+			<div>
+			<div>
 			<PathContainer>
 				<div
 					style={{
@@ -334,6 +370,10 @@ export function ResourcePath(props: ResourcePathProps) {
 					onFocus={(e) => e.target.select()}
 				/>
 			</PathContainer>
+			<AssistMark fieldKey={PATH_SLOT} />
+			</div>
+			<AssistMark fieldKey={METHOD_SLOT} />
+			</div>
 			<>
 				{showParamEditor && editModel ? (
 					<ParamEditor

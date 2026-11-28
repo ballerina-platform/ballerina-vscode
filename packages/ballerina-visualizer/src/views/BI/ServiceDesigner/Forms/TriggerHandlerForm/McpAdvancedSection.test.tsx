@@ -102,6 +102,8 @@ function render(overrides: Partial<React.ComponentProps<typeof McpAdvancedSectio
         sections,
         headerTemplate,
         headerControls: <button>Header</button>,
+        headers: [],
+        onHeadersApply: jest.fn(),
         onParamToggle: jest.fn(),
         renderOtherUnits: jest.fn((): React.ReactNode[] => []),
         ...overrides,

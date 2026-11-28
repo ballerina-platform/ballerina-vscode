@@ -36,14 +36,21 @@ jest.mock("../Connection/ConnectorBrowser/connectorActions", () => ({ REST_RESOU
 
 let current: FlowNode;
 const showErrorMessage = jest.fn();
+const openView = jest.fn();
 const rpcClient = {
     getBIDiagramRpcClient: () => ({
         getModuleNodes: async () => ({ flowModel: { connections: [] as FlowNode[], variables: [current] } }),
         getProjectStructure: async (): Promise<undefined> => undefined,
+        getFunctionNode: async () => ({ functionDefinition: { codedata: { lineRange: { fileName: "agents.bal", startLine: { line: 9, offset: 0 }, endLine: { line: 12, offset: 1 } } } } }),
     }),
     onProjectContentUpdated: () => (): undefined => undefined,
     getCommonRpcClient: () => ({ showErrorMessage }),
-    getVisualizerRpcClient: () => ({ beginUndoGroup: async (): Promise<void> => undefined, endUndoGroup: async (): Promise<void> => undefined }),
+    getVisualizerRpcClient: () => ({
+        beginUndoGroup: async (): Promise<void> => undefined,
+        endUndoGroup: async (): Promise<void> => undefined,
+        joinProjectPath: async () => ({ filePath: "/p/agents.bal" }),
+        openView,
+    }),
 };
 jest.mock("@wso2/ballerina-rpc-client", () => ({ useRpcContext: () => ({ rpcClient }) }));
 
@@ -57,8 +64,7 @@ const agent = (tools: string): FlowNode => ({
     properties: { variable: { value: "aiAgent" }, tools: { value: tools } },
 } as unknown as FlowNode);
 
-it("drops a queued add whose tool name an earlier queued add put on the agent", async () => {
-    current = agent("[getTool]");
+function mountController(): { current: AgentEditorController } {
     const host = { projectPath: "/p", onModelSelect: jest.fn(), onRefresh: jest.fn() };
     const controller = {} as { current: AgentEditorController };
     function Probe(): null {
@@ -66,6 +72,23 @@ it("drops a queued add whose tool name an earlier queued add put on the agent", 
         return null;
     }
     act(() => createRoot(document.createElement("div")).render(<Probe />));
+    return controller;
+}
+
+it("opens a tool's page and its flow with the agent they were opened from", async () => {
+    current = agent("[getTool]");
+    const controller = mountController();
+    const opened = agent("[getTool]");
+
+    await act(async () => controller.current.diagramCallbacks.onSelectTool({ name: "getTool" }, opened));
+    await act(async () => controller.current.diagramCallbacks.goToTool({ name: "getTool" }, opened));
+
+    expect(openView.mock.calls.map(([event]) => event.location.agentMetadata?.agent)).toEqual([opened, opened]);
+});
+
+it("drops a queued add whose tool name an earlier queued add put on the agent", async () => {
+    current = agent("[getTool]");
+    const controller = mountController();
 
     const saved: string[] = [];
     const addTool = (label: string) => {

@@ -205,7 +205,7 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
 
 export const chipTheme = EditorView.theme({
     "&": {
-        backgroundColor: "var(--vscode-input-background)",
+        backgroundColor: "var(--field-changed-background, var(--vscode-input-background))",
         // Follow the bordered wrapper's rounded corners instead of painting square ones over them.
         borderRadius: "inherit"
     },
@@ -771,7 +771,8 @@ export const expressionEditorKeymap = [
             return false;
         }
     },
-    ...defaultKeymap,
+    // Mod-Enter saves the form.
+    ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
     ...historyKeymap
 ];
 
@@ -806,64 +807,6 @@ const computeCursorPositionInfo = (
     }
 
     return { top: relativeTop, left: relativeLeft, isFlipped };
-};
-
-// this always returns the cursor position with correction for helper pane width overflow
-// make sure all the dropdowns that use this handle has the same width
-export const buildOnFocusListner = (
-    onTrigger: (cursor: CursorInfo) => void,
-    containerRef?: React.RefObject<HTMLElement>
-) => {
-    const shouldOpenHelperPaneListner = EditorView.updateListener.of((update) => {
-        if (update.focusChanged) {
-            if (!update.view.hasFocus) {
-                return;
-            }
-
-            const cursorPosition = update.view.state.selection.main;
-            const coords = update.view.coordsAtPos(cursorPosition.to);
-
-            if (
-                coords &&
-                coords.top !== null &&
-                coords.top !== undefined &&
-                coords.left !== null &&
-                coords.left !== undefined &&
-                coords.bottom !== null &&
-                coords.bottom !== undefined
-            ) {
-                const editorRect = update.view.dom.getBoundingClientRect();
-                const { top: relativeTop, left: relativeLeft, isFlipped } = computeCursorPositionInfo(coords, editorRect, containerRef);
-
-                onTrigger({ top: relativeTop, left: relativeLeft, position: cursorPosition, isFlipped });
-            }
-        }
-    });
-    return shouldOpenHelperPaneListner;
-};
-
-// this always returns the cursor position with correction for helper pane width overflow
-// make sure all the dropdowns that use this handle has the same width
-export const buildOnSelectionChange = (
-    onTrigger: (cursor: CursorInfo) => void,
-    containerRef?: React.RefObject<HTMLElement>
-) => {
-    const selectionListener = EditorView.updateListener.of((update) => {
-        if (!update.selectionSet) return;
-        if (update.docChanged) return;
-        if (!update.view.hasFocus) return;
-
-        const cursorPosition = update.state.selection.main;
-        const coords = update.view.coordsAtPos(cursorPosition.to);
-
-        if (coords && coords.top != null && coords.left != null) {
-            const editorRect = update.view.dom.getBoundingClientRect();
-            const { top: relativeTop, left: relativeLeft, isFlipped } = computeCursorPositionInfo(coords, editorRect, containerRef);
-
-            onTrigger({ top: relativeTop, left: relativeLeft, position: cursorPosition, isFlipped });
-        }
-    });
-    return selectionListener;
 };
 
 export const buildOnFocusOutListner = (onTrigger: () => void) => {

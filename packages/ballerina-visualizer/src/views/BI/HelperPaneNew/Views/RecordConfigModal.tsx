@@ -16,13 +16,15 @@
  * under the License.
  */
 
-import { AvailableNode, CodeData, GetRecordConfigResponse, GetRecordConfigRequest, LineRange, RecordTypeField, TypeField, RecordSourceGenRequest, RecordSourceGenResponse, GetRecordModelFromSourceRequest, GetRecordModelFromSourceResponse, ExpressionProperty, NodeKind, getPrimaryInputType, getSecondaryInputType, InputType } from "@wso2/ballerina-core";
-import { Dropdown, HelperPane, Typography, HelperPaneHeight, FormExpressionEditorRef, ErrorBanner, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { AvailableNode, CodeData, GetRecordConfigResponse, GetRecordConfigRequest, LineRange, RecordTypeField, TypeField, RecordSourceGenRequest, RecordSourceGenResponse, GetRecordModelFromSourceRequest, GetRecordModelFromSourceResponse, ExpressionProperty, NodeKind, getPrimaryInputType, getSecondaryInputType, InputType, Imports } from "@wso2/ballerina-core";
+import { Dropdown, HelperPane, Typography, HelperPaneHeight, FormExpressionEditorRef, ErrorBanner, ProgressRing, ThemeColors, Icon, Tooltip } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
-import { useEffect, useRef, useState, RefObject } from "react";
+import { useContext, useEffect, useRef, useState, RefObject } from "react";
+import { createPortal } from "react-dom";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { RecordConfigView } from "./RecordConfigView";
-import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChangeOptions, FieldProvider, FormField, FormExpressionEditorProps, getPropertyFromFormField, RecordConfigExpressionEditorConfig, ExpandedEditor, InputMode } from "@wso2/ballerina-side-panel";
+import { ChipExpressionEditorComponent, Context as FormContext, HelperpaneOnChangeOptions, FieldProvider, FormField, FormExpressionEditorProps, getPropertyFromFormField, RecordConfigExpressionEditorConfig, ExpandedEditor, InputMode, DialogFieldAssist, FieldAssistContext } from "@wso2/ballerina-side-panel";
+import { CloseButton, ModalHeaderSlot } from "../../../../components/Modal";
 import { PromptFieldEditorContext } from "../Components/RecordConstructView/PromptFieldEditorContext";
 import { useForm } from "react-hook-form";
 import { debounce } from "lodash";
@@ -34,7 +36,7 @@ import { ChipExpressionEditorDefaultConfiguration } from "@wso2/ballerina-side-p
 type ConfigureRecordPageProps = {
     fileName: string;
     targetLineRange?: LineRange;
-    onChange: (value: string, isRecordConfigureChange: boolean) => void;
+    onChange: (value: string, isRecordConfigureChange: boolean, imports?: Imports) => void;
     currentValue: string;
     recordTypeField: RecordTypeField;
     onClose: () => void;
@@ -146,6 +148,33 @@ export const ExpressionEditorDocumentation = styled.div({
     }
 });
 
+// In a dialog whose header can hold it, the field Copilot button moves there, as in the expanded editor.
+function HeaderAssist({ children }: { children: React.ReactNode }) {
+    const slot = useContext(ModalHeaderSlot);
+    const assist = useContext(FieldAssistContext);
+    if (!slot || !assist) {
+        return <>{children}</>;
+    }
+    return (
+        <>
+            {createPortal(
+                <Tooltip content="Fill this field with Copilot" position="bottom">
+                    <CloseButton
+                        appearance="icon"
+                        aria-label="Fill this field with Copilot"
+                        aria-pressed={assist.isOpen}
+                        onClick={() => assist.open()}
+                    >
+                        <Icon name="bi-ai-chat" sx={{ fontSize: "16px", width: "16px" }} />
+                    </CloseButton>
+                </Tooltip>,
+                slot
+            )}
+            <FieldAssistContext.Provider value={undefined}>{children}</FieldAssistContext.Provider>
+        </>
+    );
+}
+
 export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const { fileName, onChange, currentValue, recordTypeField, onClose, targetLineRange, getHelperPane, field, triggerCharacters, formContext } = props;
     const { rpcClient } = useRpcContext();
@@ -162,6 +191,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
     const firstRender = useRef<boolean>(true);
     const initialMountRef = useRef<boolean>(true);
     const onChangeRef = useRef(onChange);
+    // Imports a Copilot value needs, handed to the form with that value.
+    const assistImports = useRef<Imports>();
     const sourceCode = useRef<string>(currentValue);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasTooManyFieldsError, setHasTooManyFieldsError] = useState<boolean>(false);
@@ -295,7 +326,8 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
             return;
         }
 
-        onChangeRef.current(localExpressionValue, true);
+        onChangeRef.current(localExpressionValue, true, assistImports.current);
+        assistImports.current = undefined;
     }, [localExpressionValue]);
 
     const fetchRecordModelFromSource = async (currentValue: string) => {
@@ -754,6 +786,13 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
         }
         : undefined;
 
+    // A Copilot value lands in the expression editor, which then selects the type and fields it sets.
+    const applyAssistValue = (expression: string, imports?: Imports) => {
+        assistImports.current = imports;
+        setLocalExpressionValue(expression);
+        fetchDiagnostics(expression);
+    };
+
     return (
         <>
             <HelperPane.Body sx={{ zIndex: 2001 }} >
@@ -835,24 +874,34 @@ export function ConfigureRecordPage(props: ConfigureRecordPageProps) {
                                         minHeight: 0,
                                         gap: '8px'
                                     }}>
-                                        <ChipExpressionEditorComponent
-                                            completions={formContext.expressionEditor.completions}
-                                            onChange={handleExpressionChange}
+                                        <DialogFieldAssist
+                                            field={field}
                                             value={localExpressionValue}
-                                            fileName={fileName}
-                                            targetLineRange={targetLineRange}
-                                            extractArgsFromFunction={wrappedExtractArgsFromFunction}
-                                            getHelperPane={wrappedGetHelperPane}
-                                            sx={{
-                                                height: "100%",
-                                                minHeight: 0,
-                                                flex: 1
-                                            }}
-                                            configuration={new RecordConfigExpressionEditorConfig()}
-                                            isExpandedVersion={false}
-                                            hideFxButton={true}
-                                            containerRef={modalContainerRef}
-                                        />
+                                            expressionEditor={formContext.expressionEditor}
+                                            errors={formDiagnostics.map((diagnostic: any) => diagnostic.message)}
+                                            onApply={applyAssistValue}
+                                        >
+                                            <HeaderAssist>
+                                                <ChipExpressionEditorComponent
+                                                    completions={formContext.expressionEditor.completions}
+                                                    onChange={handleExpressionChange}
+                                                    value={localExpressionValue}
+                                                    fileName={fileName}
+                                                    targetLineRange={targetLineRange}
+                                                    extractArgsFromFunction={wrappedExtractArgsFromFunction}
+                                                    getHelperPane={wrappedGetHelperPane}
+                                                    sx={{
+                                                        height: "100%",
+                                                        minHeight: 0,
+                                                        flex: 1
+                                                    }}
+                                                    configuration={new RecordConfigExpressionEditorConfig()}
+                                                    isExpandedVersion={false}
+                                                    hideFxButton={true}
+                                                    containerRef={modalContainerRef}
+                                                />
+                                            </HeaderAssist>
+                                        </DialogFieldAssist>
                                         {formDiagnostics && formDiagnostics.length > 0 && (
                                             <ErrorBanner errorMsg={formDiagnostics.map((d: any) => d.message).join(', ')} />
                                         )}

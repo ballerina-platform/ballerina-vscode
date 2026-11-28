@@ -100,11 +100,12 @@ import {
 import { PanelOverlayProvider } from "./context/PanelOverlayContext";
 import { HeldViewContext } from "../../../Context";
 import { PanelOverlayRenderer } from "./PanelOverlayRenderer";
+import { AgentPart, AgentScopeProvider, scopeOf } from "../AIChatAgent/agentScope";
 import { ExpressionFormField, Category as PanelCategory, S } from "@wso2/ballerina-side-panel";
 import { assertFunctionSearchSuccess, FUNCTIONS_PAGE_SIZE, PAGINATED_LIBRARY_SECTIONS } from "../../../utils/function-pagination";
 import { useFunctionPaginationController } from "../../../utils/useFunctionPaginationController";
 import { settleLibrarySection, withLibrarySections } from "../../../utils/useFunctionPagination";
-import { cloneDeep, debounce } from "lodash";
+import { cloneDeep, debounce, isEqual } from "lodash";
 import { createFlowModelRefresher } from "./flowModelRefresh";
 import { reanchorInsertion } from "./insertionAnchor";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
@@ -177,6 +178,12 @@ const DURABLE_CAPABILITY_NODE_KINDS: Record<string, string> = {
     tool: "DURABLE_AGENT_REGISTER_TOOL",
     humanTask: "DURABLE_AGENT_HUMAN_TASK",
     peer: "DURABLE_AGENT_PEER",
+};
+
+// The agent part a model provider panel sets: the agent's own provider, or one being created for it.
+const MODEL_PROVIDER_PARTS: Partial<Record<SidePanelView, AgentPart>> = {
+    [SidePanelView.CONNECTION_CONFIG]: "MODEL_PROVIDER",
+    [SidePanelView.CONNECTION_CREATE]: "NEW_MODEL_PROVIDER",
 };
 
 // AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
@@ -1118,7 +1125,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             ) {
                                 const updatedSelectedNode = searchNodesByStartLine(model.flowModel.nodes, currentSelectedNode?.codedata.lineRange.startLine);
                                 if (updatedSelectedNode
-                                        && updatedSelectedNode.codedata?.node === currentSelectedNode.codedata?.node) {
+                                        && updatedSelectedNode.codedata?.node === currentSelectedNode.codedata?.node
+                                        // Kept while its source is unchanged, so a write elsewhere leaves its form's values.
+                                        && !isEqual(updatedSelectedNode.codedata, currentSelectedNode.codedata)) {
                                     selectedNodeRef.current = updatedSelectedNode;
                                     setSelectedNodeId(updatedSelectedNode.id);
                                 }
@@ -4298,6 +4307,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         onChat: handleOnChatWithAgent,
     });
 
+    const providerPart = showSidePanel && selectedConnectionKind === "MODEL_PROVIDER" ? MODEL_PROVIDER_PARTS[sidePanelView] : undefined;
+    const agentScope = scopeOf(agentEditor.agentNode, providerPart ?? agentEditor.view, handleOnCloseSidePanel);
+
     const { syncToolEdits } = agentEditor;
     useEffect(() => {
         syncToolEdits(model);
@@ -4604,6 +4616,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 </Container>
             </View>
 
+            <AgentScopeProvider value={agentScope}>
             <PanelManager
                 showSidePanel={showSidePanel}
                 sidePanelView={sidePanelView}
@@ -4701,6 +4714,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             />
 
             <PanelOverlayRenderer />
+            </AgentScopeProvider>
 
             {showAddAgentPopup && (
                 <AddAgentPopupLayer>

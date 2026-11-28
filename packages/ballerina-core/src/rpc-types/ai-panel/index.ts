@@ -54,6 +54,11 @@ import {
     CompactConversationResponse,
     PromptEnhancementRequest,
     PromptEnhancementResponse,
+    ExpressionAssistRequest,
+    ExpressionAssistResponse,
+    AbortExpressionAssistRequest,
+    FormAssistRequest,
+    FormAssistResponse,
     ClarifyAnswerRequest,
     ClarifyCancelRequest,
     RunningServiceInfo,
@@ -181,6 +186,9 @@ export interface AIPanelAPI {
     // Prompt Enhancement
     // ==================================
     enhancePrompt: (params: PromptEnhancementRequest) => Promise<PromptEnhancementResponse>;
+    assistExpression: (params: ExpressionAssistRequest) => Promise<ExpressionAssistResponse>;
+    abortExpressionAssist: (params: AbortExpressionAssistRequest) => void;
+    assistForm: (params: FormAssistRequest) => Promise<FormAssistResponse>;
     promptForLogin: () => void;
     submitClarifyAnswer: (params: ClarifyAnswerRequest) => Promise<void>;
     cancelClarify: (params: ClarifyCancelRequest) => Promise<void>;

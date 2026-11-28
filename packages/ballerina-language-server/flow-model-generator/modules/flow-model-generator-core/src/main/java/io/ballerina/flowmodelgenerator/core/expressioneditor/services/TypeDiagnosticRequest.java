@@ -27,13 +27,19 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.TypesGenerator;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.ModulePrefixContext;
 import io.ballerina.projects.Document;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
+import io.ballerina.tools.text.TextEdit;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.util.diagnostic.DiagnosticErrorCode;
 import org.eclipse.lsp4j.Diagnostic;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -73,6 +79,12 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
 
     @Override
     protected Set<Diagnostic> getSemanticDiagnostics(ExpressionEditorContext context) {
+        String inputExpression = getTrimmedOutput(context.info().expression());
+        // Skip validation for 'var' as it is a type inference keyword
+        if (isVarType(inputExpression)) {
+            return Set.of();
+        }
+        String resolvableType = withPendingImports(context, inputExpression);
         Optional<SemanticModel> semanticModel =
                 context.workspaceManager().semanticModel(context.filePath());
         Optional<Document> document = context.workspaceManager().document(context.filePath());
@@ -80,12 +92,6 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
             return Set.of();
         }
         Set<Diagnostic> diagnostics = new HashSet<>();
-        String inputExpression = getTrimmedOutput(context.info().expression());
-
-        // Skip validation for 'var' as it is a type inference keyword
-        if (isVarType(inputExpression)) {
-            return diagnostics;
-        }
 
         // A typedesc value is written as the type's name: a type descriptor such as map<string> does not parse there
         String typedescInput = context.info().expression().trim();
@@ -100,7 +106,7 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
         Types types = semanticModel.get().types();
         Optional<TypeSymbol> typeSymbol;
         try {
-            typeSymbol = BallerinaCompilerApi.getInstance().getType(types, document.get(), inputExpression);
+            typeSymbol = BallerinaCompilerApi.getInstance().getType(types, document.get(), resolvableType);
         } catch (NullPointerException e) {
             // TODO: Tracked with https://github.com/ballerina-platform/ballerina-lang/issues/44347
             // Handle cases where the type descriptor doesn't have a parent context
@@ -161,6 +167,27 @@ public class TypeDiagnosticRequest extends DiagnosticsRequest {
         }
         SyntaxKind kind = NodeParser.parseTypeDescriptor(type).kind();
         return kind == SyntaxKind.SIMPLE_NAME_REFERENCE || kind == SyntaxKind.QUALIFIED_NAME_REFERENCE;
+    }
+
+    /**
+     * The type as this document names it, with the modules it was picked with imported into the checked copy: the
+     * form adds those imports on save.
+     */
+    private static String withPendingImports(ExpressionEditorContext context, String type) {
+        Map<String, String> imports = context.getProperty().importStatements();
+        if (imports == null || imports.isEmpty()) {
+            return type;
+        }
+        Document document = context.documentContext().document();
+        ModulePrefixContext prefixes = ModulePrefixContext.from(document.syntaxTree().rootNode(),
+                ModuleInfo.from(document.module().descriptor()));
+        String requalified = prefixes.requalifyAuthored(type, imports);
+        List<TextEdit> edits = new ArrayList<>();
+        prefixes.pendingImportStatements().forEach(signature -> context.getImport(signature).ifPresent(edits::add));
+        if (!edits.isEmpty()) {
+            context.applyTextEdits(edits);
+        }
+        return requalified == null ? type : requalified;
     }
 
     private static boolean isVarType(String inputExpression) {

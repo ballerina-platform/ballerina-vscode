@@ -19,10 +19,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { cloneDeep } from 'lodash';
 import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, deriveBasePath, isDefaultModelProviderExpr, toKebabCase } from '@wso2/ballerina-core';
-import { Button, View, ViewContent } from '@wso2/ui-toolkit';
+import { Button, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { TitleBar } from '../../../components/TitleBar';
+import { AssistView, TitleBar } from '../../../components/TitleBar';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { FormHeader } from '../../../components/FormHeader';
@@ -258,7 +258,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
     };
 
     return (
-        <View>
+        <AssistView>
             <TopNavigationBar projectPath={projectPath.current} />
             <TitleBar
                 title="Chat Agent Service"
@@ -304,6 +304,6 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                     </LoaderContainer>
                 )}
             </ViewContent>
-        </View>
+        </AssistView>
     );
 }

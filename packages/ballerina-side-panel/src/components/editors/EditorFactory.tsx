@@ -57,6 +57,8 @@ import { DependentTypeEditor } from "./DependentTypeEditor";
 import { FieldFactory } from "./FieldFactory";
 import { GroupSectionEditor } from "./GroupSectionEditor";
 import { ConnectionEditor } from "./ConnectionEditor/ConnectionEditor";
+import { AssistSlot } from "./FieldAssist/AssistSlot";
+import { SlotKind } from "./FieldAssist/fieldKinds";
 
 export interface FormFieldEditorProps {
     field: FormField;
@@ -119,6 +121,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         fieldInputType.fieldType === "CLAUSE_EXPRESSION"
     )
 
+    const slotted = (kind: SlotKind, editor: React.ReactElement) => <><AssistSlot field={field} kind={kind} />{editor}</>;
+
     if (!field.enabled || field.hidden) {
         return <></>;
     } else if (fieldInputType.fieldType === "GROUP_SECTION") {
@@ -126,7 +130,7 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else if (fieldInputType.fieldType === "RECORD_FIELD_SELECTOR" && field.codedata?.kind === "PARAM_FOR_TYPE_INFER") {
         return <DependentTypeEditor field={field} />;
     } else if (fieldInputType.fieldType === "SLIDER") {
-        return <SliderEditor field={field} />;
+        return slotted("NUMBER", <SliderEditor field={field} />);
     } else if (fieldInputType.fieldType === "MULTIPLE_SELECT") {
         return <MultiSelectEditor field={field} label={"Attach Another"} openSubPanel={openSubPanel} />;
     } else if (fieldInputType.fieldType === "HEADER_SET") {
@@ -134,29 +138,29 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else if (fieldInputType.fieldType === "CHOICE") {
         return <ChoiceForm field={field} recordTypeFields={recordTypeFields} />;
     } else if (fieldInputType.fieldType === "DROPDOWN_CHOICE") {
-        return <DropdownChoiceForm field={field} />;
+        return slotted("SINGLE_SELECT", <DropdownChoiceForm field={field} />);
     } else if (fieldInputType.fieldType === "TEXTAREA" || fieldInputType.fieldType === "STRING" || fieldInputType.fieldType === "DOC_TEXT") {
-        return <TextAreaEditor field={field} inputMode={InputMode.SIMPLE_TEXT} />;
+        return slotted("STRING", <TextAreaEditor field={field} inputMode={InputMode.SIMPLE_TEXT} />);
     } else if (fieldInputType.fieldType === "FLAG" && !showWithExpressionEditor) {
-        return <CheckBoxEditor field={field} />;
+        return slotted("FLAG", <CheckBoxEditor field={field} />);
     } else if (fieldInputType.fieldType === "EXPRESSION" && field.key === "resourcePath") {
         // HACK: this should fixed with the LS API. this is used to avoid the expression editor for resource path field.
-        return <TextEditor field={field} handleOnFieldFocus={handleOnFieldFocus} />;
+        return slotted("STRING", <TextEditor field={field} handleOnFieldFocus={handleOnFieldFocus} />);
     } else if (fieldInputType.fieldType?.toUpperCase() === "ENUM") {
         // Enum is a dropdown field
-        return <DropdownEditor field={field} openSubPanel={openSubPanel} />;
+        return slotted("SINGLE_SELECT", <DropdownEditor field={field} openSubPanel={openSubPanel} />);
     } else if (fieldInputType.fieldType?.toUpperCase() === "AUTOCOMPLETE") {
-        return <AutoCompleteEditor field={field} openSubPanel={openSubPanel} />;
+        return slotted("SINGLE_SELECT", <AutoCompleteEditor field={field} openSubPanel={openSubPanel} />);
     } else if (fieldInputType.fieldType === "CUSTOM_DROPDOWN") {
-        return <CustomDropdownEditor field={field} openSubPanel={openSubPanel} />;
+        return slotted("SINGLE_SELECT", <CustomDropdownEditor field={field} openSubPanel={openSubPanel} />);
     } else if (fieldInputType.fieldType === "PROJECT_FILE_SELECT" && field.editable) {
-        return <ProjectFileSelect field={field} />;
+        return slotted("STRING", <ProjectFileSelect field={field} />);
     } else if (fieldInputType.fieldType === "FILE_SELECT" && field.editable) {
-        return <FileSelect field={field} />;
+        return slotted("STRING", <FileSelect field={field} />);
     } else if (fieldInputType.fieldType === "SINGLE_SELECT" && !showWithExpressionEditor && field.editable && field.dynamicFormFields) {
-        return <DropdownChoiceForm field={field} />;
+        return slotted("SINGLE_SELECT", <DropdownChoiceForm field={field} />);
     } else if (fieldInputType.fieldType === "SINGLE_SELECT" && !showWithExpressionEditor && field.editable) {
-        return <DropdownEditor field={field} openSubPanel={openSubPanel} />;
+        return slotted("SINGLE_SELECT", <DropdownEditor field={field} openSubPanel={openSubPanel} />);
     } else if (!field.items && (fieldInputType.fieldType === "ACTION_TYPE") && field.editable) {
         return (
             <ActionTypeEditor
@@ -171,7 +175,7 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else if (fieldInputType.fieldType === "CONNECTION" && field.editable) {
         return <ConnectionEditor field={field} />;
     } else if (!field.items && fieldInputType.fieldType === "TYPE" && field.editable) {
-        return (
+        return slotted("TYPE", (
             <TypeEditor
                 field={field}
                 openRecordEditor={openRecordEditor}
@@ -184,7 +188,7 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
                 handleNewTypeSelected={handleNewTypeSelected}
 
             />
-        );
+        ));
     } else if (!field.items && (fieldInputType.fieldType === "RAW_TEMPLATE" || fieldInputType.ballerinaType === "ai:Prompt") && field.editable) {
         return (
             <ContextAwareRawExpressionEditor
@@ -241,10 +245,10 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else if (fieldInputType.fieldType !== "IDENTIFIER" && !field.editable) {
         return <ReadonlyField field={field} />;
     } else if (fieldInputType.fieldType === "IDENTIFIER" && field.editable) {
-        return <IdentifierField field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} onBlur={onBlur} />;
+        return slotted("IDENTIFIER", <IdentifierField field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} onBlur={onBlur} />);
     } else if (fieldInputType.fieldType === "SERVICE_PATH" || fieldInputType.fieldType === "ACTION_PATH"
         || fieldInputType.fieldType === "RESOURCE_PATH" || fieldInputType.fieldType === "STRING_LITERAL") {
-        return <PathEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />;
+        return slotted("STRING", <PathEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />);
     } else if (fieldInputType.fieldType === "AGENT_TOOL_APPROVAL" && field.approvalConfig) {
         return <ApprovalEditor field={field} />;
     } else if (fieldInputType.fieldType === "CONDITIONAL_FIELDS" && field.editable) {
@@ -277,6 +281,6 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
     } else {
         // Default to text editor
         // Readonly fields are also treated as text editor
-        return <TextEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />;
+        return slotted("STRING", <TextEditor field={field} handleOnFieldFocus={handleOnFieldFocus} autoFocus={autoFocus} />);
     }
 };

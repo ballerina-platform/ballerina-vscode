@@ -31,6 +31,7 @@ import {
 import { PopupContent, StepperContainer } from "../AddConnectionPopup/styles";
 import { DevantConnectorList } from "./DevantConnectorList";
 import React, { useEffect, useState } from "react";
+import { AssistHeaderButton } from "@wso2/ballerina-side-panel";
 import { DevantConnectorMarketplaceInfo } from "./DevantConnectorMarketplaceInfo";
 import { ConnectionListItem, MarketplaceItem, MarketplaceItemSchema, ServiceInfoVisibilityEnum } from "@wso2/wso2-platform-core";
 import { DevantConnectorCreateForm } from "./DevantConnectorCreateForm";
@@ -416,6 +417,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                         <PopupTitle variant="h2">{title}</PopupTitle>
                         {subTitle && <PopupSubtitle variant="body2">{subTitle}</PopupSubtitle>}
                     </HeaderTitleContainer>
+                    <AssistHeaderButton />
                     <CloseButton appearance="icon" onClick={() => handleClosePopup()}>
                         <Codicon name="close" />
                     </CloseButton>

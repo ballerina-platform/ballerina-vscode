@@ -17,11 +17,13 @@
  */
 
 import { RefObject } from "react";
-import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties, ELineRange } from "@wso2/ballerina-core";
+import { DiagnosticMessage, FormDiagnostics, TextEdit, PropertyModel, LinePosition, LineRange, ExpressionProperty, Metadata, RecordTypeField, Imports, ConfigProperties, ELineRange, ExpressionAssistRequest, ExpressionAssistResponse } from "@wso2/ballerina-core";
 import { ParamConfig } from "../ParamManager/ParamManager";
 import { CompletionItem, FormExpressionEditorRef, HelperPaneHeight, HelperPaneOrigin, OptionProps } from "@wso2/ui-toolkit";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { InputType } from "@wso2/ballerina-core/lib/interfaces/bi";
+import { FieldAssistInput, RunAssistActions } from "../editors/FieldAssist/FieldAssist";
+import type { RunFormAssist } from "../editors/FieldAssist/FormAssist";
 
 
 export type FormValues = {
@@ -304,7 +306,16 @@ type FormExpressionEditorBaseProps = {
     onSave?: (value: string) => void | Promise<void>;
     onRemove?: () => void;
     onSaveConfigurables?: (values: any) => void;
-    onOpenRecordConfigPage?: (fieldKey: string, currentValue: string, recordTypeField: any, onChange: (value: string) => void) => void;
+    onOpenRecordConfigPage?: (fieldKey: string, currentValue: string, recordTypeField: any, onChange: (value: string, imports?: Imports) => void) => void;
+    // In-field AI helper; fields show it only when the host form provides this.
+    assistExpression?: (input: FieldAssistInput & { key: string; property: ExpressionProperty; variableType?: string; form?: ExpressionAssistRequest["form"]; formParts?: string[]; canChangeFlow?: boolean }) => Promise<ExpressionAssistResponse>;
+    abortExpressionAssist?: (requestId: string) => void;
+    // Whole-form Copilot for a form with no node schema; the form fills it from its fields' own helpers.
+    assistForm?: RunFormAssist;
+    // Hands a change the form cannot hold to the main Copilot, with the form's values as plain lines.
+    continueFormInChat?: (request: string, values: string[], context?: string) => void;
+    // Carries out what an accepted suggestion needs outside the field, e.g. declaring a configurable.
+    runAssistActions?: RunAssistActions;
 }
 
 type ExpressionEditorRPCManager = {

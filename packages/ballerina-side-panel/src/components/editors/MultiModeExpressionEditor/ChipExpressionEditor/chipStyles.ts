@@ -32,6 +32,9 @@ export const BASE_CHIP_STYLES = {
     padding: "2px 8px",
     cursor: "pointer",
     minWidth: "25px",
+    // A long value ellipsizes inside the line instead of running under the field's buttons.
+    maxWidth: "100%",
+    boxSizing: "border-box",
     transition: "all 0.2s ease",
     gap: "4px",
 } as const;
@@ -42,6 +45,7 @@ export const BASE_ICON_STYLES = {
 } as const;
 
 export const CHIP_TEXT_STYLES = {
+    minWidth: "0",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap"

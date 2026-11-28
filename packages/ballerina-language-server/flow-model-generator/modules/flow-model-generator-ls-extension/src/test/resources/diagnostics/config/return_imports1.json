@@ -1,0 +1,36 @@
+{
+  "description": "A value that calls a module the file does not import yet, with the module in the property's imports",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "time:utcToString(time:utcNow())",
+    "startLine": {
+      "line": 13,
+      "offset": 8
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "RETURN"
+    },
+    "property": {
+      "metadata": {
+        "label": "Expression",
+        "description": "Return value"
+      },
+      "types": [
+        {
+          "fieldType": "ACTION_OR_EXPRESSION",
+          "ballerinaType": "string",
+          "selected": false
+        }
+      ],
+      "value": "time:utcToString(time:utcNow())",
+      "imports": {
+        "time": "ballerina/time"
+      },
+      "optional": true,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": []
+}

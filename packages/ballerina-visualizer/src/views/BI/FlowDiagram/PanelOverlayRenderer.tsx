@@ -20,6 +20,7 @@ import styled from "@emotion/styled";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { usePanelOverlay } from "./hooks/usePanelOverlay";
+import { AgentScopeProvider, nestedScope, useAgentScope } from "../AIChatAgent/agentScope";
 
 const OverlayBackdrop = styled.div<{ zIndex: number }>`
     position: fixed;
@@ -40,6 +41,7 @@ const OverlayPanelWrapper = styled.div<{ zIndex: number }>`
 
 export function PanelOverlayRenderer() {
     const { overlays, closeOverlay } = usePanelOverlay();
+    const scope = nestedScope(useAgentScope());
 
     if (overlays.length === 0) {
         return null;
@@ -68,7 +70,7 @@ export function PanelOverlayRenderer() {
                                 onBack={overlay.onBack}
                                 width={overlay.width || 400}
                             >
-                                {overlay.content}
+                                <AgentScopeProvider value={scope}>{overlay.content}</AgentScopeProvider>
                             </PanelContainer>
                         </OverlayPanelWrapper>
                     </OverlayBackdrop>

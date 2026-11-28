@@ -1,0 +1,50 @@
+{
+  "description": "A module type the file does not import, typed without the module",
+  "filePath": "main.bal",
+  "context": {
+    "expression": "http:Response",
+    "startLine": {
+      "line": 0,
+      "offset": 0
+    },
+    "offset": 13,
+    "codedata": {
+      "node": "VARIABLE"
+    },
+    "property": {
+      "metadata": {
+        "label": "Type",
+        "description": "Type of the variable"
+      },
+      "types": [
+        {
+          "fieldType": "TYPE"
+        }
+      ],
+      "value": "",
+      "placeholder": "var",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 0
+        },
+        "end": {
+          "line": 0,
+          "character": 13
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2069"
+      },
+      "message": "undefined type 'http:Response'"
+    }
+  ]
+}

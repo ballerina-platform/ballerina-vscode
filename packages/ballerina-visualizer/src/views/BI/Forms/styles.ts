@@ -21,6 +21,7 @@ import { FORM_FIELD_GAP, FORM_INPUT_STYLES } from "@wso2/ballerina-side-panel";
 
 export namespace FormStyles {
     export const Container = styled.div`
+        outline: none;
         ${FORM_INPUT_STYLES}
         display: flex;
         flex-direction: column;

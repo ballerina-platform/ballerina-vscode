@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Codicon, FormExpressionEditorRef, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
@@ -30,11 +30,16 @@ import {
     Diagnostic,
     ExpressionProperty
 } from "@wso2/ballerina-core";
+import { BRANCH_MARKS, newElseBranch, newIfBranch } from "../form-assist/branches";
 import {
     FormValues,
     ExpressionEditor,
+    AssistMark,
     ExpressionFormField,
-    FormExpressionEditorProps
+    FormExpressionEditorProps,
+    isSaveShortcut,
+    useFocusOnOpen,
+    SAVE_SHORTCUT_LABEL
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
 import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
@@ -53,6 +58,8 @@ interface IfFormProps {
     updatedExpressionField?: ExpressionFormField;
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
+    // The form's Copilot, given how to read the form's current node.
+    assist?: (toNode: () => FlowNode) => ReactNode;
 }
 
 export function IfForm(props: IfFormProps) {
@@ -66,7 +73,8 @@ export function IfForm(props: IfFormProps) {
         updatedExpressionField,
         showProgressIndicator,
         resetUpdatedExpressionField,
-        subPanelView
+        subPanelView,
+        assist
     } = props;
     const {
         watch,
@@ -153,45 +161,51 @@ export function IfForm(props: IfFormProps) {
         setDiagnosticsInfo([...otherDiagnostics, diagnostics]);
     }
 
-    const handleOnSave = (data: FormValues) => {
-        if (node && targetLineRange) {
-            let updatedNode = cloneDeep(node);
+    // The node with the form's values, as Save sends it and the form assist reads it.
+    const buildNode = (data: FormValues): FlowNode => {
+        const updatedNode = cloneDeep(node);
 
-            if (!updatedNode.codedata.lineRange) {
-                updatedNode.codedata.lineRange = {
-                    ...node.codedata.lineRange,
-                    startLine: targetLineRange.startLine,
-                    endLine: targetLineRange.endLine,
-                };
+        if (!updatedNode.codedata.lineRange) {
+            updatedNode.codedata.lineRange = {
+                ...node.codedata.lineRange,
+                startLine: targetLineRange.startLine,
+                endLine: targetLineRange.endLine,
+            };
+        }
+
+        // Update branches with form values and filter out draft else branches
+        const updatedBranches = branches.map((branch, index) => {
+            // Skip draft else branches
+            if (isElseBranch(branch) &&
+                branch.children?.length > 0 &&
+                branch.children[0].codedata.node === "EMPTY" &&
+                branch.children[0].metadata.draft) {
+                return null; // Will be filtered out
             }
 
-            // Update branches with form values and filter out draft else branches
-            const updatedBranches = branches.map((branch, index) => {
-                // Skip draft else branches
-                if (isElseBranch(branch) &&
-                    branch.children?.length > 0 &&
-                    branch.children[0].codedata.node === "EMPTY" &&
-                    branch.children[0].metadata.draft) {
-                    return null; // Will be filtered out
-                }
-
-                // For non-Else branches, update with form values
-                if (branch.label !== "Else") {
-                    const conditionValue = data[`branch-${index}`]?.trim();
-                    if (conditionValue) {
-                        const branchCopy = cloneDeep(branch);
-                        branchCopy.properties.condition.value = conditionValue;
-                        if (branchCopy.label !== "Then") {
-                            branchCopy.label = "";
-                        }
-                        return branchCopy;
+            // For non-Else branches, update with form values
+            if (branch.label !== "Else") {
+                const conditionValue = data[`branch-${index}`]?.trim();
+                if (conditionValue) {
+                    const branchCopy = cloneDeep(branch);
+                    branchCopy.properties.condition.value = conditionValue;
+                    if (branchCopy.label !== "Then") {
+                        branchCopy.label = "";
                     }
+                    return branchCopy;
                 }
+            }
 
-                return branch;
-            }).filter(Boolean) as Branch[];
+            return branch;
+        }).filter(Boolean) as Branch[];
 
-            updatedNode.branches = updatedBranches;
+        updatedNode.branches = updatedBranches;
+        return updatedNode;
+    };
+
+    const handleOnSave = (data: FormValues) => {
+        if (node && targetLineRange) {
+            const updatedNode = buildNode(data);
 
             // check all nodes and remove empty nodes
             const removeEmptyNodeVisitor = new RemoveEmptyNodesVisitor(updatedNode);
@@ -203,30 +217,7 @@ export function IfForm(props: IfFormProps) {
     };
 
     const addNewCondition = () => {
-        // create new branch obj
-        const newBranch: Branch = {
-            label: "branch-" + branches.length,
-            kind: "block",
-            codedata: {
-                node: "CONDITIONAL",
-                lineRange: null,
-            },
-            repeatable: "ONE_OR_MORE",
-            properties: {
-                condition: {
-                    metadata: {
-                        label: "Else If Condition",
-                        description: "Add condition to evaluate if the previous conditions are false",
-                    },
-                    value: "",
-                    types: [{ fieldType: "EXPRESSION", selected: false }],
-                    placeholder: "true",
-                    optional: false,
-                    editable: true,
-                },
-            },
-            children: [],
-        };
+        const newBranch = newIfBranch(branches.length);
 
         setValue(`branch-${branches.length}`, "");
         // add new branch to end of the current branches
@@ -252,29 +243,7 @@ export function IfForm(props: IfFormProps) {
         if (hasElseBranch) {
             return;
         }
-        const elseBranch: Branch = {
-            label: "Else",
-            kind: "block",
-            codedata: {
-                node: "ELSE",
-                lineRange: null,
-            },
-            repeatable: "ZERO_OR_ONE",
-            properties: {
-                condition: {
-                    metadata: {
-                        label: "Else",
-                        description: "Add condition to evaluate if the previous conditions are false",
-                    },
-                    value: "",
-                    types: [{ fieldType: "EXPRESSION", selected: false }],
-                    placeholder: "true",
-                    optional: false,
-                    editable: true,
-                },
-            },
-            children: [],
-        };
+        const elseBranch = newElseBranch();
         // add new branch to end of the current branches
         setBranches([...branches, elseBranch]);
     };
@@ -357,47 +326,65 @@ export function IfForm(props: IfFormProps) {
     }, [diagnosticsInfo])
 
     const disableSaveButton = !isValid || isValidating || showProgressIndicator;
+    const containerRef = useFocusOnOpen(!!onSubmit);
 
     // TODO: support multiple type fields
     return (
-        <FormStyles.Container>
+        <FormStyles.Container
+            ref={containerRef}
+            tabIndex={-1}
+            onKeyDown={(event: React.KeyboardEvent) => {
+                if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
+                    event.preventDefault();
+                    handleSubmit(handleOnSave)();
+                }
+            }}
+        >
+            {assist?.(() => buildNode(getValues()))}
             {branches.map((branch, index) => {
                 if (branch.properties?.condition && branch.label !== "Else") {
                     const field = convertNodePropertyToFormField(`branch-${index}`, branch.properties.condition);
                     return (
-                        <FormStyles.Row key={field.key}>
-                            <ExpressionEditor
-                                {...expressionEditor}
-                                // ref={exprRef}
-                                fieldInputType={{fieldType: "EXPRESSION", selected: false}}
-                                control={control}
-                                field={field}
-                                watch={watch}
-                                setValue={setValue}
-                                openSubPanel={openSubPanel}
-                                targetLineRange={targetLineRange}
-                                fileName={fileName}
-                                onRemove={index !== 0 ? () => removeCondition(index) : undefined}
-                                completions={activeEditor === index ? expressionEditor.completions : []}
-                                triggerCharacters={expressionEditor.triggerCharacters}
-                                retrieveCompletions={expressionEditor.retrieveCompletions}
-                                extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                                getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                                onFocus={() => handleEditorFocus(index)}
-                                onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                                onCancel={expressionEditor.onCancel}
-                                onBlur={expressionEditor.onBlur}
-                            />
-                        </FormStyles.Row>
+                        <div key={field.key}>
+                            <FormStyles.Row>
+                                <ExpressionEditor
+                                    {...expressionEditor}
+                                    // ref={exprRef}
+                                    fieldInputType={{fieldType: "EXPRESSION", selected: false}}
+                                    control={control}
+                                    field={field}
+                                    watch={watch}
+                                    setValue={setValue}
+                                    openSubPanel={openSubPanel}
+                                    targetLineRange={targetLineRange}
+                                    fileName={fileName}
+                                    onRemove={index !== 0 ? () => removeCondition(index) : undefined}
+                                    completions={activeEditor === index ? expressionEditor.completions : []}
+                                    triggerCharacters={expressionEditor.triggerCharacters}
+                                    retrieveCompletions={expressionEditor.retrieveCompletions}
+                                    extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                                    getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                                    onFocus={() => handleEditorFocus(index)}
+                                    onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                                    onCancel={expressionEditor.onCancel}
+                                    onBlur={expressionEditor.onBlur}
+                                />
+                            </FormStyles.Row>
+                            <AssistMark fieldKey={field.key} />
+                        </div>
                     );
                 }
             })}
 
-            <LinkButton onClick={addNewCondition} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                Add Else IF Block
-            </LinkButton>
+            <div>
+                <LinkButton onClick={addNewCondition} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                    Add Else IF Block
+                </LinkButton>
+                <AssistMark fieldKey={BRANCH_MARKS.conditions} />
+            </div>
 
+            <div>
             {!hasElseBranch && (
                 <LinkButton onClick={addElseBlock} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
                     <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
@@ -411,10 +398,12 @@ export function IfForm(props: IfFormProps) {
                     Remove Else Block
                 </LinkButton>
             )}
+            <AssistMark fieldKey={BRANCH_MARKS.else} />
+            </div>
 
             {onSubmit && (
                 <FormStyles.Footer>
-                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton}>
+                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
                         {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
                     </Button>
                 </FormStyles.Footer>

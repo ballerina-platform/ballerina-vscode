@@ -35,9 +35,11 @@ import {
 import { Parameter } from "./ParamManager";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { toGraphQLNullability } from "../editors/typeModifiers";
+import { AssistMark } from "../editors/FieldAssist/AssistMark";
 
 interface ParamItemProps {
     param: Parameter;
+    markKey?: string;
     readonly?: boolean;
     /** Shows the type with GraphQL's nullability, keeping its Ballerina type names. */
     isGraphql?: boolean;
@@ -46,7 +48,7 @@ interface ParamItemProps {
 }
 
 export function ParamItem(props: ParamItemProps) {
-    const { param, readonly, isGraphql, onDelete, onEditClick } = props;
+    const { param, markKey, readonly, isGraphql, onDelete, onEditClick } = props;
     const { formValues, key } = param;
 
     const writtenType = formValues["type"] || formValues["dataType"] || "";
@@ -92,6 +94,7 @@ export function ParamItem(props: ParamItemProps) {
                     </ActionIconWrapper>
                 )}
             </ActionWrapper>
+            {markKey && <AssistMark fieldKey={markKey} />}
         </HeaderLabel>
     );
 }

@@ -19,7 +19,7 @@
 import { Banner, Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { TitleBar } from "../../../components/TitleBar";
+import { AssistView, TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
@@ -692,7 +692,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
     }
 
     return (
-        <View>
+        <AssistView>
             {statusView}
 
             {!pullingStatus && (
@@ -723,6 +723,6 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
                     </ViewContent>
                 </>
             )}
-        </View>
+        </AssistView>
     );
 }

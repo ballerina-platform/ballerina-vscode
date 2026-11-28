@@ -21,6 +21,8 @@ import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { Button, CheckBox, ThemeColors, SearchBox, Codicon, Divider, Typography, Dropdown, Tooltip, Icon } from "@wso2/ui-toolkit";
 import type { OptionProps } from "@wso2/ui-toolkit";
+import { AssistMark } from "@wso2/ballerina-side-panel";
+import { TOOLS_GROUP, TOOLS_INCLUDE_SLOT } from "./mcpAssist";
 
 export interface McpTool {
     name: string;
@@ -633,17 +635,21 @@ export const McpToolsSelection: React.FC<McpToolsSelectionProps> = ({
 
     return (
         <>
-            <Dropdown
-                id="tools-include-dropdown"
-                label="Tools to Include"
-                items={toolsIncludeOptions}
-                value={toolsInclude}
-                onValueChange={(value: string) => onToolsIncludeChange?.(value)}
-                containerSx={{ width: "100%" }}
-            />
+            <div style={{ width: "100%" }}>
+                <Dropdown
+                    id="tools-include-dropdown"
+                    label="Tools to Include"
+                    items={toolsIncludeOptions}
+                    value={toolsInclude}
+                    onValueChange={(value: string) => onToolsIncludeChange?.(value)}
+                    containerSx={{ width: "100%" }}
+                />
+                <AssistMark fieldKey={TOOLS_INCLUDE_SLOT} />
+            </div>
 
             {toolsInclude === "selected" && (
                 <ToolsContainer>
+                    <AssistMark fieldKey={TOOLS_GROUP} />
                     <ToolsHeader>
                         <ToolsTitle>Available Tools</ToolsTitle>
                         {tools.length > 0 && (

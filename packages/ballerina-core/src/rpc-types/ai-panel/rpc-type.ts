@@ -56,6 +56,11 @@ import {
     CompactConversationResponse,
     PromptEnhancementRequest,
     PromptEnhancementResponse,
+    ExpressionAssistRequest,
+    ExpressionAssistResponse,
+    AbortExpressionAssistRequest,
+    FormAssistRequest,
+    FormAssistResponse,
     ClarifyAnswerRequest,
     ClarifyCancelRequest,
     RunningServiceInfo,
@@ -155,6 +160,9 @@ export const declineWebTool: RequestType<WebToolApprovalRequest, void> = { metho
 export const compactConversation: RequestType<CompactConversationRequest, CompactConversationResponse> = { method: `${_preFix}/compactConversation` };
 export const getShowContextUsage: RequestType<void, boolean> = { method: `${_preFix}/getShowContextUsage` };
 export const enhancePrompt: RequestType<PromptEnhancementRequest, PromptEnhancementResponse> = { method: `${_preFix}/enhancePrompt` };
+export const assistExpression: RequestType<ExpressionAssistRequest, ExpressionAssistResponse> = { method: `${_preFix}/assistExpression` };
+export const abortExpressionAssist: NotificationType<AbortExpressionAssistRequest> = { method: `${_preFix}/abortExpressionAssist` };
+export const assistForm: RequestType<FormAssistRequest, FormAssistResponse> = { method: `${_preFix}/assistForm` };
 export const promptForLogin: NotificationType<void> = { method: `${_preFix}/promptForLogin` };
 export const submitClarifyAnswer: RequestType<ClarifyAnswerRequest, void> = { method: `${_preFix}/submitClarifyAnswer` };
 export const cancelClarify: RequestType<ClarifyCancelRequest, void> = { method: `${_preFix}/cancelClarify` };

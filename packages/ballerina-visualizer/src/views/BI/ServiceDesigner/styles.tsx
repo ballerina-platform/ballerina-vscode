@@ -123,7 +123,7 @@ export const disabledHeaderLabel = cx(css`
 export const HeaderLabel = styled.div<CSSObject>`
     display: flex;
     background: var(--vscode-editor-background);
-    border: 1px solid ${(props: { haveErrors: boolean; }) => props.haveErrors ? "red" : "var(--vscode-dropdown-border)"};
+    border: 1px solid ${(props: { haveErrors: boolean; }) => props.haveErrors ? "red" : "var(--field-changed-border, var(--vscode-dropdown-border))"};
     border-radius: ${FIELD_RADIUS};
     overflow: hidden;
     margin-top: 8px;

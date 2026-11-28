@@ -31,7 +31,9 @@ import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorCon
 import io.ballerina.flowmodelgenerator.core.expressioneditor.semantictokens.SemanticTokenVisitor;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.CompletionRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.DataMapperCompletionRequest;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.services.DebouncedExpressionEditorRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.DiagnosticsRequest;
+import io.ballerina.flowmodelgenerator.core.expressioneditor.services.ExpectedTypeRequest;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.services.SignatureHelpRequest;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.extension.request.ExpressionEditorCompletionRequest;
@@ -72,6 +74,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 @JavaSPIService("org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService")
 @JsonSegment("expressionEditor")
@@ -148,6 +151,13 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                 langServer.getTextDocumentService()));
     }
 
+    // Same as signatureHelp() but not debounced, for callers that look up several signatures in a row.
+    @JsonRequest
+    public CompletableFuture<SignatureHelp> signatureHelpNow(ExpressionEditorSignatureRequest request) {
+        return runNow(new SignatureHelpRequest(context(request.filePath(), request.context()),
+                request.signatureHelpContext(), langServer.getTextDocumentService()));
+    }
+
     @JsonRequest
     public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(
             ExpressionEditorCompletionRequest request) {
@@ -161,6 +171,14 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                 ),
                 request.completionContext(),
                 langServer.getTextDocumentService()));
+    }
+
+    // Same as completion() but not debounced, so a Copilot lookup never cancels the user's live completions.
+    @JsonRequest
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completionNow(
+            ExpressionEditorCompletionRequest request) {
+        return runNow(new CompletionRequest(context(request.filePath(), request.context()),
+                request.completionContext(), langServer.getTextDocumentService()));
     }
 
     @JsonRequest
@@ -188,6 +206,19 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                         request.context(),
                         Path.of(request.filePath())
                 )));
+    }
+
+    // Same check as diagnostics() but not debounced, so verifying calls never cancel live diagnostics.
+    @JsonRequest
+    public CompletableFuture<DiagnosticsRequest.Diagnostics> checkExpression(
+            ExpressionEditorDiagnosticsRequest request) {
+        return runNow(DiagnosticsRequest.from(context(request.filePath(), request.context())));
+    }
+
+    @JsonRequest
+    public CompletableFuture<ExpectedTypeRequest.ExpectedType> expectedType(
+            ExpressionEditorDiagnosticsRequest request) {
+        return runNow(new ExpectedTypeRequest(context(request.filePath(), request.context())));
     }
 
     @JsonRequest
@@ -284,6 +315,21 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
             } catch (Throwable e) {
                 // Return empty tokens on parse error
                 return new SemanticTokens(new ArrayList<>());
+            }
+        });
+    }
+
+    private ExpressionEditorContext context(String filePath, ExpressionEditorContext.Info info) {
+        return new ExpressionEditorContext(workspaceManagerProxy, CommonUtils.getExprUri(filePath), info,
+                Path.of(filePath));
+    }
+
+    private static <T> CompletableFuture<T> runNow(DebouncedExpressionEditorRequest<T> request) {
+        return Debouncer.getInstance().submit(() -> {
+            try {
+                return request.call();
+            } catch (Exception e) {
+                throw new CompletionException(e);
             }
         });
     }

@@ -19,6 +19,7 @@
 import React from "react";
 import styled from "@emotion/styled";
 import { CheckBox, ThemeColors } from "@wso2/ui-toolkit";
+import { AssistMark } from "@wso2/ballerina-side-panel";
 
 const AuthCheckboxContainer = styled.div`
     display: flex;
@@ -51,30 +52,36 @@ export interface RequiresAuthCheckboxProps {
     onChange: (checked: boolean) => void;
     label?: string;
     description?: string;
+    // The form Copilot's slot for this toggle, so a change it makes is marked here.
+    markKey?: string;
 }
 
 export const RequiresAuthCheckbox: React.FC<RequiresAuthCheckboxProps> = ({ checked, onChange,
-    label = "Requires Authentication", description = "Enable if the server requires authentication" }) => {
+    label = "Requires Authentication", description = "Enable if the server requires authentication", markKey }) => {
     const handleToggle = () => {
         onChange(!checked);
     };
 
+    // The review card goes outside the clickable row, so its buttons don't toggle the box.
     return (
-        <AuthCheckboxContainer key="auth-checkbox" onClick={handleToggle}>
-            <div>
-                <AuthCheckboxLabel>{label}</AuthCheckboxLabel>
-                <AuthCheckboxDescription>
-                    {description}
-                </AuthCheckboxDescription>
-            </div>
-            <AuthCheckboxWrapper>
-                <CheckBox
-                    label=""
-                    checked={checked}
-                    onChange={() => { }}
-                    sx={{ display: "contents" }}
-                />
-            </AuthCheckboxWrapper>
-        </AuthCheckboxContainer>
+        <div style={{ width: "100%" }}>
+            <AuthCheckboxContainer key="auth-checkbox" onClick={handleToggle}>
+                <div>
+                    <AuthCheckboxLabel>{label}</AuthCheckboxLabel>
+                    <AuthCheckboxDescription>
+                        {description}
+                    </AuthCheckboxDescription>
+                </div>
+                <AuthCheckboxWrapper>
+                    <CheckBox
+                        label=""
+                        checked={checked}
+                        onChange={() => { }}
+                        sx={{ display: "contents" }}
+                    />
+                </AuthCheckboxWrapper>
+            </AuthCheckboxContainer>
+            {markKey && <AssistMark fieldKey={markKey} />}
+        </div>
     );
 };

@@ -24,6 +24,7 @@ import { ErrorBanner, RequiredFormInput } from "@wso2/ui-toolkit";
 import { Codicon } from "@wso2/ui-toolkit/lib/components/Codicon/Codicon";
 import { ScrollableList, ScrollableListRef } from "@wso2/ui-toolkit/lib/components/ScrollableList/ScrollableList";
 import ModeSwitcher from "../ModeSwitcher";
+import { useStructuredFieldAssist } from "./FieldAssist/StructuredFieldAssist";
 import { getArrayElementTypes, getArrayElementValues, getArraySubFormFieldFromTypes, normalizeDiagnostics, getRepeatableErrorMessages, stringToRawArrayElements, buildStringArray, getRecordTypeFields, mapDiagnosticsServerityToFormSeverity, getPropertyFromFormField } from "./utils";
 import { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getInputModeFromTypes } from "./MultiModeExpressionEditor/ChipExpressionEditor/utils";
@@ -167,6 +168,8 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
 
     useEffect(() => {
         if (!Array.isArray(props.value)) return;
+        // A list written from outside rebuilds the rows below; these rows would write the old list back.
+        if (!isEqual(getArrayElementValues(props.value), getArrayElementValues(repeatableFields))) return;
         const newRepeatableFields = repeatableFields.map(applyDiagnosticsToField);
         let changed = false;
         newRepeatableFields.forEach(field => {
@@ -275,6 +278,9 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
 
     const errorMessages = getRepeatableErrorMessages(fieldDiagnostics, props.error);
 
+    const assist = useStructuredFieldAssist(props.field, handleModeSwitchValueChange,
+        () => (repeatableFields.length ? buildStringArray(repeatableFields) : ""));
+
     return (
         <S.Container>
             <S.Header>
@@ -304,11 +310,13 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
                                     modeSwitcherContext.onModeChange(value);
                                 }}
                                 types={modeSwitcherContext.types}
+                                assist={assist.button}
                             />
                         </S.FieldInfoSection>
                     )}
                 </div>
             </S.Header>
+            {assist.panel}
             <ScrollableList
                 ref={scrollableListRef}
                 itemCount={repeatableFields.length}

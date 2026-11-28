@@ -1007,13 +1007,16 @@ export function MiniChat({ anchor, focusRequest, onClose, takeInitialPrompt }: M
         };
 
         const initialPrompt = takeInitialPrompt?.();
+        // A prompt handed off from a form asks for a fresh thread, so its run doesn't carry the earlier conversation.
+        const cleared: Promise<void> = initialPrompt?.newThread
+            ? rpcClient.getAiPanelRpcClient().clearChat().catch((): void => undefined)
+            : Promise.resolve();
 
         // Both reads are independent — fire them together so open latency is one
         // round trip, not two. Each carries its own fallback (older host). The
         // buffer read is skipped entirely on the initial-prompt path (fresh turn).
-        const historyPromise: Promise<MiniMsg[]> = rpcClient
-            .getAiPanelRpcClient()
-            .getChatMessages()
+        const historyPromise: Promise<MiniMsg[]> = cleared
+            .then(() => rpcClient.getAiPanelRpcClient().getChatMessages())
             .then((loaded: UIChatMessage[]): MiniMsg[] => loaded ?? [])
             .catch((): MiniMsg[] => []);
         const runPromise: Promise<GetRunStatusResponse | null> = initialPrompt

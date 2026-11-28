@@ -32,6 +32,7 @@ import {
     LinePosition,
     isSamePath,
     ProductMode,
+    AgentRunState,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { BiWsClientProvider } from "./views/BI/wsManager/WsClientContext";
@@ -40,6 +41,8 @@ import styled from "@emotion/styled";
 import { LoadingRing } from "./components/Loader";
 import { WebviewErrorState } from "./components/WebviewErrorState";
 import { useSuppressAgentStatusOrb, viewHidesAgentStatusOrb } from "./components/AgentStatusOrb/shared";
+import { FormCopilotOrb } from "./components/AgentStatusOrb/CopilotOrb";
+import { AssistOrbProvider } from "@wso2/ballerina-side-panel";
 import { useTraceAnimationBridge } from "./hooks/useTraceAnimationBridge";
 import { fetchProductMode } from "./hooks/useProductMode";
 import { handleRedo, handleUndo } from "./utils/utils";
@@ -215,6 +218,8 @@ const LazyEndpointList = React.lazy(async () => {
 });
 
 const ConditionalPanelFallback = (): null => null;
+
+const renderFormOrb = (state: AgentRunState) => <FormCopilotOrb state={state} />;
 
 const MainPanel = () => {
     const { rpcClient } = useRpcContext();
@@ -979,6 +984,7 @@ const MainPanel = () => {
                                     functionName={value?.identifier}
                                     position={value?.position}
                                     inClass={value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION}
+                                    agent={value?.agentMetadata?.agent}
                                 />
                             );
                             break;
@@ -1124,7 +1130,7 @@ const MainPanel = () => {
     };
 
     return (
-        <>
+        <AssistOrbProvider value={renderFormOrb}>
             <Global styles={globalStyles} />
             <VisualizerContainer id="visualizer-container">
                 <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
@@ -1212,7 +1218,7 @@ const MainPanel = () => {
                     <ModalStack />
                 </ErrorBoundary>
             </VisualizerContainer>
-        </>
+        </AssistOrbProvider>
     );
 };
 

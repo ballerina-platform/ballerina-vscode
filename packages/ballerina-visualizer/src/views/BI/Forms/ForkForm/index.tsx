@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Codicon, FormExpressionEditorRef, LinkButton, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
@@ -33,6 +33,7 @@ import {
     Property,
     NodeProperties
 } from "@wso2/ballerina-core";
+import { BRANCH_MARKS, newForkWorker } from "../form-assist/branches";
 import {
     FormValues,
     ExpressionEditor,
@@ -41,21 +42,31 @@ import {
     Form,
     TypeEditor,
     EditorFactory,
+    AssistMark,
     Provider,
     FormField,
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
 
-const FieldGroup = styled.div`
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    padding: 10px;
+const Worker = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     width: 100%;
-    border-radius: 6px;
-    position: relative;
-    padding-right: 10px;
+    & + & {
+        padding-top: 18px;
+        border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    }
+`;
+
+const WorkerHeader = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 22px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
 `;
 import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
 import { cloneDeep, debounce } from "lodash";
@@ -74,6 +85,8 @@ interface ForkFormProps {
     resetUpdatedExpressionField?: () => void;
     subPanelView?: SubPanelView;
     showProgressIndicator?: boolean;
+    // The form's Copilot, given how to read the form's current node.
+    assist?: (toNode: () => FlowNode) => ReactNode;
 }
 
 export function ForkForm(props: ForkFormProps) {
@@ -89,6 +102,7 @@ export function ForkForm(props: ForkFormProps) {
         resetUpdatedExpressionField,
         subPanelView,
         showProgressIndicator,
+        assist,
     } = props;
     const {
         watch,
@@ -169,30 +183,37 @@ export function ForkForm(props: ForkFormProps) {
         setDiagnosticsInfo([...otherDiagnostics, diagnostics]);
     };
 
+    // The node with the form's values, as Save sends it and the form assist reads it.
+    const buildNode = (data: FormValues): FlowNode => {
+        const updatedNode = cloneDeep(node);
+
+        if (!updatedNode.codedata.lineRange) {
+            updatedNode.codedata.lineRange = {
+                ...node.codedata.lineRange,
+                startLine: targetLineRange.startLine,
+                endLine: targetLineRange.endLine,
+            };
+        }
+
+        const workers = cloneDeep(branches);
+        workers.forEach((branch, index) => {
+            const variableValue = data[`branch-${index}`]?.trim();
+            if (variableValue) {
+                branch.properties.variable.value = variableValue;
+            }
+            const typeValue = data[`branch-${index}-type`]?.trim();
+            if (typeValue !== undefined) {
+                branch.properties.type.value = typeValue;
+            }
+        });
+
+        updatedNode.branches = workers;
+        return updatedNode;
+    };
+
     const handleOnSave = (data: FormValues) => {
         if (node && targetLineRange) {
-            let updatedNode = cloneDeep(node);
-
-            if (!updatedNode.codedata.lineRange) {
-                updatedNode.codedata.lineRange = {
-                    ...node.codedata.lineRange,
-                    startLine: targetLineRange.startLine,
-                    endLine: targetLineRange.endLine,
-                };
-            }
-
-            branches.forEach((branch, index) => {
-                const variableValue = data[`branch-${index}`]?.trim();
-                if (variableValue) {
-                    branch.properties.variable.value = variableValue;
-                }
-                const typeValue = data[`branch-${index}-type`]?.trim();
-                if (typeValue !== undefined) {
-                    branch.properties.type.value = typeValue;
-                }
-            });
-
-            updatedNode.branches = branches;
+            const updatedNode = buildNode(data);
 
             // check all nodes and remove empty nodes
             const removeEmptyNodeVisitor = new RemoveEmptyNodesVisitor(updatedNode);
@@ -206,39 +227,7 @@ export function ForkForm(props: ForkFormProps) {
     };
 
     const addNewWorker = () => {
-        // create new branch obj
-        const newBranch: Branch = {
-            label: "branch-" + branches.length,
-            kind: "worker",
-            codedata: {
-                node: "WORKER",
-                lineRange: null,
-            },
-            repeatable: "ONE_OR_MORE",
-            properties: {
-                variable: {
-                    metadata: {
-                        label: "Worker " + (branches.length + 1),
-                        description: "Name of the worker",
-                    },
-                    value: "worker" + (branches.length + 1),
-                    optional: false,
-                    editable: true,
-                    advanced: false,
-                },
-                type: {
-                    metadata: {
-                        label: "Return Type",
-                        description: "Return type of the function/worker",
-                    },
-                    value: "",
-                    optional: true,
-                    editable: true,
-                    advanced: false,
-                },
-            },
-            children: [],
-        };
+        const newBranch = newForkWorker(branches.length);
 
         setValue(`branch-${branches.length}`, "worker" + (branches.length + 1));
         setValue(`branch-${branches.length}-type`, "");
@@ -388,51 +377,44 @@ export function ForkForm(props: ForkFormProps) {
             nodeInfo={{ kind: node.codedata.node }}
         >
             <FormStyles.Container>
+                {assist?.(() => buildNode(getValues()))}
                 {branches.map((branch, index) => {
                     if (branch.properties?.variable) {
                         const variableField = convertNodePropertyToFormField(`branch-${index}`, branch.properties.variable);
                         variableField.types = [{ fieldType: "IDENTIFIER", selected: false }]
                         const typeField = convertNodePropertyToFormField(`branch-${index}-type`, branch.properties.type);
                         typeField.types = [{ fieldType: "TYPE", selected: false }]
-                        variableField.label = "Worker " + (index + 1);
+                        variableField.label = "Name";
                         return (
-                            <FormStyles.Row key={variableField.key}>
-                                <FieldGroup>
-                                    <div>
-                                        <EditorFactory fieldInputType={{ fieldType: "IDENTIFIER", selected: false }} field={variableField} />
-                                    </div>
-                                    <div>
-                                        <TypeEditor
-                                            field={typeField}
-                                            openRecordEditor={(open: boolean, newType?: string | NodeProperties) =>
-                                                openRecordEditor && openRecordEditor(open, getFormValues(), typeField, newType)
-                                            }
-                                        />
-                                    </div>
-
-                                    <div style={{ position: 'absolute', top: 8, right: 8 }}>
-                                        {branches.length > 2 && (
-                                            <Codicon
-                                                name="close"
-                                                sx={{ cursor: 'pointer', opacity: 0.6, '&:hover': { opacity: 1 } }}
-                                                onClick={() => {
-                                                    if (branches.length > 2) {
-                                                        removeWorker(index);
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                </FieldGroup>
-                            </FormStyles.Row>
+                            <Worker key={variableField.key}>
+                                <WorkerHeader>
+                                    {`Worker ${index + 1}`}
+                                    {branches.length > 2 && (
+                                        <Button appearance="icon" tooltip="Remove Worker" onClick={() => removeWorker(index)}>
+                                            <Codicon name="trash" sx={{ color: ThemeColors.ERROR }} />
+                                        </Button>
+                                    )}
+                                </WorkerHeader>
+                                <EditorFactory fieldInputType={{ fieldType: "IDENTIFIER", selected: false }} field={variableField} />
+                                <AssistMark fieldKey={variableField.key} />
+                                <TypeEditor
+                                    field={typeField}
+                                    openRecordEditor={(open: boolean, newType?: string | NodeProperties) =>
+                                        openRecordEditor && openRecordEditor(open, getFormValues(), typeField, newType)
+                                    }
+                                />
+                            </Worker>
                         );
                     }
                 })}
 
-                <LinkButton onClick={addNewWorker} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Worker
-                </LinkButton>
+                <div>
+                    <LinkButton onClick={addNewWorker} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                        <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                        Add Worker
+                    </LinkButton>
+                    <AssistMark fieldKey={BRANCH_MARKS.workers} />
+                </div>
 
                 {onSubmit && (
                     <FormStyles.Footer>

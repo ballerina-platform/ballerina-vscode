@@ -20,6 +20,7 @@ import styled from "@emotion/styled";
 import { Imports, Member, Type, TypeProperty } from "@wso2/ballerina-core";
 import React, { useRef } from "react";
 import { TypeField } from "./TypeField";
+import { AssistMark } from "@wso2/ballerina-side-panel";
 import { TextField } from "@wso2/ui-toolkit/lib/components/TextField/TextField";
 
 interface ArrayEditorProps {
@@ -69,7 +70,6 @@ namespace S {
 export function ArrayEditor(props: ArrayEditorProps) {
     const currentImports = useRef<Imports | undefined>();
     
-    console.log("ARRAY EDITOR PROPS", props.type);
     const newMember: Member = {
         kind: "TYPE",
         type: "",
@@ -79,7 +79,7 @@ export function ArrayEditor(props: ArrayEditorProps) {
 
     const defaultSizeProperty: TypeProperty = {
         metadata: {
-            label: "Size of the Array",
+            label: "Size",
             description: "Array dimensions"
         },
         valueType: "STRING",
@@ -125,26 +125,32 @@ export function ArrayEditor(props: ArrayEditorProps) {
         <S.Container>
             <S.Header>
                 <S.Fields>
-                    <TypeField
-                        fieldIndex={0}
-                        type={member.type}
-                        memberName={typeof member.type === 'string' ? member.type : member.name}
-                        onChange={(newType) => updateMember(newType)}
-                        onUpdateImports={(imports) => handleUpdateImports(imports)}
-                        placeholder="Enter type"
-                        sx={{ flexGrow: 1 }}
-                        label="Type of the Array"
-                        required={true}
-                        autoFocus={true}
-                        onValidationError={props.onValidationError}
-                        rootType={props.type}
-                    />
-                    <TextField
-                        label="Size of the Array"
-                        value={sizeProperty.value}
-                        sx={{ flexGrow: 1 }}
-                        onChange={(e) => updateSize(e.target.value)}
-                    />
+                    <div style={{ flexGrow: 1 }}>
+                        <TypeField
+                            fieldIndex={0}
+                            type={member.type}
+                            memberName={typeof member.type === 'string' ? member.type : member.name}
+                            onChange={(newType) => updateMember(newType)}
+                            onUpdateImports={(imports) => handleUpdateImports(imports)}
+                            placeholder="Type"
+                            sx={{ flexGrow: 1 }}
+                            label="Element Type"
+                            required={true}
+                            autoFocus={true}
+                            onValidationError={props.onValidationError}
+                            rootType={props.type}
+                        />
+                        <AssistMark fieldKey="elementType" />
+                    </div>
+                    <div style={{ flexGrow: 1 }}>
+                        <TextField
+                            label="Size"
+                            value={sizeProperty.value}
+                            sx={{ flexGrow: 1 }}
+                            onChange={(e) => updateSize(e.target.value)}
+                        />
+                        <AssistMark fieldKey="arraySize" />
+                    </div>
                 </S.Fields>
             </S.Header>
         </S.Container>

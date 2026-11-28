@@ -23,6 +23,7 @@ import { CodeData, ExpressionProperty, getPrimaryInputType, Imports, InputType, 
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { InputMode } from "../..";
 import type { NodeReferenceSelectItem } from "./NodeReferenceSelect";
+import { assistTypes } from "./FieldAssist/fieldKinds";
 import { EditorMode } from "./ExpandedEditor";
 import { EXPANDABLE_MODES } from "./ExpandedEditor/modes/types";
 
@@ -264,6 +265,9 @@ export function getPropertyFromFormField(field: FormField): ExpressionProperty {
         }
     }
 }
+
+/** The field as Copilot fills it: by its expression mode's type while it shows a text or number mode. */
+export const assistProperty = (field: FormField): ExpressionProperty => ({ ...getPropertyFromFormField(field), types: assistTypes(field) });
 
 // A static item can be the field's value, so its imports must resolve when the value is checked
 function withStaticItemImports(field: FormField): Imports | undefined {

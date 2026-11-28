@@ -56,7 +56,7 @@ const ToolbarContainer = styled.div`
     justify-content: space-between;
     gap: 4px;
     padding: 8px 12px;
-    border: 1px solid ${FIELD_BORDER};
+    border: 1px solid var(--field-changed-border, ${FIELD_BORDER});
     border-radius: ${FIELD_RADIUS} ${FIELD_RADIUS} 0 0;
     flex-wrap: wrap;
     font-family: GilmerMedium;
