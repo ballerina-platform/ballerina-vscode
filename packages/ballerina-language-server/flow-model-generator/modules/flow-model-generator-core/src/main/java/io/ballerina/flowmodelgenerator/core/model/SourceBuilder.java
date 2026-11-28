@@ -350,7 +350,7 @@ public class SourceBuilder {
             //  to assign the error to a variable and handle it.
             // Add the import statements if exists in the return type
             if (type.imports() != null && getProperty(Property.CHECK_ERROR_KEY)
-                    .map(property -> property.value().equals("false")).orElse(true)) {
+                    .map(property -> "false".equals(String.valueOf(property.value()))).orElse(true)) {
                 // TODO: Improve this logic to process all the imports at once
                 type.imports().values().forEach(moduleId -> {
                     String[] importParts = moduleId.split("/");

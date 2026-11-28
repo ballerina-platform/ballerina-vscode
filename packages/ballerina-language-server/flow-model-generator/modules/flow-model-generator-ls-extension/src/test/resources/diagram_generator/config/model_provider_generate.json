@@ -143,6 +143,23 @@
               "originalName": "prompt"
             }
           },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": false,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
           "variable": {
             "metadata": {
               "label": "Result",
