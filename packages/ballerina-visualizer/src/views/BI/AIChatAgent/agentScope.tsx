@@ -24,7 +24,7 @@ import type { AgentEditorView } from "./useAgentEditorController";
 import { findFlowNodeByModuleVarName } from "./utils";
 
 /** Which part of the agent the open form sets; NESTED is a form opened from one of them. */
-export type AgentPart = Exclude<AgentEditorView, "NONE"> | "AGENT" | "MODEL_PROVIDER" | "NEW_MODEL_PROVIDER" | "NESTED";
+export type AgentPart = Exclude<AgentEditorView, "NONE"> | "AGENT" | "MODEL_PROVIDER" | "NEW_MODEL_PROVIDER" | "TOOL" | "NESTED";
 
 /** The agent an agent screen's forms belong to, so their Copilot fills them for that agent. */
 interface AgentScope {
@@ -48,6 +48,7 @@ const PARTS: Record<AgentPart, string> = {
     NEW_TOOL_KNOWLEDGE_BASE: TOOL,
     NEW_TOOL_AGENT: "an agent tool for",
     NEW_TOOL_AGENT_FORM: "an agent tool for",
+    TOOL: "a tool of",
     ADD_MCP: "a new MCP server for",
     EDIT_MCP: "an MCP server of",
     NESTED: "for",
@@ -119,6 +120,6 @@ export function useAssistTarget(rpcClient: BallerinaRpcClient): AssistTarget {
         subject,
         agent: agentSummary(scope.agent, scope.part),
         handoffContext: async () => [`The form in the side panel ${sets ? "sets" : "edits"} ${subject}.`, await declarationLine(scope.agent, rpcClient)].filter(Boolean),
-        close: scope.close,
+        close: scope.close ?? handedOff,
     };
 }

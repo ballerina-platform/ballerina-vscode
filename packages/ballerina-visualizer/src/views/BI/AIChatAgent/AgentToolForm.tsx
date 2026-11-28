@@ -36,7 +36,7 @@ import { FormField, FormImports, FormLoadingState, FormValues } from "@wso2/ball
 import { cloneDeep } from "lodash";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { convertConfig, convertNodePropertyToFormField, getImportsForProperty } from "../../../utils/bi";
-import ArtifactForm from "../Forms/ArtifactForm";
+import ArtifactForm, { AssistSubject } from "../Forms/ArtifactForm";
 import { AgentToolHostClass, fetchOAuthConfigProperties } from "./utils";
 import {
     buildApprovalToolData,
@@ -210,6 +210,10 @@ function findAgentToolAnnotation(model: FunctionModel): {
     }
     return undefined;
 }
+
+// A saved tool's code goes to Copilot, so it sees what the form does not hold, such as the tool's logic.
+const savedToolSubject = (edit: AgentToolEditContext | undefined, range: LineRange | undefined): AssistSubject | undefined =>
+    edit && { name: `the ${edit.functionName} tool`, range };
 
 export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     const { filePath, projectPath, hostClass, targetLineRange, editContext, nestedForm, isPublic, onSave, onCreateInBackground, onBack } = props;
@@ -746,6 +750,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             onCancel={onBack}
             submitText={submitText}
             selectedNode={toolNode?.codedata?.node}
+            assistSubject={savedToolSubject(editContext, formRange)}
             nestedForm={nestedForm}
             preserveFieldOrder
             injectedComponents={oauthFieldCount > 0 ? [{
