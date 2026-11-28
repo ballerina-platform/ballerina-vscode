@@ -49,12 +49,16 @@ public class FlowNodeUtil {
                 properties.get(Property.CHECK_ERROR_KEY).value().equals(true);
     }
 
-    // An unchecked call that can fail, which carries checkError false, keeps the error in its variable's type.
-    public static String withErrorWhenUnchecked(FlowNode flowNode, String type) {
+    // Only an explicit false: a node without the flag is written with check, as its template has always been.
+    public static boolean isUnchecked(FlowNode flowNode) {
         Map<String, Property> properties = flowNode.properties();
         Property checkError = properties == null ? null : properties.get(Property.CHECK_ERROR_KEY);
-        boolean unchecked = checkError != null && "false".equals(String.valueOf(checkError.value()));
-        return unchecked ? withErrorReturn(type) : type;
+        return checkError != null && "false".equals(String.valueOf(checkError.value()));
+    }
+
+    // An unchecked call that can fail, which carries checkError false, keeps the error in its variable's type.
+    public static String withErrorWhenUnchecked(FlowNode flowNode, String type) {
+        return isUnchecked(flowNode) ? withErrorReturn(type) : type;
     }
 
     public static String withErrorReturn(String returnType) {

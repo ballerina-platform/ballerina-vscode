@@ -77,7 +77,7 @@ public class EmbeddingProviderBuilder extends CallBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable();
-        sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
+        sourceBuilder.checkUnlessUnchecked();
         if (GET_DEFAULT_EMBEDDING_PROVIDER_FUNCTION_NAME.equals(sourceBuilder.flowNode.codedata().symbol())) {
             sourceBuilder.token().name(methodCallWithModulePrefix(sourceBuilder));
         } else {

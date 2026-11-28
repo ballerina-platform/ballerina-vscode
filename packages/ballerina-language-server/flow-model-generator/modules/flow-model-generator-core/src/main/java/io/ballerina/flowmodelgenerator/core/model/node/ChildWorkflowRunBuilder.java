@@ -30,6 +30,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import org.ballerinalang.langserver.common.utils.NameUtil;
@@ -165,11 +166,12 @@ public class ChildWorkflowRunBuilder extends NodeBuilder {
         String ctxParamName = ActivityCallBuilder.resolveContextParamName(sourceBuilder);
 
         sourceBuilder.token()
-                .keyword(SyntaxKind.STRING_KEYWORD)
+                .name(FlowNodeUtil.withErrorWhenUnchecked(sourceBuilder.flowNode, "string"))
+                .whiteSpace()
                 .name(variableName)
                 .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .keyword(SyntaxKind.CHECK_KEYWORD)
+                .keyword(SyntaxKind.EQUAL_TOKEN);
+        sourceBuilder.checkUnlessUnchecked().token()
                 .name(ctxParamName)
                 .keyword(SyntaxKind.RIGHT_ARROW_TOKEN)
                 .name(RUN_CHILD_WORKFLOW_METHOD_NAME)

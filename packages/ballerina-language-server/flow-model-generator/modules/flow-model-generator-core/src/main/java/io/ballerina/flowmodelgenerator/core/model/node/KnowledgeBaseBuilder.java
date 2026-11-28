@@ -71,7 +71,7 @@ public class KnowledgeBaseBuilder extends CallBuilder {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable();
         if (!sourceBuilder.flowNode.codedata().object().equals(VECTOR_KNOWLEDGE_BASE_TYPE)) {
-            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
+            sourceBuilder.checkUnlessUnchecked();
         }
         return sourceBuilder.newExpression()
                 .functionParameters(sourceBuilder.flowNode,

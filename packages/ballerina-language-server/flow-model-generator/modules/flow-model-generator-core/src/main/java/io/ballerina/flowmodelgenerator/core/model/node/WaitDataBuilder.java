@@ -50,6 +50,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
@@ -242,11 +243,11 @@ public class WaitDataBuilder extends CallBuilder {
             // Simple: type var = check wait data.dataName;
             DataWait entry = entries.getFirst();
             sourceBuilder.token()
-                    .name(entry.dataType)
+                    .name(FlowNodeUtil.withErrorWhenUnchecked(sourceBuilder.flowNode, entry.dataType))
                     .whiteSpace()
                     .name(entry.variableName)
-                    .keyword(SyntaxKind.EQUAL_TOKEN)
-                    .keyword(SyntaxKind.CHECK_KEYWORD)
+                    .keyword(SyntaxKind.EQUAL_TOKEN);
+            sourceBuilder.checkUnlessUnchecked().token()
                     .keyword(SyntaxKind.WAIT_KEYWORD)
                     .name(dataParamName + "." + entry.dataName)
                     .endOfStatement();

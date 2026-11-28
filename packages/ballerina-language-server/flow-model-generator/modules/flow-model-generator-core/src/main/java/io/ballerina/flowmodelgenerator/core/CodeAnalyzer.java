@@ -4261,7 +4261,7 @@ public class CodeAnalyzer extends NodeVisitor {
                     .stepOut()
                 .properties()
                 .scope(connectionScope)
-                .checkError(true, NewConnectionBuilder.CHECK_ERROR_DOC, false);
+                .checkError(isCheckedCall(newExpressionNode), NewConnectionBuilder.CHECK_ERROR_DOC, false);
 
         if (kind == NodeKind.AGENT) {
             AgentBuilder.hideAgentConfigProperties(nodeBuilder);
@@ -4947,7 +4947,8 @@ public class CodeAnalyzer extends NodeVisitor {
                             .stepOut()
                         .properties()
                             .scope(connectionScope)
-                            .checkError(true, NewConnectionBuilder.CHECK_ERROR_DOC, false);
+                            .checkError(isCheckedCall(functionCallExpressionNode),
+                                    NewConnectionBuilder.CHECK_ERROR_DOC, false);
                 return;
             }
             NodeKind nodeKind = AiUtils.isEvalTemplateFunction(functionSymbol)

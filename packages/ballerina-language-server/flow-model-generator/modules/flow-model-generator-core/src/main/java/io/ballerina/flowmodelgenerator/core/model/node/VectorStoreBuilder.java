@@ -73,8 +73,7 @@ public class VectorStoreBuilder extends CallBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         return sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable()
-                .token().keyword(SyntaxKind.CHECK_KEYWORD)
-                .stepOut().newExpression().functionParameters(sourceBuilder.flowNode,
+                .checkUnlessUnchecked().newExpression().functionParameters(sourceBuilder.flowNode,
                         Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY, Property.SCOPE_KEY, Property.CHECK_ERROR_KEY))
                 .textEdit().acceptImport().build();
     }

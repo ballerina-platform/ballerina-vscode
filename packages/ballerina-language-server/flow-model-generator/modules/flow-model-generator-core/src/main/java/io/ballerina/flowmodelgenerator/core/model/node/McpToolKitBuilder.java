@@ -421,7 +421,7 @@ public class McpToolKitBuilder extends NodeBuilder {
             // ```final ai:McpToolKit aiMcpToolkit = new ("http://...")```
             ignoredProperties.add(TOOL_KIT_NAME_PROPERTY);
             sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable()
-                    .token().keyword(SyntaxKind.CHECK_KEYWORD).keyword(SyntaxKind.NEW_KEYWORD).stepOut()
+                    .checkUnlessUnchecked().token().keyword(SyntaxKind.NEW_KEYWORD).stepOut()
                     .functionParameters(sourceBuilder.flowNode, ignoredProperties)
                     .acceptImport().textEdit(SourceBuilder.SourceKind.STATEMENT, connectionsFilePath, defaultRange);
             return sourceBuilder.build();
@@ -476,7 +476,7 @@ public class McpToolKitBuilder extends NodeBuilder {
             sourceBuilder.flowNode.properties().remove(TYPE_KEY);
             sourceBuilder.flowNode.properties().put(TYPE_KEY, toolKitNameProperty);
             sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable()
-                    .token().keyword(SyntaxKind.CHECK_KEYWORD).keyword(SyntaxKind.NEW_KEYWORD).stepOut()
+                    .checkUnlessUnchecked().token().keyword(SyntaxKind.NEW_KEYWORD).stepOut()
                     .functionParameters(sourceBuilder.flowNode, ignoredProperties);
 
             Map<Path, List<TextEdit>> result =
