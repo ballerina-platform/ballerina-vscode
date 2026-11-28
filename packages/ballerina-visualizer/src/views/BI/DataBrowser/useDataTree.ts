@@ -239,15 +239,18 @@ export function useDataTree(fileName: string | undefined, targetLineRange: LineR
     };
 
     const childrenOf = (parent: DataItem): Promise<DataItem[]> => {
-        let pending = children.current.get(parent.path);
-        if (!pending) {
-            // A failed lookup is not cached, so the next expand asks again.
-            pending = fetchChildren(parent).catch((): DataItem[] => {
-                children.current.delete(parent.path);
-                return [];
-            });
-            children.current.set(parent.path, pending);
+        const cached = children.current.get(parent.path);
+        if (cached) {
+            return cached;
         }
+        // A failed lookup is not cached, so the next expand asks again; it rejects, so a row can tell it from no fields.
+        const pending: Promise<DataItem[]> = fetchChildren(parent).catch((error) => {
+            if (children.current.get(parent.path) === pending) {
+                children.current.delete(parent.path);
+            }
+            throw error;
+        });
+        children.current.set(parent.path, pending);
         return pending;
     };
 
@@ -257,17 +260,20 @@ export function useDataTree(fileName: string | undefined, targetLineRange: LineR
         if (!fileName || !isNamedType(name)) {
             return Promise.resolve({ values: literalValues(type), fields: {} });
         }
-        let pending = shapes.current.get(name);
-        if (!pending) {
-            pending = diagram.getTypeShape({ filePath, type: name }).then(
-                (response) => ({ values: response?.values ?? [], fields: response?.fields ?? {} }),
-                () => {
-                    shapes.current.delete(name);
-                    return NO_SHAPE;
-                }
-            );
-            shapes.current.set(name, pending);
+        const cached = shapes.current.get(name);
+        if (cached) {
+            return cached;
         }
+        const pending: Promise<TypeShape> = diagram.getTypeShape({ filePath, type: name }).then(
+            (response) => ({ values: response?.values ?? [], fields: response?.fields ?? {} }),
+            () => {
+                if (shapes.current.get(name) === pending) {
+                    shapes.current.delete(name);
+                }
+                return NO_SHAPE;
+            }
+        );
+        shapes.current.set(name, pending);
         return pending;
     }
 
@@ -372,14 +378,15 @@ export const descendantsWhere = async (
     childrenOf: (parent: DataItem) => Promise<DataItem[]>,
     maxDepth = SEARCH_DEPTH
 ): Promise<DataItem[]> => {
-    const found: DataItem[] = [];
+    // Keyed by path: two values of one enum type list the same members.
+    const found = new Map<string, DataItem>();
     let level = roots;
     for (let depth = 0; depth < maxDepth && level.length > 0; depth++) {
-        const next = (await Promise.all(level.filter(canExpand).map(childrenOf))).flat();
-        found.push(...next.filter(test));
+        const next = (await Promise.all(level.filter(canExpand).map((parent) => childrenOf(parent).catch((): DataItem[] => [])))).flat();
+        next.filter(test).forEach((item) => found.set(item.path, found.get(item.path) ?? item));
         level = next;
     }
-    return found;
+    return [...found.values()];
 };
 
 /** Up to five of the flow's own values (inputs, local variables and their fields) that fit the field and are named like it. */
@@ -399,6 +406,7 @@ export function useSuggestions(
             return;
         }
         let cancelled = false;
+        setSuggestions(undefined);
         const fits = (item: DataItem) => !item.enumMember && fitsType(item.type, expected);
         descendantsWhere(roots, fits, childrenOf, SUGGESTION_DEPTH).then((nested) => {
             if (cancelled) {
@@ -423,6 +431,8 @@ export function useDataSearch(
 ): Record<string, DataItem[]> | undefined {
     const [results, setResults] = useState<Record<string, DataItem[]>>();
     const q = query.trim().toLowerCase();
+    // The sections change with the field (its allowed values), so a search reruns for them too.
+    const sectionsKey = sections.map(({ title, roots }) => `${title}:${roots.map((root) => root.path).join(",")}`).join("|");
 
     useEffect(() => {
         if (!q || !source) {
@@ -445,7 +455,7 @@ export function useDataSearch(
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [q, source]);
+    }, [q, source, sectionsKey]);
 
     return results;
 }

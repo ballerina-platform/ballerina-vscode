@@ -17,7 +17,7 @@
  */
 
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { DEFAULT_CHIP_COLOR, DropAction, HighlightedText, setDraggedInsert } from "@wso2/ballerina-side-panel";
 import { Icon, Tooltip } from "@wso2/ui-toolkit";
 import { HelperPaneIconType, getHelperPaneIcon } from "../HelperPaneNew/utils/iconUtils";
@@ -112,10 +112,27 @@ export function DataNode(props: DataNodeProps) {
     const [fields, setFields] = useState<DataItem[]>();
     const expandable = canOpen(item) && fields?.length !== 0;
 
+    const pathRef = useRef(item.path);
+    pathRef.current = item.path;
+
+    // A response for an index the stepper has since left is dropped; a failed lookup closes the row, so it can be opened again.
+    const load = (onFound?: (found: DataItem[]) => void) => {
+        const path = item.path;
+        fetchFields(item).then(
+            (found) => {
+                if (path === pathRef.current) {
+                    setFields(found);
+                    onFound?.(found);
+                }
+            },
+            () => path === pathRef.current && setExpanded(false)
+        );
+    };
+
     useEffect(() => {
         setFields(undefined);
         if (expanded) {
-            fetchFields(item).then(setFields);
+            load();
         }
     }, [item.path]);
 
@@ -124,8 +141,7 @@ export function DataNode(props: DataNodeProps) {
     // A named type can turn out to hold nothing to open (a string alias, a union of string values); the click then inserts it.
     const toggle = () => {
         if (!expanded && !fields) {
-            fetchFields(item).then((found) => {
-                setFields(found);
+            load((found) => {
                 if (found.length === 0) {
                     setExpanded(false);
                     insert();
