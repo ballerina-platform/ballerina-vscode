@@ -283,7 +283,7 @@ export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultCon
             tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, text) => { inserts ||= text.length > 0; });
             // A deletion always goes through, so a value that is not a number can still be cleared.
             const accepted = !inserts || this.DECIMAL_INPUT_REGEX.test(tr.newDoc.toString());
-            if (!accepted) {
+            if (!accepted && tr.isUserEvent("input")) {
                 this.onRejectedInput?.();
             }
             return accepted;

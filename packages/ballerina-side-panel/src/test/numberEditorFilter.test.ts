@@ -19,9 +19,9 @@
 import { EditorState } from "@codemirror/state";
 import { NumberExpressionEditorConfig } from "../components/editors/MultiModeExpressionEditor/Configurations";
 
-const edit = (doc: string, from: number, to: number, insert: string, onRejectedInput?: () => void) =>
+const edit = (doc: string, from: number, to: number, insert: string, onRejectedInput?: () => void, userEvent = "input.type") =>
     EditorState.create({ doc, extensions: new NumberExpressionEditorConfig(onRejectedInput).getPlugins() })
-        .update({ changes: { from, to, insert } }).state.doc.toString();
+        .update({ changes: { from, to, insert }, userEvent: userEvent || undefined }).state.doc.toString();
 
 describe("Number editor input filter", () => {
     it("takes digits and one decimal point", () => {
@@ -37,6 +37,12 @@ describe("Number editor input filter", () => {
         edit("12", 2, 2, "a", rejected);
         edit("12", 2, 2, "3", rejected);
         expect(rejected).toHaveBeenCalledTimes(1);
+    });
+
+    it("says nothing when a value set from outside is refused", () => {
+        const rejected = jest.fn();
+        expect(edit("12", 0, 2, "x + 1", rejected, "")).toBe("12");
+        expect(rejected).not.toHaveBeenCalled();
     });
 
     it("lets a value that is not a number be deleted", () => {
