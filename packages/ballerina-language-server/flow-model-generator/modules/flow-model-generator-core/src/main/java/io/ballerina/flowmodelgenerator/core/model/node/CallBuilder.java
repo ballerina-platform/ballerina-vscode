@@ -33,6 +33,7 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.TypeParameterReplacer;
 import io.ballerina.flowmodelgenerator.core.TypesManager;
@@ -221,13 +222,44 @@ public abstract class CallBuilder extends NodeBuilder {
             SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, context.filePath());
             int offset = document.textDocument().textPositionFrom(context.position());
             ModulePartNode root = document.syntaxTree().rootNode();
-            NonTerminalNode node = root.findToken(offset).parent();
-            return !CommonUtils.withinDoClause(node) && enclosingReturnType(node, semanticModel)
-                    .map(type -> !CommonUtils.subTypeOf(type, semanticModel.types().ERROR))
+            Token token = root.findToken(offset);
+            return !caughtByOnFail(token) && enclosingReturnType(token.parent(), semanticModel)
+                    .map(CommonUtils::getRawType)
+                    .map(type -> type.typeKind() == TypeDescKind.NEVER
+                            || !CommonUtils.subTypeOf(type, semanticModel.types().ERROR))
                     .orElse(false);
         } catch (RuntimeException | WorkspaceDocumentException | EventSyncException e) {
             return false;
         }
+    }
+
+    // An on fail clause takes the errors of its statement's body, up to the enclosing invocable.
+    private static boolean caughtByOnFail(Token token) {
+        Node child = token;
+        for (NonTerminalNode current = token.parent(); current != null; child = current, current = current.parent()) {
+            boolean fromBody = child.kind() == SyntaxKind.BLOCK_STATEMENT || child.kind() == SyntaxKind.MATCH_CLAUSE;
+            if (fromBody && hasOnFailClause(current)) {
+                return true;
+            }
+            if (isInvocable(current)) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasOnFailClause(NonTerminalNode node) {
+        for (Node child : node.children()) {
+            if (child.kind() == SyntaxKind.ON_FAIL_CLAUSE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isInvocable(Node node) {
+        return node instanceof FunctionDefinitionNode || node.kind() == SyntaxKind.NAMED_WORKER_DECLARATION
+                || node.kind() == SyntaxKind.EXPLICIT_ANONYMOUS_FUNCTION_EXPRESSION;
     }
 
     // Empty outside an invocable; nil for one that declares no return type.
