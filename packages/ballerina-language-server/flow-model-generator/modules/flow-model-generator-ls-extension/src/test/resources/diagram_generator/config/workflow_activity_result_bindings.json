@@ -3254,7 +3254,7 @@
                 "selected": true
               }
             ],
-            "value": "int|error",
+            "value": "int",
             "placeholder": "var",
             "optional": false,
             "editable": true,

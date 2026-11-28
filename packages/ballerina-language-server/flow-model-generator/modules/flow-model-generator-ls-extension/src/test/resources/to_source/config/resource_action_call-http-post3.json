@@ -185,6 +185,19 @@
       {
         "range": {
           "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/http;"
+      },
+      {
+        "range": {
+          "start": {
             "line": 16,
             "character": 8
           },
