@@ -170,8 +170,10 @@ export default function createTests() {
         test('Add methods inside a connection', async () => {
             logStep('Add a GET method from the http client');
             await page.page.waitForTimeout(1500);
+            // The new connection's entry in the node panel can stay a loading placeholder for
+            // well over 5s on a slower CI runner.
             const clientEntryVisible = await sidePanel.getLocator().getByText(CONNECTION_NAME, { exact: false }).first()
-                .waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+                .waitFor({ state: 'visible', timeout: 30000 }).then(() => true).catch(() => false);
             if (!clientEntryVisible) {
                 await diagram.clickAddButtonByIndex(1);
             }
@@ -280,7 +282,8 @@ export default function createTests() {
             // The call node renders as "http : get" and links to a separate
             // "httpClient" connector node alongside it — they're not in the
             // same text node, so match the call node's own label.
-            await diagramCanvas.getByText(/http\s*:\s*get/i).first().waitFor({ timeout: 15000 });
+            // On a slower CI runner the save can stay on "Saving..." for more than 15s.
+            await diagramCanvas.getByText(/http\s*:\s*get/i).first().waitFor({ timeout: 60000 });
             logStep('GET action added and shown in the connection');
         });
 
