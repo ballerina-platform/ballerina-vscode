@@ -37,7 +37,6 @@ const FormContainer = styled.div`
     display: flex;
     flex-direction: column;
     max-width: 600px;
-    height: 400px;
     gap: 20px;
     overflow-y: auto;
     padding-right: 16px;
@@ -394,6 +393,7 @@ export function FunctionFormStatic(props: FunctionFormProps) {
                         onSubmit={handleFormSubmit}
                         submitText={saving ? (functionName ? "Saving..." : "Creating...") : (functionName ? "Save" : "Create")}
                         selectedNode={functionNode?.codedata?.node}
+                        footerActionButton={true}
                     />
                 }
             </FormContainer>

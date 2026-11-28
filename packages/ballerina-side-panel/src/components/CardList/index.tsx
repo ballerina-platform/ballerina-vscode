@@ -19,7 +19,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Codicon, ProgressRing, SearchBox, SidePanelBody, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
-import { BackIcon, CloseIcon, LogIcon } from "../../resources";
+import { CloseIcon, LogIcon } from "../../resources";
+import { PanelHeader } from "../Panel";
 import { Category, Item, Node } from "../NodeList/types";
 import { cloneDeep, debounce } from "lodash";
 
@@ -501,14 +502,6 @@ namespace S {
         width: 100%;
     `;
 
-    export const LeftAlignRow = styled(Row)`
-        justify-content: flex-start;
-    `;
-
-    export const BackButton = styled(Button)`
-        border-radius: 5px;
-    `;
-
     export const CloseButton = styled(Button)`
         position: absolute;
         right: 10px;
@@ -542,6 +535,7 @@ namespace S {
 }
 
 export interface CardListProps {
+    titleIcon?: React.ReactNode;
     categories: Category[];
     title?: string;
     searchPlaceholder?: string;
@@ -647,7 +641,7 @@ export const getCountLabel = (category: Category) => {
 };
 
 function CardList(props: CardListProps) {
-    const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
+    const { categories, title, titleIcon, searchPlaceholder, onSelect, onSearch, onBack, onClose,
         expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange, extraSection, leadingSection,
         fillContainerHeight } = props;
 
@@ -973,25 +967,16 @@ function CardList(props: CardListProps) {
     const drill = searchText ? null : resolveDrillPath(filteredCategories, expandedGroupId);
     const headerTitle = title;
     const canGoBack = Boolean(onBack);
-    const shouldShowHeaderActions = (canGoBack && headerTitle) || onClose;
+    const hasPageHeader = canGoBack && Boolean(headerTitle);
     return (
         <S.Container ref={containerRef} fillContainerHeight={fillContainerHeight}>
+            {hasPageHeader && <PanelHeader title={headerTitle} titleIcon={titleIcon} onBack={onBack} onClose={onClose} />}
             <S.HeaderContainer>
-                {shouldShowHeaderActions && (
+                {!hasPageHeader && onClose && (
                     <S.Row>
-                        {canGoBack && headerTitle && (
-                            <S.LeftAlignRow>
-                                <S.BackButton appearance="icon" onClick={() => onBack?.()}>
-                                    <BackIcon />
-                                </S.BackButton>
-                                {headerTitle}
-                            </S.LeftAlignRow>
-                        )}
-                        {onClose && (
-                            <S.CloseButton appearance="icon" onClick={onClose}>
-                                <CloseIcon />
-                            </S.CloseButton>
-                        )}
+                        <S.CloseButton appearance="icon" onClick={onClose}>
+                            <CloseIcon />
+                        </S.CloseButton>
                     </S.Row>
                 )}
                 <S.Row>

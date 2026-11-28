@@ -1140,6 +1140,8 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))
         : [];
     const hasParameters = hasRequiredParameters(formFields, selectedNode) || hasOptionalParameters(formFields);
+    // A Return has one field; its description and parameter banner only repeat it.
+    const isReturnNode = selectedNode === "RETURN";
 
     const canOpenInDataMapper = (selectedNode === "VARIABLE" &&
         expressionField &&
@@ -1192,15 +1194,19 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
         assistPrefix: partOfParentForm ? parentContext?.nestedAssistPrefix : undefined,
     };
 
-    // Find the first editable identifier field
-    const firstEditableFieldIndex = formFields.findIndex(
-        (field) => field.editable !== false && getPrimaryInputType(field.types)?.fieldType === "IDENTIFIER"
+    const isEmptyValue = (value: unknown) => value === undefined || value === "";
+    const focusableFields = formFields.filter(
+        (field) => field.editable !== false && !field.advanced && !field.hidden && field.type !== "VIEW" && !isGroupedField(field)
     );
-
-    const firstEditableFieldValue = formFields[firstEditableFieldIndex]?.value;
-    const autoFocusFirstField =
-        firstEditableFieldIndex >= 0 &&
-        (!opensPrefilled || firstEditableFieldValue === undefined || firstEditableFieldValue === "");
+    const firstIdentifierField = focusableFields.find(
+        (field) => getPrimaryInputType(field.types)?.fieldType === "IDENTIFIER"
+    );
+    // Only a value the form still needs takes the cursor, so a saved node opens without one.
+    const autoFocusField = firstIdentifierField && (!opensPrefilled || isEmptyValue(firstIdentifierField.value))
+        ? firstIdentifierField
+        : !opensPrefilled
+            ? focusableFields.find((field) => isEmptyValue(field.value) && !field.optional)
+            : undefined;
     const containerRef = useFocusOnOpen(!!onSubmit && !hideSaveButton);
     const saveTooltip = `${submitText || "Save"} (${SAVE_SHORTCUT_LABEL})`;
 
@@ -1449,7 +1455,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
     const formContent = (
         <>
             {actionButton && <S.ActionButtonContainer>{actionButton}</S.ActionButtonContainer>}
-            {infoLabel && !compact && (
+            {infoLabel && !compact && !isReturnNode && (
                 <S.MarkdownWrapper>
                     <S.MarkdownContainer ref={markdownRef} isExpanded={isMarkdownExpanded}>
                         <MarkdownDescription description={infoLabel} />
@@ -1471,7 +1477,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                     )}
                 </S.MarkdownWrapper>
             )}
-            {!preserveOrder && !compact && !hideInfoBanner && (
+            {!preserveOrder && !compact && !hideInfoBanner && !isReturnNode && (
                 <FormDescription formFields={formFields} selectedNode={selectedNode} />
             )}
             <FormErrorReport errors={collectFormErrors(formFields, errors, liveErrorMessages, formDiagnostics)} />
@@ -1561,7 +1567,7 @@ const FormBody = forwardRef<FormHandle, FormProps>((props: FormProps, ref) => {
                                     subPanelView={subPanelView}
                                     handleFormValidation={handleFormValidation}
                                     handleOnFieldFocus={handleOnFieldFocus}
-                                    autoFocus={autoFocusFirstField && firstEditableFieldIndex === formFields.indexOf(updatedField) && !hideSaveButton}
+                                    autoFocus={autoFocusField?.key === field.key && !hideSaveButton}
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}

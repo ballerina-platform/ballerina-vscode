@@ -404,7 +404,7 @@ export function Diagram(props: DiagramProps) {
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
                     {/* An open form's overlay covers the canvas controls and the Copilot orb (1800), under the side panel (1900+). */}
-                    {overlay?.visible && <PopupOverlay onClose={overlay.onClickOverlay} zIndex={1850} />}
+                    {overlay && <PopupOverlay visible={!!overlay.visible} onClose={overlay.onClickOverlay} zIndex={1850} />}
                     <DiagramCanvas>
                         <NavigationWrapperCanvasWidget
                             diagramEngine={diagramEngine}

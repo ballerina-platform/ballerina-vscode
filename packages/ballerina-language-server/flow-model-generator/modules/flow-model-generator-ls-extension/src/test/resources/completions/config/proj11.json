@@ -52,7 +52,7 @@
       },
       "kind": "Field",
       "detail": "string",
-      "sortText": "AA",
+      "sortText": "4AA",
       "insertText": "id",
       "insertTextFormat": "Snippet"
     },
@@ -63,7 +63,7 @@
       },
       "kind": "Field",
       "detail": "int",
-      "sortText": "AA",
+      "sortText": "4AA",
       "insertText": "value",
       "insertTextFormat": "Snippet"
     }

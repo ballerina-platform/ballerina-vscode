@@ -22,8 +22,8 @@ import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { FormField, FormImports, FormValues } from '@wso2/ballerina-side-panel';
 import { ArtifactForm } from '../Forms/ArtifactForm';
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
+import { BrowserViewContent } from "../DataBrowser";
 import { AssistView, TitleBar } from '../../../components/TitleBar';
-import { ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import {
     logError,
@@ -199,7 +199,7 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
                 title={isAgentDefinitionConstructor ? "Agent Definition Constructor" : "Service Function"}
                 subtitle={isAgentDefinitionConstructor ? "Configure the inputs used to create this agent" : "Build reusable custom flows"}
             />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 <Container>
                     {!model ? (
                         <LoaderContainer>
@@ -223,7 +223,7 @@ export function ServiceFunctionForm(props: ServiceFunctionFormProps) {
                         </FormContainer>
                     )}
                 </Container>
-            </ViewContent>
+            </BrowserViewContent>
         </AssistView>
     );
 }

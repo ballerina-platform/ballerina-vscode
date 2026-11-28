@@ -107,6 +107,52 @@ export { A2A_OBJECT_NODE } from "./a2a-panel";
 
 hljs.registerLanguage("ballerina", ballerina);
 
+// The icon the node palette shows for a node; form headers reuse it so both match.
+export function getNodeIcon(
+    node: Pick<AvailableNode, "codedata" | "metadata">,
+    functionType?: FUNCTION_TYPE,
+    connectorType?: string,
+    size = 16
+): React.ReactElement {
+    const isDBConnection = connectorType === "persist" || connectorType === "Database";
+    const workflowFunctionIconName = getWorkflowFunctionIconName(
+        node.codedata.org,
+        node.codedata.module,
+        node.codedata.symbol
+    );
+    const iconSx = { fontSize: size, width: size, height: size };
+    const nodeType = functionType === FUNCTION_TYPE.EXPRESSION_BODIED ? "DATA_MAPPER_CALL" : node.codedata.node;
+
+    // A workflow accessor function (currentTime, sleep, ...) gets its own icon ahead of whatever
+    // generic icon the language server sent for the shared node kind — see getWorkflowFunctionIconName.
+    return workflowFunctionIconName ? (
+        <Icon name={workflowFunctionIconName} sx={iconSx} />
+    ) : node.metadata.icon?.startsWith("bi-") ? (
+        // A codicon-style icon name distinguishes items sharing a node kind (e.g. durable
+        // agentic workflows in the same startable list as workflow functions).
+        <Icon name={node.metadata.icon} sx={iconSx} />
+    ) : node.codedata.node === "NEW_CONNECTION" ? (
+        <ConnectorIcon
+            url={node.metadata.icon}
+            style={iconSx}
+            codedata={node.codedata}
+            connectorType={(node.metadata.data as NodeMetadata)?.connectorType}
+            fallbackIcon={<NodeIcon type={nodeType} size={size} />}
+        />
+    ) : (
+        <NodeIcon
+            type={nodeType}
+            size={size}
+            isDBConnection={isDBConnection}
+            // The prebuilt activities and workflow accessor functions share one node kind, so the
+            // function they call is what tells them apart for colouring and, for the latter, icon.
+            symbol={node.codedata.symbol}
+            org={node.codedata.org}
+            module={node.codedata.module}
+        />
+    );
+}
+
 function convertAvailableNodeToPanelNode(
     node: AvailableNode,
     functionType?: FUNCTION_TYPE,
@@ -120,13 +166,6 @@ function convertAvailableNodeToPanelNode(
         return undefined;
     }
 
-    const isDBConnection = connectorType === "persist" || connectorType === "Database";
-    const workflowFunctionIconName = getWorkflowFunctionIconName(
-        node.codedata.org,
-        node.codedata.module,
-        node.codedata.symbol
-    );
-
     // Return common panel node structure
     return {
         id: node.codedata.node,
@@ -136,39 +175,7 @@ function convertAvailableNodeToPanelNode(
         keywords: node.metadata.keywords,
         enabled: node.enabled,
         metadata: node,
-        // A workflow accessor function (currentTime, sleep, ...) gets its own icon ahead of whatever
-        // generic icon the language server sent for the shared node kind — see getWorkflowFunctionIconName.
-        icon: workflowFunctionIconName ? (
-            <Icon name={workflowFunctionIconName} sx={{ fontSize: "16px", width: "16px", height: "16px" }} />
-        ) : node.metadata.icon?.startsWith("bi-") ? (
-            // A codicon-style icon name distinguishes items sharing a node kind (e.g. durable
-            // agentic workflows in the same startable list as workflow functions).
-            <Icon name={node.metadata.icon} sx={{ fontSize: "16px", width: "16px", height: "16px" }} />
-        ) : node.codedata.node === "NEW_CONNECTION" ? (
-            <ConnectorIcon
-                url={node.metadata.icon}
-                style={{ width: "16px", height: "16px", fontSize: "16px" }}
-                codedata={node.codedata}
-                connectorType={(node.metadata.data as NodeMetadata)?.connectorType}
-                fallbackIcon={
-                    <NodeIcon
-                        type={functionType === FUNCTION_TYPE.EXPRESSION_BODIED ? "DATA_MAPPER_CALL" : node.codedata.node}
-                        size={16}
-                    />
-                }
-            />
-        ) : (
-            <NodeIcon
-                type={functionType === FUNCTION_TYPE.EXPRESSION_BODIED ? "DATA_MAPPER_CALL" : node.codedata.node}
-                size={16}
-                isDBConnection={isDBConnection}
-                // The prebuilt activities and workflow accessor functions share one node kind, so the
-                // function they call is what tells them apart for colouring and, for the latter, icon.
-                symbol={node.codedata.symbol}
-                org={node.codedata.org}
-                module={node.codedata.module}
-            />
-        ),
+        icon: getNodeIcon(node, functionType, connectorType),
     };
 }
 
@@ -396,7 +403,7 @@ export function getContainerTitle(view: SidePanelView, activeNode: FlowNode, cli
                 return "";
             }
             if (isAgentCallNode(activeNode.codedata?.node)) {
-                return `AI Agent`;
+                return "Run Agent";
             }
             if (activeNode.codedata?.node === "MCP_TOOL_KIT") {
                 return "Add MCP Server";
@@ -491,6 +498,9 @@ export function enrichFormTemplatePropertiesWithValues(
             ) {
                 // Copy the value from formProperties to formTemplateProperties
                 enrichedFormTemplateProperties[key as NodePropertyKey].value = formProperty.value;
+                if (formProperty.imports) {
+                    enrichedFormTemplateProperties[key as NodePropertyKey].imports = formProperty.imports;
+                }
 
                 if (formProperty.hasOwnProperty('editable')) {
                     enrichedFormTemplateProperties[key as NodePropertyKey].editable = formProperty.editable;

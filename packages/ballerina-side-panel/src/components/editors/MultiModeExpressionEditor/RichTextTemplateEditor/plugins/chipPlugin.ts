@@ -359,6 +359,13 @@ function replaceTextWithChips(
     return tr;
 }
 
+// Removing a chip also drops the space it would leave doubled or trailing.
+export function chipRemovalStart(doc: any, from: number, to: number): number {
+    const leavesGap = doc.textBetween(from - 1, from) === " "
+        && /^[\s.,;:!?)]?$/.test(doc.textBetween(to, Math.min(doc.content.size, to + 1)));
+    return leavesGap ? from - 1 : from;
+}
+
 export function createChipPlugin(
     schema: Schema,
     onChipClick?: (event: MouseEvent, chipPos: number, chipNode: any) => void

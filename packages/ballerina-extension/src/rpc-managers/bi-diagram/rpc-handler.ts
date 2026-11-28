@@ -45,6 +45,7 @@ import {
     BIDesignModelRequest,
     BIFlowModelRequest,
     BIGetEnclosedFunctionRequest,
+    BIGetTypeShapeRequest,
     BIGetVisibleVariableTypesRequest,
     BINodeTemplateRequest,
     BISearchNodesRequest,
@@ -116,6 +117,7 @@ import {
     getEnclosedFunction,
     getEndOfFile,
     getExpressionCompletions,
+    getExpressionCompletionsNow,
     getExpressionDiagnostics,
     getExpressionTokens,
     getFlowModel,
@@ -149,6 +151,7 @@ import {
     getTypes,
     GetTypesRequest,
     getVisibleTypes,
+    getTypeShape,
     getVisibleVariableTypes,
     getWorkspaces,
     handleReadmeContent,
@@ -231,7 +234,9 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(createComponent, (args: ComponentRequest) => rpcManger.createComponent(args));
     messenger.onRequest(handleReadmeContent, (args: ReadmeContentRequest) => rpcManger.handleReadmeContent(args));
     messenger.onRequest(getVisibleVariableTypes, (args: BIGetVisibleVariableTypesRequest) => rpcManger.getVisibleVariableTypes(args));
+    messenger.onRequest(getTypeShape, (args: BIGetTypeShapeRequest) => rpcManger.getTypeShape(args));
     messenger.onRequest(getExpressionCompletions, (args: ExpressionCompletionsRequest) => rpcManger.getExpressionCompletions(args));
+    messenger.onRequest(getExpressionCompletionsNow, (args: ExpressionCompletionsRequest) => rpcManger.getExpressionCompletionsNow(args));
     messenger.onRequest(getDataMapperCompletions, (args: ExpressionCompletionsRequest) => rpcManger.getDataMapperCompletions(args));
     messenger.onRequest(getConfigVariablesV2, (args: ConfigVariableRequest) => rpcManger.getConfigVariablesV2(args));
     messenger.onRequest(updateConfigVariablesV2, (args: UpdateConfigVariableRequestV2) => rpcManger.updateConfigVariablesV2(args));

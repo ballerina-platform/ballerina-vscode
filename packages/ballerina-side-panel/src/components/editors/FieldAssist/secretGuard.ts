@@ -41,6 +41,11 @@ const STRING_LITERAL = /"(?:[^"\\]|\\.)+"|`[^`]+`/;
 export const isSensitiveField = (...names: (string | undefined)[]): boolean =>
     names.some((name) => !!name && SENSITIVE_NAME.test(name));
 
+/** A text field for a secret, which should hold a configurable rather than the secret itself. */
+export const isSecretField = (field: { key: string; label?: string; types?: { fieldType: string; ballerinaType?: string }[] }): boolean =>
+    isSensitiveField(field.label, field.key)
+    && !!field.types?.some((type) => type.fieldType === "TEXT" && type.ballerinaType?.replace(/\?$/, "") === "string");
+
 export const looksLikeCredential = (text: string): boolean =>
     CREDENTIAL_PATTERNS.some((pattern) => pattern.test(text)) || RANDOM_LOOKING.test(text);
 

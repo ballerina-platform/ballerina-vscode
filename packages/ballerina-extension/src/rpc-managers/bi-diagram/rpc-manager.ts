@@ -49,6 +49,8 @@ import {
     BIFlowModelResponse,
     BIGetEnclosedFunctionRequest,
     BIGetEnclosedFunctionResponse,
+    BIGetTypeShapeRequest,
+    BIGetTypeShapeResponse,
     BIGetVisibleVariableTypesRequest,
     BIGetVisibleVariableTypesResponse,
     BIModuleNodesRequest,
@@ -1155,6 +1157,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
+    async getExpressionCompletionsNow(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
+        return StateMachine.langClient().getExpressionCompletionsNow(params);
+    }
+
     async getDataMapperCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
         return new Promise((resolve, reject) => {
             StateMachine.langClient()
@@ -1595,6 +1601,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                     reject("Error fetching visible variable types from ls");
                 });
         });
+    }
+
+    async getTypeShape(params: BIGetTypeShapeRequest): Promise<BIGetTypeShapeResponse> {
+        return StateMachine.langClient().getTypeShape(params);
     }
 
     async checkDockerAvailability(): Promise<boolean> {

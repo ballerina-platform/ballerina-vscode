@@ -564,6 +564,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "map<string|error>",
                 "selected": true
               }
             ],

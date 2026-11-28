@@ -127,7 +127,8 @@ public abstract class DiagnosticsRequest extends DebouncedExpressionEditorReques
 
     @Override
     public long getDelay() {
-        return 350;
+        // The client debounces keystrokes already.
+        return 0;
     }
 
     public record Diagnostics(Set<Diagnostic> diagnostics) {

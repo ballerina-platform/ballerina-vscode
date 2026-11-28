@@ -59,6 +59,8 @@ public class IfBuilder extends NodeBuilder {
         List<Branch> remainingBranches = new ArrayList<>();
 
         for (Branch branch : branches) {
+            branch.getProperty(Property.CONDITION_KEY).map(Property::imports).ifPresent(imports ->
+                    imports.values().forEach(signature -> sourceBuilder.addImport(signature.split(":")[0])));
             switch (branch.label()) {
                 case IF_THEN_LABEL -> ifBranch = Optional.of(branch);
                 case IF_ELSE_LABEL -> elseBranch = Optional.of(branch);

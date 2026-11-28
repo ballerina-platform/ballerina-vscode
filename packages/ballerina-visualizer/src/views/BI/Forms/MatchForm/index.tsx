@@ -36,14 +36,16 @@ import {
     FormValues,
     ExpressionEditor,
     AssistMark,
+    Provider,
     ExpressionFormField,
     FormExpressionEditorProps,
+    FormImports,
     isSaveShortcut,
     useFocusOnOpen,
     SAVE_SHORTCUT_LABEL,
 } from "@wso2/ballerina-side-panel";
 import { FormStyles } from "../styles";
-import { convertNodePropertyToFormField, removeDuplicateDiagnostics } from "../../../../utils/bi";
+import { convertNodePropertyToFormField, mergeFormImports, removeDuplicateDiagnostics } from "../../../../utils/bi";
 import { cloneDeep, debounce } from "lodash";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -85,7 +87,9 @@ export function MatchForm(props: MatchFormProps) {
         handleSubmit,
         setError,
         clearErrors,
-        formState: { isValidating },
+        register,
+        unregister,
+        formState: { isValidating, errors },
     } = useForm<FormValues>();
 
     const { rpcClient } = useRpcContext();
@@ -96,6 +100,13 @@ export function MatchForm(props: MatchFormProps) {
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
 
     const exprRef = useRef<FormExpressionEditorRef>(null);
+    // Imports by field, so a removed case takes its own with them; those of the fields left land on the match target.
+    const formImportsRef = useRef<FormImports>({});
+    const withFormImports = (property: ExpressionProperty): ExpressionProperty => ({
+        ...property,
+        imports: Object.assign({ ...property.imports }, ...[TARGET_FIELD_INDEX, ...branches.keys()]
+            .map((index) => formImportsRef.current[`branch-${index}`])),
+    });
 
     const TARGET_FIELD_INDEX = -1;
     const DEFAULT_BRANCH_INDEX = 1000; // this is a magic number to avoid conflict with other branches
@@ -211,6 +222,7 @@ export function MatchForm(props: MatchFormProps) {
         }
 
         // update target value
+        updatedNode.properties.matchTarget = withFormImports(updatedNode.properties.matchTarget);
         updatedNode.properties.matchTarget.value = data[`branch-${TARGET_FIELD_INDEX}`]?.trim();
 
         // Update branches with form values
@@ -304,6 +316,7 @@ export function MatchForm(props: MatchFormProps) {
         for (let i = index + 1; i < branches.length; i++) {
             const value = getValues(`branch-${i}`);
             setValue(`branch-${i - 1}`, value);
+            formImportsRef.current[`branch-${i - 1}`] = formImportsRef.current[`branch-${i}`];
 
             if (diagnosticsInfo) {
                 const oldKey = `branch-${i}`;
@@ -321,6 +334,8 @@ export function MatchForm(props: MatchFormProps) {
                 }
             }
         }
+        // The last key is now unused; a case added later must not inherit its imports.
+        delete formImportsRef.current[`branch-${branches.length - 1}`];
     };
 
     const addDefaultBlock = () => {
@@ -400,7 +415,7 @@ export function MatchForm(props: MatchFormProps) {
                     lineOffset: 0,
                     offset: 0,
                     codedata: undefined,
-                    property: property,
+                    property: withFormImports(property),
                 },
             });
 
@@ -459,119 +474,144 @@ export function MatchForm(props: MatchFormProps) {
     targetField.label = "Target";
 
     return (
-        <FormStyles.Container
-            ref={containerRef}
-            tabIndex={-1}
-            onKeyDown={(event: React.KeyboardEvent) => {
-                if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
-                    event.preventDefault();
-                    handleSubmit(handleOnSave)();
-                }
+        // The expression editors read the token RPC from this context; without it they show no chips.
+        <Provider
+            form={{
+                control,
+                getValues,
+                setValue,
+                watch,
+                register,
+                unregister,
+                setError,
+                clearErrors,
+                formState: { isValidating, errors },
             }}
+            expressionEditor={expressionEditor}
+            targetLineRange={targetLineRange}
+            fileName={fileName}
+            popupManager={{
+                addPopup: () => { },
+                removeLastPopup: () => { },
+                closePopup: () => { },
+            }}
+            nodeInfo={{ kind: node.codedata.node }}
+            updateImports={(key, imports) => { formImportsRef.current = mergeFormImports(formImportsRef.current, key, imports); }}
         >
-            {assist?.(() => buildNode(getValues()))}
-            <div>
-            <FormStyles.Row>
-                <ExpressionEditor
-                    {...expressionEditor}
-                    control={control}
-                    fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
-                    field={targetField}
-                    setValue={setValue}
-                    watch={watch}
-                    openSubPanel={openSubPanel}
-                    targetLineRange={targetLineRange}
-                    fileName={fileName}
-                    completions={activeEditor === TARGET_FIELD_INDEX ? expressionEditor.completions : []}
-                    triggerCharacters={expressionEditor.triggerCharacters}
-                    retrieveCompletions={expressionEditor.retrieveCompletions}
-                    extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                    getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                    onFocus={() => handleEditorFocus(TARGET_FIELD_INDEX)}
-                    onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                    onCancel={expressionEditor.onCancel}
-                    onBlur={expressionEditor.onBlur}
-                />
-            </FormStyles.Row>
-            <AssistMark fieldKey={BRANCH_MARKS.target} />
-            </div>
-            <br />
-            {branches.map((branch, index) => {
-                const branchValue = (branch.properties?.patterns?.value as Property[])?.at(0);
-                if (branchValue && !isDefaultBranch(branch)) {
-                    const field = convertNodePropertyToFormField(`branch-${index}`, branchValue);
-                    field.label = `${field.label} ${index + 1}`;
-                    console.log(`>>> match pattern ${index}`, field);
-                    return (
-                        <div key={field.key}>
-                            <FormStyles.Row>
-                                <ExpressionEditor
-                                    {...expressionEditor}
-                                    control={control}
-                                    fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
-                                    field={field}
-                                    setValue={setValue}
-                                    watch={watch}
-                                    openSubPanel={openSubPanel}
-                                    targetLineRange={targetLineRange}
-                                    fileName={fileName}
-                                    onRemove={index !== 0 ? () => removeCondition(index) : undefined}
-                                    completions={activeEditor === index ? expressionEditor.completions : []}
-                                    triggerCharacters={expressionEditor.triggerCharacters}
-                                    retrieveCompletions={expressionEditor.retrieveCompletions}
-                                    extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
-                                    getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
-                                    onFocus={() => handleEditorFocus(index)}
-                                    onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
-                                    onCancel={expressionEditor.onCancel}
-                                    onBlur={expressionEditor.onBlur}
-                                />
-                            </FormStyles.Row>
-                            <AssistMark fieldKey={field.key} />
-                        </div>
-                    );
-                }
-            })}
+            <FormStyles.Container
+                ref={containerRef}
+                tabIndex={-1}
+                onKeyDown={(event: React.KeyboardEvent) => {
+                    if (onSubmit && isSaveShortcut(event) && !disableSaveButton) {
+                        event.preventDefault();
+                        handleSubmit(handleOnSave)();
+                    }
+                }}
+            >
+                {assist?.(() => buildNode(getValues()))}
+                <div>
+                    <FormStyles.Row>
+                        <ExpressionEditor
+                            {...expressionEditor}
+                            control={control}
+                            fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
+                            field={targetField}
+                            setValue={setValue}
+                            watch={watch}
+                            openSubPanel={openSubPanel}
+                            targetLineRange={targetLineRange}
+                            fileName={fileName}
+                            completions={activeEditor === TARGET_FIELD_INDEX ? expressionEditor.completions : []}
+                            triggerCharacters={expressionEditor.triggerCharacters}
+                            retrieveCompletions={expressionEditor.retrieveCompletions}
+                            extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                            getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                            autoFocus={!targetField.value}
+                            onFocus={() => handleEditorFocus(TARGET_FIELD_INDEX)}
+                            onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                            onCancel={expressionEditor.onCancel}
+                            onBlur={expressionEditor.onBlur}
+                        />
+                    </FormStyles.Row>
+                    <AssistMark fieldKey={BRANCH_MARKS.target} />
+                </div>
+                <br />
+                {branches.map((branch, index) => {
+                    const branchValue = (branch.properties?.patterns?.value as Property[])?.at(0);
+                    if (branchValue && !isDefaultBranch(branch)) {
+                        const field = convertNodePropertyToFormField(`branch-${index}`, branchValue);
+                        field.label = `${field.label} ${index + 1}`;
+                        console.log(`>>> match pattern ${index}`, field);
+                        return (
+                            <div key={field.key}>
+                                <FormStyles.Row>
+                                    <ExpressionEditor
+                                        {...expressionEditor}
+                                        control={control}
+                                        fieldInputType={{ fieldType: "EXPRESSION", selected: false }}
+                                        field={field}
+                                        setValue={setValue}
+                                        watch={watch}
+                                        openSubPanel={openSubPanel}
+                                        targetLineRange={targetLineRange}
+                                        fileName={fileName}
+                                        onRemove={index !== 0 ? () => removeCondition(index) : undefined}
+                                        completions={activeEditor === index ? expressionEditor.completions : []}
+                                        triggerCharacters={expressionEditor.triggerCharacters}
+                                        retrieveCompletions={expressionEditor.retrieveCompletions}
+                                        extractArgsFromFunction={expressionEditor.extractArgsFromFunction}
+                                        getExpressionEditorDiagnostics={handleExpressionEditorDiagnostics}
+                                        onFocus={() => handleEditorFocus(index)}
+                                        onCompletionItemSelect={expressionEditor.onCompletionItemSelect}
+                                        onCancel={expressionEditor.onCancel}
+                                        onBlur={expressionEditor.onBlur}
+                                    />
+                                </FormStyles.Row>
+                                <AssistMark fieldKey={field.key} />
+                            </div>
+                        );
+                    }
+                })}
 
-            <div>
-                <LinkButton onClick={addNewCase} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
-                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Case Block
-                </LinkButton>
-                <AssistMark fieldKey={BRANCH_MARKS.cases} />
-            </div>
+                <div>
+                    <LinkButton onClick={addNewCase} sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}>
+                        <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                        Add Case Block
+                    </LinkButton>
+                    <AssistMark fieldKey={BRANCH_MARKS.cases} />
+                </div>
 
-            <div>
-            {!hasDefaultBranch && (
-                <LinkButton
-                    onClick={addDefaultBlock}
-                    sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
-                >
-                    <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Add Default Case Block
-                </LinkButton>
-            )}
+                <div>
+                    {!hasDefaultBranch && (
+                        <LinkButton
+                            onClick={addDefaultBlock}
+                            sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
+                        >
+                            <Codicon name={"add"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                            Add Default Case Block
+                        </LinkButton>
+                    )}
+                    {hasDefaultBranch && (
+                        <LinkButton
+                            onClick={removeDefaultBlock}
+                            sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}
+                        >
+                            <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
+                            Remove Default Case Block
+                        </LinkButton>
+                    )}
+                    <AssistMark fieldKey={BRANCH_MARKS.default} />
+                </div>
 
-            {hasDefaultBranch && (
-                <LinkButton
-                    onClick={removeDefaultBlock}
-                    sx={{ fontSize: 12, padding: 8, color: ThemeColors.ERROR, gap: 4 }}
-                >
-                    <Codicon name={"chrome-minimize"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
-                    Remove Default Case Block
-                </LinkButton>
-            )}
-            <AssistMark fieldKey={BRANCH_MARKS.default} />
-            </div>
-
-            {onSubmit && (
-                <FormStyles.Footer>
-                    <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
-                        {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
-                    </Button>
-                </FormStyles.Footer>
-            )}
-        </FormStyles.Container>
+                {onSubmit && (
+                    <FormStyles.Footer>
+                        <Button appearance="primary" onClick={handleSubmit(handleOnSave)} disabled={disableSaveButton} tooltip={`Save (${SAVE_SHORTCUT_LABEL})`}>
+                            {showProgressIndicator ? <Typography variant="progress">Saving...</Typography> : "Save"}
+                        </Button>
+                    </FormStyles.Footer>
+                )}
+            </FormStyles.Container>
+        </Provider>
     );
 }
 

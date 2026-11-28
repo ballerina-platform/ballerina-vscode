@@ -33,6 +33,8 @@ import {
     ConfigVariableResponse,
     SignatureHelpRequest,
     SignatureHelpResponse,
+    BIGetTypeShapeRequest,
+    BIGetTypeShapeResponse,
     BIGetVisibleVariableTypesRequest,
     BIGetVisibleVariableTypesResponse,
     VisibleTypesRequest,
@@ -186,7 +188,9 @@ export interface BIDiagramAPI {
     createComponent: (params: ComponentRequest) => Promise<CreateComponentResponse>;
     handleReadmeContent: (params: ReadmeContentRequest) => Promise<ReadmeContentResponse>;
     getVisibleVariableTypes: (params: BIGetVisibleVariableTypesRequest) => Promise<BIGetVisibleVariableTypesResponse>;
+    getTypeShape: (params: BIGetTypeShapeRequest) => Promise<BIGetTypeShapeResponse>;
     getExpressionCompletions: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
+    getExpressionCompletionsNow: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
     getDataMapperCompletions: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
     getConfigVariablesV2: (params: ConfigVariableRequest) => Promise<ConfigVariableResponse>;
     updateConfigVariablesV2: (params: UpdateConfigVariableRequestV2) => Promise<UpdateConfigVariableResponseV2>;

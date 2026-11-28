@@ -18,7 +18,8 @@
 
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { ProgressRing, Typography, ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
+import { ProgressRing, Typography } from "@wso2/ui-toolkit";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import {
     EVENT_TYPE, getPrimaryInputType, MACHINE_VIEW,
@@ -212,7 +213,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
         <AssistView>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Service Class" subtitle="Edit Service Class" />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 {!serviceClassModel &&
                     <LoadingContainer>
                         <ProgressRing />
@@ -244,7 +245,7 @@ export function ServiceClassConfig(props: ServiceClassConfigProps) {
                         )}
                     </Container>
                 }
-            </ViewContent>
+            </BrowserViewContent>
         </AssistView >
     );
 }

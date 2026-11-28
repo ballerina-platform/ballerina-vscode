@@ -109,6 +109,9 @@ const EditorRibbon = ({ onClick }: { onClick: () => void }) => {
     );
 };
 
+// A nil default is code, not text a user could type; a text field shows it as empty.
+const NIL_DEFAULT = "()";
+
 export const getEditorConfiguration = (inputMode: InputMode) => {
     switch (inputMode) {
         case InputMode.EXP:
@@ -244,6 +247,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     if (inputMode === InputMode.TEXT) {
         return (
             <TextModeEditor
+                autoFocus={autoFocus}
                 getHelperPane={getHelperPane}
                 isExpandedVersion={false}
                 completions={completions}
@@ -258,7 +262,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
                 onRemove={onRemove}
                 isInExpandedMode={isInExpandedMode}
                 configuration={getEditorConfiguration(inputMode)}
-                placeholder={field.placeholder}
+                placeholder={field.placeholder === NIL_DEFAULT ? undefined : field.placeholder}
                 onLoadingStateChange={onLoadingStateChange}
                 onNormalizeValue={onNormalizeValue}
                 disabled={disabled}
@@ -269,6 +273,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     if (inputMode === InputMode.TEMPLATE) {
         return (
             <TextModeEditor
+                autoFocus={autoFocus}
                 getHelperPane={getHelperPane}
                 isExpandedVersion={false}
                 completions={completions}
@@ -294,6 +299,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     if (inputMode === InputMode.PROMPT) {
         return (
             <TextModeEditor
+                autoFocus={autoFocus}
                 getHelperPane={getHelperPane}
                 isExpandedVersion={false}
                 completions={completions}
@@ -366,6 +372,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     return (
         <ChipExpressionEditorComponent
             key={inputMode}
+            autoFocus={autoFocus}
             getHelperPane={getHelperPane}
             isExpandedVersion={false}
             completions={completions}

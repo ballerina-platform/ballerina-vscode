@@ -50,6 +50,7 @@ export const ExpressionMode: React.FC<EditorModeExpressionProps> = ({
         <>
             <ExpressionContainer>
                 <ChipExpressionEditorComponent
+                    autoFocus
                     value={value}
                     onChange={handleChange}
                     completions={completions}

@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { CodeContext, CodeData, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
-import { FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues, configLiteral } from "@wso2/ballerina-side-panel";
+import { CodeContext, CodeData, ConfigVariable, ExpressionAssistAction, ExpressionAssistResponse, FlowNode, FormAssistRequest, FormAssistResponse, Imports, LineRange, LinePosition } from "@wso2/ballerina-core";
+import { ConfigurableSeed, SECRET_VALUE, FormAssistContext, FormAssistDescription, FormExpressionEditorProps, FormImports, FormValues, configLiteral } from "@wso2/ballerina-side-panel";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { RemoveEmptyNodesVisitor, traverseNode } from "@wso2/bi-diagram";
 import { URI, Utils } from "vscode-uri";
@@ -184,6 +184,33 @@ export async function assistFormInForm(
     });
 }
 
+// A new configurable's node; one created from a test file belongs to that file.
+export async function configurableTemplate(rpcClient: BallerinaRpcClient, fileName: string): Promise<FlowNode> {
+    const { flowNode } = await rpcClient.getBIDiagramRpcClient().getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
+    if (fileName.includes("/tests/")) {
+        flowNode.codedata.data = { ...flowNode.codedata.data, filePath: fileName };
+    }
+    return flowNode;
+}
+
+// Declares the configurable in config.bal; a `configValue` also goes to Config.toml.
+export async function saveConfigurable(rpcClient: BallerinaRpcClient, projectPath: string, node: FlowNode): Promise<void> {
+    const toml = await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
+    node.properties.defaultValue.modified = true;
+    const configValue = node.properties.configValue;
+    if (configValue?.value) {
+        // Config.toml takes a literal; the secret field holds plain text.
+        configValue.value = configValue.codedata?.kind === SECRET_VALUE ? JSON.stringify(configValue.value) : configValue.value;
+        configValue.modified = true;
+    }
+    await rpcClient.getBIDiagramRpcClient().updateConfigVariablesV2({
+        configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
+        configVariable: node,
+        packageName: `${toml?.package?.org}/${toml?.package?.name}`,
+        moduleName: "",
+    });
+}
+
 // Closing the form loses what the user typed, so a value that differs from the source is kept as their edit.
 const FORM_VALUES = "The form's current values follow. A value that differs from the source is an edit the user made in the form and has not saved yet: keep it as part of this change.";
 
@@ -206,28 +233,17 @@ export async function runAssistActions(
     actions: ExpressionAssistAction[],
     fieldValue: string
 ): Promise<() => Promise<void>> {
-    const diagram = rpcClient.getBIDiagramRpcClient();
     const { projectPath } = await rpcClient.getVisualizerLocation();
     const toml = await rpcClient.getCommonRpcClient().getCurrentProjectTomlValues();
     const packageName = `${toml?.package?.org}/${toml?.package?.name}`;
     for (const { name, type, documentation, useFieldValue } of actions) {
-        const { flowNode: node } = await diagram.getConfigVariableNodeTemplate({ isNew: true, isEnvVariable: false });
-        // One created from a test file belongs to that file.
-        if (fileName.includes("/tests/")) {
-            node.codedata.data = { ...node.codedata.data, filePath: fileName };
-        }
+        const node = await configurableTemplate(rpcClient, fileName);
         setProperty(node, "variable", name);
         setProperty(node, "type", type);
         setProperty(node, "documentation", documentation);
         // A `configValue` also goes to Config.toml, which holds only plain values; an expression would make it invalid.
         setProperty(node, "configValue", useFieldValue && configLiteral(fieldValue) ? fieldValue.trim() : undefined);
-        node.properties.defaultValue.modified = true;
-        await diagram.updateConfigVariablesV2({
-            configFilePath: Utils.joinPath(URI.file(projectPath), "config.bal").fsPath,
-            configVariable: node,
-            packageName,
-            moduleName: "",
-        });
+        await saveConfigurable(rpcClient, projectPath, node);
     }
     return () => removeConfigurables(rpcClient, projectPath, packageName, actions.map(({ name }) => name));
 }
@@ -248,6 +264,34 @@ async function removeConfigurables(rpcClient: BallerinaRpcClient, projectPath: s
             });
         }
     }
+}
+
+// Names of the project's configurables of a type, e.g. the `string` ones for an API key field.
+export async function listConfigurables(rpcClient: BallerinaRpcClient, type: string): Promise<string[]> {
+    const { projectPath } = await rpcClient.getVisualizerLocation();
+    const response = await rpcClient.getBIDiagramRpcClient().getConfigVariablesV2({ includeLibraries: false, projectPath });
+    const byModule = Object.values(response?.configVariables ?? {}) as unknown as Record<string, ConfigVariable[]>[];
+    const base = type.replace(/\?$/, "");
+    return byModule.flatMap((modules) => Object.values(modules).flat())
+        .filter((variable) => String(variable.properties?.type?.value ?? "").replace(/\?$/, "") === base)
+        .map((variable) => String(variable.properties?.variable?.value));
+}
+
+// Fills the New Configurable form for a field: its type is fixed, and the value goes to Config.toml, never to the code.
+export function seedConfigurable(node: FlowNode, { name, type, documentation, value }: ConfigurableSeed) {
+    setProperty(node, "variable", name);
+    setProperty(node, "type", type);
+    setProperty(node, "documentation", documentation);
+    const { type: typeProperty, defaultValue, documentation: docs, configValue } = node.properties;
+    typeProperty.editable = false;
+    defaultValue.hidden = true;
+    docs.hidden = true;
+    Object.assign(configValue, {
+        hidden: false,
+        value: value ?? "",
+        metadata: { label: "Value", description: "Saved in Config.toml." },
+        codedata: { ...configValue.codedata, kind: SECRET_VALUE },
+    });
 }
 
 function setProperty(node: FlowNode, key: string, value: string | undefined) {

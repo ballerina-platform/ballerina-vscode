@@ -532,6 +532,7 @@
             "types": [
               {
                 "fieldType": "ACTION_OR_EXPRESSION",
+                "ballerinaType": "string|error",
                 "selected": true
               }
             ],

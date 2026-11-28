@@ -62,8 +62,9 @@ const ModalBox = styled.div<{ width?: number; height?: number }>`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px;
-  border-radius: 3px;
+  /* The expanded editor's insets and corners, so every modal reads the same. */
+  padding: 20px 24px 24px;
+  border-radius: var(--vscode-cornerRadius-xLarge, 12px);
   background-color: ${ThemeColors.SURFACE_DIM};
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
   z-index: 2100;

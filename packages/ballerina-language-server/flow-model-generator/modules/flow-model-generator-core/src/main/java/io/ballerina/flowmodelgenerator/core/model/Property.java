@@ -868,7 +868,7 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                                     String label = CommonUtils.removeQuotes(symbol.signature());
                                     options.add(new Option(label, symbol.signature()));
                                 }
-                            } else if (memberTypeKind != TypeDescKind.NIL) {
+                            } else if (memberTypeKind != TypeDescKind.NIL && !isObjectList(symbol)) {
                                 // A nil member stands for no value, which no entry of a dropdown can offer and
                                 // no input mode of its own can express, hence it is left to the expression mode.
                                 otherTypes.add(symbol);
@@ -1035,6 +1035,12 @@ public record Property(Metadata metadata, List<PropertyType> types, Object value
                 }
             }
             return value instanceof TypeDescriptorNode;
+        }
+
+        // A list of objects such as mime:Entity[] is built from variables, so the expression mode covers it.
+        private static boolean isObjectList(TypeSymbol typeSymbol) {
+            return CommonUtil.getRawType(typeSymbol) instanceof ArrayTypeSymbol arrayType
+                    && CommonUtil.getRawType(arrayType.memberTypeDescriptor()).typeKind() == TypeDescKind.OBJECT;
         }
 
         private void handleListValue(TypeSymbol typeSymbol, ModuleInfo moduleInfo, Builder<?> builder,

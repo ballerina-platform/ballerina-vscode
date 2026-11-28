@@ -1,0 +1,12 @@
+{
+  "description": "A union of strings lists each string",
+  "source": "type_shape/main.bal",
+  "type": "Intent",
+  "shape": {
+    "values": [
+      "\"CAPTURE\"",
+      "\"AUTHORIZE\""
+    ],
+    "fields": {}
+  }
+}

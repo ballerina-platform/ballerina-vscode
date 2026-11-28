@@ -69,6 +69,7 @@ jest.mock("../../../../views/BI/Forms/ArtifactForm", () => ({
 }));
 
 jest.mock("../../../../components/TitleBar", () => ({ __esModule: true, TitleBar: (): null => null, AssistView: ({ children }: any) => <div>{children}</div> }));
+jest.mock("../../../../views/BI/DataBrowser", () => ({ __esModule: true, BrowserViewContent: ({ children }: any) => <div>{children}</div> }));
 jest.mock("../../../../components/ConnectionSelector/useCreateNode", () => ({ __esModule: true, useCreateNode: (): (() => void) => () => undefined }));
 jest.mock("../../../../components/TopNavigationBar", () => ({ __esModule: true, TopNavigationBar: (): null => null }));
 jest.mock("../../../../components/FormHeader", () => ({ __esModule: true, FormHeader: (): null => null }));

@@ -19,7 +19,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { cloneDeep } from 'lodash';
 import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, deriveBasePath, isDefaultModelProviderExpr, toKebabCase } from '@wso2/ballerina-core';
-import { Button, ViewContent } from '@wso2/ui-toolkit';
+import { BrowserViewContent } from "../DataBrowser";
+import { Button } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { AssistView, TitleBar } from '../../../components/TitleBar';
@@ -264,7 +265,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 title="Chat Agent Service"
                 subtitle="Create a conversational AI agent using an LLM, prompts and tools."
             />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 {isCreating ? (
                     <LoaderContainer>
                         <RelativeLoader message={steps[currentStep].description} />
@@ -303,7 +304,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                         <RelativeLoader />
                     </LoaderContainer>
                 )}
-            </ViewContent>
+            </BrowserViewContent>
         </AssistView>
     );
 }

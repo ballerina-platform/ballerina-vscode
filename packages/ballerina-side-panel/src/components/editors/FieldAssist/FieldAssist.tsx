@@ -68,7 +68,7 @@ export interface AssistState {
 }
 
 // Lets the field's own toolbar open the helper without threading props through every editor variant.
-export const FieldAssistContext = createContext<{ open: (from?: HTMLElement) => void; isOpen: boolean } | undefined>(undefined);
+export const FieldAssistContext = createContext<{ open: (from?: HTMLElement, draft?: string) => void; isOpen: boolean } | undefined>(undefined);
 
 export function AssistButton({ disabled }: { disabled?: boolean }) {
     const assist = useContext(FieldAssistContext);

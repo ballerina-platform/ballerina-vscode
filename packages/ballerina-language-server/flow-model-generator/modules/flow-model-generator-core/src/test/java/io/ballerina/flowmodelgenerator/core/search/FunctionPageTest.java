@@ -113,6 +113,9 @@ public class FunctionPageTest {
         Assert.expectThrows(IllegalStateException.class,
                 () -> FunctionPage.library(5, 100, FunctionSource.INDEX, (take, skip) -> null, failingIndex,
                         row -> row));
+        // A first page that names its source still keeps the other results.
+        var named = FunctionPage.library(5, 0, FunctionSource.INDEX, (take, skip) -> null, failingIndex, row -> row);
+        Assert.assertTrue(named.rows().isEmpty());
     }
 
     @Test

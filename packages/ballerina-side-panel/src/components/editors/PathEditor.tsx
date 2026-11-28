@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FormField } from "../Form/types";
 import { TextField } from "@wso2/ui-toolkit";
 import { useFormContext } from "../../context";
@@ -31,6 +31,16 @@ import { buildValidate } from "../Form/validationRules";
 import { dedupeMessages } from "../Form/DiagnosticsStore";
 import { debounce } from "lodash";
 import { FieldTypeChip } from "./FieldTypeChip";
+import { useInsertTarget } from "../../context/insertTarget";
+
+// Inserts `[value]` as its own segment of a client resource path, at the caret.
+const withPathParam = (path: string, caret: number, value: string) => {
+    const before = path.slice(0, caret);
+    const after = path.slice(caret);
+    const lead = before.endsWith("/") ? "" : "/";
+    const trail = !after || after.startsWith("/") ? "" : "/";
+    return { path: `${before}${lead}[${value}]${trail}${after}`, caret: caret + lead.length + value.length + 2 };
+};
 
 interface PathEditorProps {
     field: FormField;
@@ -41,7 +51,8 @@ interface PathEditorProps {
 export function PathEditor(props: PathEditorProps) {
     const { field, handleOnFieldFocus, autoFocus } = props;
     const { form } = useFormContext();
-    const { register, setError, clearErrors, trigger, watch, formState: { errors } } = form;
+    const { register, setError, clearErrors, trigger, watch, setValue, formState: { errors } } = form;
+    const textFieldRef = useRef<HTMLElement & { control?: HTMLInputElement }>(null);
 
     const [pathErrorMsg, setPathErrorMsg] = useState<string>(field.diagnostics?.map((diagnostic) => diagnostic.message).join("\n"));
 
@@ -82,15 +93,33 @@ export function PathEditor(props: PathEditorProps) {
         pathErrorMsg,
     ]).join("\n");
 
+    const insertPathParam = (value: string) => {
+        const input = textFieldRef.current?.control;
+        const current = String(watch(field.key) ?? "");
+        const next = withPathParam(current, input?.selectionStart ?? current.length, value);
+        setValue(field.key, next.path, { shouldDirty: true });
+        validatePath(next.path);
+        input?.focus();
+        input?.setSelectionRange(next.caret, next.caret);
+    };
+    const isActionPath = field.type === "ACTION_PATH";
+    const { register: registerInsertTarget, drop: dropInsert } = useInsertTarget(insertPathParam, field);
+
+    const { ref: registerRef, ...registered } = register(field.key, {
+        required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
+        value: field.value,
+        validate: buildValidate(field)
+    });
+
     return (
         <TextField
             id={field.key}
             name={field.key}
-            {...register(field.key, {
-                required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-                value: field.value,
-                validate: buildValidate(field)
-            })}
+            {...registered}
+            ref={(element) => {
+                registerRef(element);
+                textFieldRef.current = element;
+            }}
             label={capitalize(field.label)}
             labelAdornment={<FieldTypeChip types={field.types} />}
             required={!field.optional}
@@ -100,7 +129,11 @@ export function PathEditor(props: PathEditorProps) {
             sx={{ width: "100%" }}
             errorMsg={errorMsg}
             onKeyUp={(e) => validatePath(e.currentTarget.value)}
-            onFocus={() => handleOnFieldFocus?.(field.key)}
+            onFocus={() => {
+                handleOnFieldFocus?.(field.key);
+                isActionPath && field.editable && registerInsertTarget();
+            }}
+            onDrop={(event: React.DragEvent) => isActionPath && dropInsert(event)}
             autoFocus={autoFocus}
         />
     );

@@ -41,7 +41,7 @@ import { DownloadIcon } from "../../../../components/DownloadIcon";
 import { FormSubmitOptions } from "../../FlowDiagram";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
-import { PopupOverlay, PopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
+import { PopupOverlay, ConnectionPopupContainer, PopupHeader as ConfigHeader, BackButton, HeaderTitleContainer as ConfigTitleContainer, PopupTitle, PopupSubtitle as ConfigSubtitle, CloseButton } from "../styles";
 
 const ConnectorInfoCard = styled.div`
     display: flex;
@@ -158,8 +158,12 @@ const ConfigContent = styled.div<{ hasFooterButton?: boolean }>`
     display: flex;
     flex-direction: column;
     overflow: ${(props: { hasFooterButton?: boolean }) => props.hasFooterButton ? "hidden" : "auto"};
-    padding: 0 16px ${(props: { hasFooterButton?: boolean }) => props.hasFooterButton ? "0" : "24px"} 16px;
+    padding: 0 24px 24px;
     min-height: 0;
+    /* The popup pads the form, as modal popups do, so the form and its Data Browser end on the same line. */
+    & .side-panel-body {
+        padding: 0 4px;
+    }
 `;
 
 const FormContainer = styled.div<{}>`
@@ -228,7 +232,7 @@ export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopup
     return (
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <ConfigHeader>
                     <BackButton appearance="icon" onClick={onBack}>
                         <Codicon name="chevron-left" />
@@ -246,7 +250,7 @@ export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopup
                 </ConfigHeader>
 
                 <ConnectionConfigurationForm {...props} />
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </>
     );
 }

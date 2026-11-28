@@ -17,7 +17,7 @@
  */
 
 import { FrameLocator, Locator } from '@playwright/test';
-import { clickArtifactCard, reacquireWindow, webviewFrame } from '../utils/helpers';
+import { clickArtifactCard, openDataBrowser, reacquireWindow, webviewFrame } from '../utils/helpers';
 import { Diagram, ProjectExplorer, SidePanel } from '../utils/pages';
 import { DocJourney as Journey } from './doc-journey';
 
@@ -244,42 +244,37 @@ export class Integrator {
         await this.page.waitForTimeout(300);
     }
 
-    // Fills a field from its value helper as the docs say ("Inputs > orderInfo > customerEmail"): first entry is the
-    // helper section, last is the value, each one between opens a record with its chevron.
+    // Fills a field from the Data Browser as the docs say ("Inputs > orderInfo > customerEmail"): first entry is the
+    // section or group, last is the value, each one between opens a record.
     async pick(scope: FrameLocator | Locator, fieldNames: Names, path: Names[]): Promise<void> {
         const [section, ...rest] = path;
-        const first = asNames(rest[0] ?? section);
-        // The helper loads its lists after it opens; a section clicked too early shows nothing. The whole
-        // open-section-find sequence is retried before giving up.
-        for (let attempt = 0; ; attempt++) {
-            const input = await this.field(scope, fieldNames);
-            await this.j.click(input);
-            await this.page.keyboard.press('End');
-            const frame = await this.view();
-            await this.j.click(await this.text(frame, section));
-            await this.page.waitForTimeout(600);
-            const firstRow = frame.locator('p').filter({ hasText: new RegExp(`^${escapeRegExp(first.doc)}$`) }).last();
-            const ready = await firstRow.waitFor({ state: 'visible', timeout: 10000 }).then(() => true).catch(() => false)
-                || first.ui !== undefined;
-            if (!ready && attempt < 2) {
-                await this.dismiss();
-                continue;
-            }
-            for (const [i, part] of rest.entries()) {
-                const row = await this.j.resolve(asNames(part), (name) =>
-                    frame.locator('p').filter({ hasText: new RegExp(`^${escapeRegExp(name)}$`) }).last());
-                if (i < rest.length - 1) {
-                    const chevron = row.locator('xpath=ancestor::*[.//*[contains(@class,"codicon-chevron-right")]][1]')
-                        .locator('.codicon-chevron-right').first();
-                    await this.j.click(chevron);
-                    await this.page.waitForTimeout(500);
-                } else {
+        const input = await this.field(scope, fieldNames);
+        await this.j.click(input);
+        await this.page.keyboard.press('End');
+        const frame = await this.view();
+        await openDataBrowser(frame, input);
+        // A group (Variables, Configurables) opens on click; the Inputs heading does nothing.
+        await this.j.click(await this.text(frame, section));
+        for (const [i, part] of rest.entries()) {
+            // A row's title is its access path and type: "order.customer?.city:  string".
+            const row = await this.j.resolve(asNames(part), (name) => frame.locator(i === 0
+                ? `[role="treeitem"][title^="${name}:"]`
+                : `[role="treeitem"][aria-level="${i + 1}"][title*=".${name}:"]`).last());
+            const expanded = await row.getAttribute('aria-expanded');
+            if (i < rest.length - 1) {
+                if (expanded !== 'true') {
                     await this.j.click(row);
+                    await this.page.waitForTimeout(500);
                 }
+            } else if (expanded === null) {
+                await this.j.click(row);
+            } else {
+                // A record row opens on click; its Insert button shows on hover.
+                await this.j.hover(row);
+                await this.j.click(row.getByRole('button', { name: 'Insert' }));
             }
-            await this.page.waitForTimeout(400);
-            return;
         }
+        await this.page.waitForTimeout(400);
     }
 
     // Clicks the open icon on a diagram node ("View function flow"), opening the function behind it, and waits until

@@ -20,8 +20,9 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import styled from "@emotion/styled";
 import { ConfigProperties, ConfigVariable, DIRECTORY_MAP, getPrimaryInputType, isSamePath, LineRange, ListenerModel, ModelResolutionError, NodePosition, ProjectStructureArtifactResponse, PropertyModel, ServiceModel } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { BrowserViewContent } from "../DataBrowser";
 import { AssistActionEntry, AssistAsk } from "@wso2/ballerina-side-panel";
-import { Button, Codicon, Icon, LinkButton, ProgressRing, SidePanelBody, SplitView, TabPanel, ThemeColors, TreeView, TreeViewItem, Typography, ViewContent } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, LinkButton, ProgressRing, SidePanelBody, SplitView, TabPanel, ThemeColors, TreeView, TreeViewItem, Typography } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { AssistView, TitleBar } from "../../../components/TitleBar";
 import ListenerConfigForm from "./Forms/ListenerConfigForm";
@@ -821,7 +822,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                 serviceModel && (
                     <>
                         <TitleBar title={`${getDisplayServiceName(serviceModel)} Configuration`} subtitle="Configure and manage service details" onBack={handleGoBack} />
-                        <ViewContent padding>
+                        <BrowserViewContent padding>
                             <ConnectorUpgradeBanner orgName={serviceModel.orgName} packageName={serviceModel.packageName} />
                             {/* The negative margin runs the split through ViewContent's bottom padding, so the divider reaches the page bottom. */}
                             <div style={{ flex: 1, minHeight: 0, marginBottom: -20 }}>
@@ -1017,7 +1018,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                     </SplitView>
                                 </div>
                             </div>
-                        </ViewContent >
+                        </BrowserViewContent>
                     </>
                 )}
         </AssistView >

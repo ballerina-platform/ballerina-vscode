@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { FlowNode, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ViewContent } from "@wso2/ui-toolkit";
+import { BrowserViewContent } from "../DataBrowser";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { AssistView, TitleBar } from "../../../components/TitleBar";
 import { AgentToolForm } from "./AgentToolForm";
@@ -88,7 +88,7 @@ export function AgentToolFormView(props: AgentToolFormViewProps) {
         <AssistView onHandedOff={() => { handedOffRef.current = true; }}>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar title="Agent Tool" subtitle="Build a tool that can be used by AI agents" />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 <FormContainer onKeyDownCapture={editedHere} onPointerDownCapture={editedHere}>
                     <AgentScopeProvider value={scopeOf(agent, "TOOL")}>
                         {filePath && <AgentToolForm
@@ -103,7 +103,7 @@ export function AgentToolFormView(props: AgentToolFormViewProps) {
                         />}
                     </AgentScopeProvider>
                 </FormContainer>
-            </ViewContent>
+            </BrowserViewContent>
         </AssistView>
     );
 }

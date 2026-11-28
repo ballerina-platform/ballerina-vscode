@@ -37,6 +37,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class ResolvedFunctionCatalogTest {
     private static SearchResult row(String org, String module, String version, String name) {
@@ -265,5 +269,38 @@ public class ResolvedFunctionCatalogTest {
         Assert.assertEquals(catalog.matching("sample").size(), 600);
         Assert.assertEquals(catalog.matching("function74").size(), 8);
         Assert.assertEquals(catalog.matching("sample.sub7").size(), 75);
+    }
+
+    @Test
+    public void organizationPagesAdmitRowsConcurrently() throws Exception {
+        ResolvedFunctionCatalog catalog = new ResolvedFunctionCatalog(
+                Map.of("ballerina/sample", "1.0.0", "ballerinax/sample", "1.0.0"), Map.of(), Set.of(), pkg -> {
+                    try {
+                        Thread.sleep(2);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return Map.of("f", "rebased");
+                });
+        CyclicBarrier start = new CyclicBarrier(2);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        List<Future<List<SearchResult>>> pages = new ArrayList<>();
+        for (String org : List.of("ballerina", "ballerinax")) {
+            pages.add(pool.submit(() -> {
+                start.await();
+                List<SearchResult> admitted = new ArrayList<>();
+                for (int i = 0; i < 100; i++) {
+                    admitted.add(catalog.admit(row(org, "m" + i, "2.0.0", "f")));
+                }
+                return admitted;
+            }));
+        }
+        try {
+            for (Future<List<SearchResult>> page : pages) {
+                Assert.assertTrue(page.get().stream().allMatch(row -> row.packageInfo().version().equals("1.0.0")));
+            }
+        } finally {
+            pool.shutdown();
+        }
     }
 }

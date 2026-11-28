@@ -23,6 +23,7 @@ import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NodeParser;
+import io.ballerina.flowmodelgenerator.core.TypeShapeFinder;
 import io.ballerina.flowmodelgenerator.core.TypesGenerator;
 import io.ballerina.flowmodelgenerator.core.VisibleVariableTypesGenerator;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.Debouncer;
@@ -43,9 +44,11 @@ import io.ballerina.flowmodelgenerator.extension.request.ExpressionEditorSignatu
 import io.ballerina.flowmodelgenerator.extension.request.ExpressionEditorTypesRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FunctionCallTemplateRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ImportModuleRequest;
+import io.ballerina.flowmodelgenerator.extension.request.TypeShapeRequest;
 import io.ballerina.flowmodelgenerator.extension.request.VisibleVariableTypeRequest;
 import io.ballerina.flowmodelgenerator.extension.response.FunctionCallTemplateResponse;
 import io.ballerina.flowmodelgenerator.extension.response.ImportModuleResponse;
+import io.ballerina.flowmodelgenerator.extension.response.TypeShapeResponse;
 import io.ballerina.flowmodelgenerator.extension.response.VisibleVariableTypesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ImportPrefixReader;
@@ -57,6 +60,7 @@ import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManagerProxy;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
@@ -115,6 +119,30 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
                         semanticModel.get(), document, CommonUtils.getPosition(request.position(), document));
                 JsonArray visibleVariableTypes = visibleVariableTypesGenerator.getVisibleVariableTypes();
                 response.setCategories(visibleVariableTypes);
+            } catch (Throwable e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<TypeShapeResponse> typeShape(TypeShapeRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            TypeShapeResponse response = new TypeShapeResponse();
+            try {
+                // The saved source's model, so the lookup never waits on the copy that completions edit.
+                Path filePath = Path.of(request.filePath());
+                WorkspaceManager workspaceManager = workspaceManagerProxy.get();
+                workspaceManager.loadProject(filePath);
+                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
+                Optional<Document> document = workspaceManager.document(filePath);
+                if (semanticModel.isPresent() && document.isPresent()) {
+                    TypeShapeFinder.TypeShape shape =
+                            TypeShapeFinder.find(semanticModel.get(), document.get(), request.type());
+                    response.setValues(shape.values());
+                    response.setFields(shape.fields());
+                }
             } catch (Throwable e) {
                 response.setError(e);
             }

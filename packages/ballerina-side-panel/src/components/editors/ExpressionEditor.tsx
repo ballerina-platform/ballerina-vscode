@@ -566,10 +566,13 @@ function useExpressionFieldAssist(props: ExpressionFieldAssistProps) {
     }, [hosted, host?.shownScope]);
     const assistContext = useMemo(
         () => (assist.available ? {
-            open: (from?: HTMLElement) => {
+            open: (from?: HTMLElement, draft?: string) => {
                 assistTarget.current = from ?? null;
-                if (reviseInCard(host, markKey)) {
+                if (!draft && reviseInCard(host, markKey)) {
                     return;
+                }
+                if (draft) {
+                    host?.setDraft(draft);
                 }
                 if (!hosted) {
                     assist.toggle();

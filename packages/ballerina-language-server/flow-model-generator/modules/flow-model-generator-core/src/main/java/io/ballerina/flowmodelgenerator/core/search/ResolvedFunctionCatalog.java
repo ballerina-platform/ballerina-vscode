@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -73,7 +74,8 @@ final class ResolvedFunctionCatalog {
     private final Set<ModuleCoordinate> imports;
     // Public function names of a resolved module mapped to their descriptions, or null when they cannot be read.
     private final Function<SearchResult.Package, Map<String, String>> resolvedSurface;
-    private final Map<String, Optional<Map<String, String>>> surfaces = new HashMap<>();
+    // The organizations' library pages admit rows on separate threads.
+    private final Map<String, Optional<Map<String, String>>> surfaces = new ConcurrentHashMap<>();
 
     ResolvedFunctionCatalog(Map<String, String> versions, Map<ModuleCoordinate, List<SearchResult>> functions,
                             Set<ModuleCoordinate> imports) {

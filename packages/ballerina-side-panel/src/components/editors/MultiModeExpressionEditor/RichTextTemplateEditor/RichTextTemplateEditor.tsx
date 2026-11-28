@@ -18,7 +18,7 @@
 
 import React, { useEffect, useRef } from "react";
 import styled from "@emotion/styled";
-import { EditorState, Plugin } from "prosemirror-state";
+import { EditorState, Plugin, TextSelection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { keymap } from "prosemirror-keymap";
 import { history, undo, redo } from "prosemirror-history";
@@ -31,7 +31,8 @@ import { ThemeColors, CompletionItem, FnSignatureDocumentation, HelperPaneHeight
 import { LineRange } from "@wso2/ballerina-core/lib/interfaces/common";
 import { HelperpaneOnChangeOptions } from "../../../Form/types";
 import { useFormContext } from "../../../../context/form";
-import { createChipPlugin, createChipSchema, updateChipTokens } from "./plugins/chipPlugin";
+import { chipRemovalStart, createChipPlugin, createChipSchema, updateChipTokens } from "./plugins/chipPlugin";
+import { clearDropCursor, createDropCursorPlugin, NEW_LINE } from "./plugins/dropCursorPlugin";
 import { createXMLTagDecorationPlugin } from "./plugins/xmlTagDecorationPlugin";
 import { createPlaceholderPlugin } from "./plugins/placeholderPlugin";
 import { createTablePlugins, fixTables } from "./plugins/tablePlugin";
@@ -51,9 +52,88 @@ import {
     exitBlockOnArrowDown
 } from "./plugins/markdownCommands";
 import { HELPER_PANE_WIDTH } from "../ChipExpressionEditor/constants";
-import { calculateHelperPanePosition, processFunctionWithArguments } from "../ChipExpressionEditor/utils";
+import { calculateHelperPanePosition, isInsideInterpolation, processFunctionWithArguments } from "../ChipExpressionEditor/utils";
+import { operandPadding } from "../ChipExpressionEditor/CodeUtils";
 import { useHelperPaneClickOutside, useHelperPane } from "../ChipExpressionEditor/hooks/useHelperPane";
 import { ChipExpressionEditorDefaultConfiguration } from "../ChipExpressionEditor/ChipExpressionDefaultConfig";
+import { useInsertTarget } from "../../../../context/insertTarget";
+
+const isInCode = (view: EditorView, pos: number) => isInsideInterpolation(view.state.doc.textBetween(0, pos));
+
+// A drop inside an interpolation lands inside a call's parentheses; in prose it lands after the word under the pointer.
+const placeDrop = (view: EditorView, pos: number): number => {
+    const { doc } = view.state;
+    const $pos = doc.resolve(pos);
+    const after = $pos.nodeAfter?.isText ? $pos.nodeAfter.text : "";
+    if (isInCode(view, pos)) {
+        const callHead = /^[\w:]*\(/.exec(after);
+        return callHead ? pos + callHead[0].length : doc.textBetween(Math.max(0, pos - 2), pos) === "()" ? pos - 1 : pos;
+    }
+    const before = $pos.nodeBefore?.isText ? $pos.nodeBefore.text : "";
+    return /\w$/.test(before) ? pos + (/^\w*/.exec(after)?.[0].length ?? 0) : pos;
+};
+
+// Below the last line, a drop starts a new line.
+const dropTarget = (view: EditorView, event: MouseEvent): number | null => {
+    if (event.clientY > (view.dom.lastElementChild?.getBoundingClientRect().bottom ?? Infinity)) {
+        return NEW_LINE;
+    }
+    const hit = view.posAtCoords({ left: event.clientX, top: event.clientY });
+    return hit ? placeDrop(view, hit.pos) : null;
+};
+
+// Keeps an inserted value from running into the word or value beside it.
+const neighbourSpaces = (view: EditorView, from: number, to: number): [string, string] => {
+    const { doc } = view.state;
+    const before = doc.textBetween(Math.max(0, from - 1), from);
+    const after = doc.textBetween(to, Math.min(doc.content.size, to + 1));
+    if (isInCode(view, from)) {
+        return operandPadding(before, after);
+    }
+    return [/[^\s([{"'`]/.test(before) ? " " : "", /[\w$]/.test(after) ? " " : ""];
+};
+
+// The dragged slice shares its node with the document, which gives the drag's source range.
+const findNode = (view: EditorView, target: unknown): { from: number; to: number } | undefined => {
+    let found: { from: number; to: number } | undefined;
+    view.state.doc.descendants((node, pos) => {
+        if (node === target) {
+            found = { from: pos, to: pos + node.nodeSize };
+        }
+        return !found;
+    });
+    return found;
+};
+
+// A chip moved inside an interpolation drops its own ${…}, and lands spaced from its neighbours.
+const moveDraggedChip = (view: EditorView, event: DragEvent): boolean => {
+    const chip = view.dragging?.slice.content.firstChild;
+    const source = chip && findNode(view, chip);
+    const target = dropTarget(view, event);
+    if (!view.dragging?.move || chip?.type.name !== "chip" || !source || target === null) {
+        return false;
+    }
+    event.preventDefault();
+    // ProseMirror's own drop clears this; the source chip is removed before its dragend can.
+    view.dragging = null;
+    if (target >= source.from && target <= source.to) {
+        return true;
+    }
+    const { schema } = view.state;
+    const tr = (view.state.tr as any).delete(chipRemovalStart(view.state.doc, source.from, source.to), source.to);
+    if (target === NEW_LINE) {
+        view.dispatch(tr.insert(tr.doc.content.size, schema.nodes.paragraph.create(null, chip)));
+        view.focus();
+        return true;
+    }
+    const [before, after] = neighbourSpaces(view, target, target);
+    const code = /^\$\{([\s\S]*)\}$/.exec(chip.attrs.text)?.[1];
+    const moved = isInCode(view, target) && code ? schema.text(code) : chip;
+    const nodes = [before && schema.text(before), moved, after && schema.text(after)].filter(Boolean);
+    view.dispatch(tr.insert(tr.mapping.map(target), nodes));
+    view.focus();
+    return true;
+};
 
 const EditorContainer = styled.div<{ readOnly?: boolean }>`
     flex: 1;
@@ -77,6 +157,16 @@ const EditorContainer = styled.div<{ readOnly?: boolean }>`
 
     .ProseMirror p {
         margin: 0.5em 0;
+    }
+
+    .ProseMirror .pm-drop-cursor {
+        display: inline-block;
+        width: 0;
+        height: 1.2em;
+        margin-left: -1px;
+        border-left: 2px solid ${ThemeColors.ON_SURFACE};
+        vertical-align: text-bottom;
+        pointer-events: none;
     }
 
     .ProseMirror h1,
@@ -446,43 +536,28 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
 
         // Check if selection is on a chip/token
         const isOnChip = helperPaneState.clickedChipPos !== undefined && helperPaneState.clickedChipNode;
-        const transformedValue = configuration.getHelperValue(selectedValue);
+        const insertPos = isOnChip ? helperPaneState.clickedChipPos! : view.state.selection.from;
+        const transformedValue = isInsideInterpolation(view.state.doc.textBetween(0, insertPos))
+            ? selectedValue
+            : configuration.getHelperValue(selectedValue);
 
-        let finalValue = transformedValue;
-        let cursorPosition: number;
+        const finalValue = transformedValue;
+        let caretOffset = finalValue.length;
 
-        // HACK: this should be handled properly with completion items template
-        // current API response sends an incorrect response
-        // if API sends $1,$2.. for the arguments in the template
-        // then we can directly handled it without explicitly calling the API
-        // and extracting args
-        if (transformedValue.endsWith('()') || transformedValue.endsWith(')}')) {
-            if (extractArgsFromFunction) {
-                const result = await processFunctionWithArguments(transformedValue, extractArgsFromFunction);
-                finalValue = result.finalValue;
+        // Chips here cannot be edited, so a call goes in without $1 placeholders, with the caret inside its parentheses when it takes arguments.
+        if (extractArgsFromFunction && /\(\)\}?$/.test(transformedValue)) {
+            const result = await processFunctionWithArguments(transformedValue, extractArgsFromFunction);
+            if (result.finalValue !== transformedValue) {
+                caretOffset = transformedValue.lastIndexOf("(") + 1;
             }
         }
 
-        // If a chip was clicked, replace it
-        if (isOnChip) {
-            const chipPos = helperPaneState.clickedChipPos!;
-            const chipNode = helperPaneState.clickedChipNode;
-            const chipSize = chipNode.nodeSize;
-
-            // Replace the chip with the new text
-            const textNode = view.state.schema.text(finalValue);
-            const tr = view.state.tr;
-            (tr as any).replaceRangeWith(chipPos, chipPos + chipSize, textNode);
-            view.dispatch(tr);
-
-            cursorPosition = chipPos + finalValue.length;
-        } else {
-            // Insert at current cursor position
-            const { from, to } = view.state.selection;
-            const tr = view.state.tr.insertText(finalValue, from, to);
-            view.dispatch(tr);
-            cursorPosition = from + finalValue.length;
-        }
+        const from = isOnChip ? helperPaneState.clickedChipPos! : view.state.selection.from;
+        const to = isOnChip ? from + helperPaneState.clickedChipNode.nodeSize : view.state.selection.to;
+        const [before, after] = options?.padToNeighbours && !isOnChip ? neighbourSpaces(view, from, to) : ["", ""];
+        const tr = view.state.tr.insertText(before + finalValue + after, from, to);
+        const cursorPosition = from + before.length + caretOffset;
+        view.dispatch(tr.setSelection(TextSelection.create((tr as any).doc, cursorPosition)));
 
         setHelperPaneState(prev => ({
             ...prev,
@@ -500,6 +575,11 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
         pendingTokenFetchRef.current = true;
         fetchAndUpdateTokens(view);
     };
+
+    const { register: registerInsertTarget, drop: dropInsert } = useInsertTarget((value) => {
+        void onHelperItemSelect(value, { closeHelperPane: true, padToNeighbours: true });
+        viewRef.current?.focus();
+    });
 
     const fetchAndUpdateTokens = async (editorView: EditorView) => {
         if (!rpcManager || !fileName) return;
@@ -631,6 +711,7 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
                 gapCursor(),
                 createMarkdownInputRulesPlugin(chipSchema),
                 chipPlugin,
+                createDropCursorPlugin(dropTarget),
                 xmlTagPlugin,
                 cursorMovePlugin,
                 ...(placeholder ? [createPlaceholderPlugin(placeholder)] : [])
@@ -725,6 +806,22 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
                 }
             },
             handleDOMEvents: {
+                focus: () => {
+                    registerInsertTarget();
+                    return false;
+                },
+                drop: (view, event) => {
+                    clearDropCursor(view);
+                    return moveDraggedChip(view, event) || dropInsert(event, () => {
+                        const target = dropTarget(view, event);
+                        if (target === NEW_LINE) {
+                            const tr = (view.state.tr as any).insert(view.state.doc.content.size, chipSchema.nodes.paragraph.create());
+                            view.dispatch(tr.setSelection(TextSelection.create(tr.doc, tr.doc.content.size - 1)));
+                        } else if (target !== null) {
+                            view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(target))));
+                        }
+                    });
+                },
                 keydown: (_view, event) => {
                     // Prevent Cmd+B from propagating to VSCode (which would open the sidebar)
                     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b' && !event.shiftKey && !event.altKey) {
@@ -781,7 +878,7 @@ export const RichTextTemplateEditor: React.FC<RichTextTemplateEditorProps> = ({
     return (
         <>
             <EditorContainer ref={editorRef} readOnly={readOnly}>
-                {helperPaneState.isOpen && getHelperPane && (
+                {helperPaneState.isOpen && getHelperPane && configuration.showHelperPane() && (
                     <HelperPane
                         ref={helperPaneRef}
                         top={helperPaneState.top}

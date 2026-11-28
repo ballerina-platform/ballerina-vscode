@@ -44,6 +44,8 @@ import {
     BIFlowModelResponse,
     BIGetEnclosedFunctionRequest,
     BIGetEnclosedFunctionResponse,
+    BIGetTypeShapeRequest,
+    BIGetTypeShapeResponse,
     BIGetVisibleVariableTypesRequest,
     BIGetVisibleVariableTypesResponse,
     BILibraryActionsRequest,
@@ -209,6 +211,7 @@ import {
     getEnclosedFunction,
     getEndOfFile,
     getExpressionCompletions,
+    getExpressionCompletionsNow,
     getExpressionDiagnostics,
     getExpressionTokens,
     getFlowModel,
@@ -235,6 +238,7 @@ import {
     getTypeFromJson,
     getTypes,
     getVisibleTypes,
+    getTypeShape,
     getVisibleVariableTypes,
     getWorkspaces,
     handleReadmeContent,
@@ -380,8 +384,16 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendRequest(getVisibleVariableTypes, HOST_EXTENSION, params);
     }
 
+    getTypeShape(params: BIGetTypeShapeRequest): Promise<BIGetTypeShapeResponse> {
+        return this._messenger.sendRequest(getTypeShape, HOST_EXTENSION, params);
+    }
+
     getExpressionCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
         return this._messenger.sendRequest(getExpressionCompletions, HOST_EXTENSION, params);
+    }
+
+    getExpressionCompletionsNow(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
+        return this._messenger.sendRequest(getExpressionCompletionsNow, HOST_EXTENSION, params);
     }
 
     getDataMapperCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {

@@ -20,7 +20,7 @@ import { AvailableNode, ConfigVariable, DIRECTORY_MAP, LinePosition, ParentPopup
 import { Codicon, ProgressRing, Stepper, ThemeColors } from "@wso2/ui-toolkit";
 import {
     PopupOverlay,
-    PopupContainer,
+    ConnectionPopupContainer,
     PopupHeader,
     PopupTitle,
     CloseButton,
@@ -406,7 +406,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
     return (
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <PopupHeader>
                     {(isCreating ? selectedFlow : currentStepIndex > 0) && (
                         <BackButton appearance="icon" onClick={handleBackButtonClick}>
@@ -605,7 +605,7 @@ export function DevantConnectorPopup(props: DevantConnectorPopupProps) {
                         </>
                     )}
                 </PopupContent>
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </>
     );
 }

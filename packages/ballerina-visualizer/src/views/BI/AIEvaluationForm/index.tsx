@@ -17,6 +17,7 @@
  */
 
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BrowserViewContent } from "../DataBrowser";
 import { Codicon, Icon, RadioButtonGroup, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -276,12 +277,12 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             <TitleBar title="AI Evaluation" subtitle={isEditing
                 ? 'Update an existing AI evaluation'
                 : 'Create a new AI evaluation for your integration'} />
-            <ViewContent padding>
+            <BrowserViewContent padding>
                 <Container>
                     <FormHeader title={isEditing ? 'Update AI Evaluation' : 'Create New AI Evaluation'} />
                     <AIEvaluationFormBody {...formProps} />
                 </Container>
-            </ViewContent>
+            </BrowserViewContent>
         </AssistView>
     );
 }

@@ -34,7 +34,7 @@ import { PropertyModel } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
     PopupOverlay,
-    PopupContainer,
+    ConnectionPopupContainer,
     PopupHeader,
     BackButton,
     HeaderTitleContainer,
@@ -1146,7 +1146,7 @@ export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
     return (
         <>
             <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5` }} />
-            <PopupContainer>
+            <ConnectionPopupContainer>
                 <PopupHeader>
                     <BackButton appearance="icon" onClick={onBack}>
                         <Codicon name="chevron-left" />
@@ -1165,7 +1165,7 @@ export function DatabaseConnectionPopup(props: DatabaseConnectionPopupProps) {
                     <Stepper steps={steps} currentStep={currentStep} alignment="flex-start" />
                 </StepperContainer>
                 {renderStep()}
-            </PopupContainer>
+            </ConnectionPopupContainer>
         </>
     );
 }

@@ -1,0 +1,13 @@
+{
+  "description": "A union that holds another union lists both unions' strings",
+  "source": "type_shape/main.bal",
+  "type": "Payment",
+  "shape": {
+    "values": [
+      "\"CAPTURE\"",
+      "\"AUTHORIZE\"",
+      "\"VOID\""
+    ],
+    "fields": {}
+  }
+}

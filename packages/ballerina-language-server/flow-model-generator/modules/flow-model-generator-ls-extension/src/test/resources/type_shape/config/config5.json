@@ -1,0 +1,63 @@
+{
+  "description": "A record's fields say whether they open and which values they allow",
+  "source": "type_shape/main.bal",
+  "type": "Order",
+  "shape": {
+    "values": [],
+    "fields": {
+      "customer": {
+        "opens": true,
+        "values": []
+      },
+      "shipTo": {
+        "opens": true,
+        "values": []
+      },
+      "buyers": {
+        "opens": true,
+        "values": []
+      },
+      "tags": {
+        "opens": false,
+        "values": []
+      },
+      "label": {
+        "opens": false,
+        "values": []
+      },
+      "status": {
+        "opens": true,
+        "values": [
+          "OPEN",
+          "CLOSED"
+        ]
+      },
+      "intent": {
+        "opens": false,
+        "values": [
+          "\"CAPTURE\"",
+          "\"AUTHORIZE\""
+        ]
+      },
+      "grade": {
+        "opens": false,
+        "values": [
+          "\"A\"",
+          "\"B\""
+        ]
+      },
+      "note": {
+        "opens": false,
+        "values": []
+      },
+      "frozen": {
+        "opens": true,
+        "values": []
+      },
+      "method": {
+        "opens": false,
+        "values": []
+      }
+    }
+  }
+}

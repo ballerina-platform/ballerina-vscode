@@ -1,0 +1,9 @@
+{
+  "description": "A string alias lists no values",
+  "source": "type_shape/main.bal",
+  "type": "Name",
+  "shape": {
+    "values": [],
+    "fields": {}
+  }
+}

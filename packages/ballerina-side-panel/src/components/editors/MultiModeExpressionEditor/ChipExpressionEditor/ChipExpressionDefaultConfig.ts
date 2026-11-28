@@ -28,6 +28,9 @@ export enum HelperPaneMenuItem {
     DOCUMENTS = "DOCUMENTS",
 }
 
+// The data browser replaces the helper pane; its code stays until the cleanup.
+export const HELPER_PANE_ENABLED = false;
+
 export class ChipExpressionEditorDefaultConfiguration {
     getHelperValue(value: string, token?: ParsedToken) {
         return value;
@@ -45,7 +48,7 @@ export class ChipExpressionEditorDefaultConfiguration {
         return value;
     }
     showHelperPane() {
-        return true;
+        return HELPER_PANE_ENABLED;
     }
     getPlugins() {
         return [];
@@ -58,6 +61,11 @@ export class ChipExpressionEditorDefaultConfiguration {
     }
 
     getIsToggleHelperAvailable(): boolean {
+        return HELPER_PANE_ENABLED;
+    }
+
+    // Whether a value from the Data Browser can be inserted here.
+    acceptsInserts(): boolean {
         return true;
     }
 

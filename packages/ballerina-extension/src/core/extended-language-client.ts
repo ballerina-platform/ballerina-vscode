@@ -322,6 +322,8 @@ import {
     IntrospectCredentialsResponse,
     GetSimpleTypeOfExpressionResponse,
     GetSimpleTypeOfExpressionRequest,
+    BIGetTypeShapeRequest,
+    BIGetTypeShapeResponse,
     AIGetPackageVersionRequest,
     AIGetPackageVersionResponse
 } from "@wso2/ballerina-core";
@@ -412,6 +414,7 @@ enum EXTENDED_APIS {
     BI_EXPRESSION_COMPLETIONS_NOW = 'expressionEditor/completionNow',
     BI_DATA_MAPPER_COMPLETIONS = 'expressionEditor/dataMapperCompletion',
     VISIBLE_VARIABLE_TYPES = 'expressionEditor/visibleVariableTypes',
+    TYPE_SHAPE = 'expressionEditor/typeShape',
     DATA_MAPPER_MAPPINGS = 'dataMapper/mappings',
     DATA_MAPPER_GET_SOURCE = 'dataMapper/getSource',
     DATA_MAPPER_VISUALIZABLE = 'dataMapper/visualizable',
@@ -933,6 +936,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getVisibleVariableTypes(params: VisibleVariableTypesParams): Promise<VisibleVariableTypes | NOT_SUPPORTED_TYPE> {
         return this.sendRequest<VisibleVariableTypes>(EXTENDED_APIS.VISIBLE_VARIABLE_TYPES, params);
+    }
+
+    async getTypeShape(params: BIGetTypeShapeRequest): Promise<BIGetTypeShapeResponse> {
+        return this.sendRequest<BIGetTypeShapeResponse>(EXTENDED_APIS.TYPE_SHAPE, params);
     }
 
     async getDataMapperMappings(params: DataMapperModelRequest): Promise<DataMapperModelResponse | NOT_SUPPORTED_TYPE> {

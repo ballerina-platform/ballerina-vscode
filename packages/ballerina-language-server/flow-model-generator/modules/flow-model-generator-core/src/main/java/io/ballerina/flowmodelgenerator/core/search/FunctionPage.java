@@ -59,7 +59,7 @@ final class FunctionPage {
             return withSource(scan(limit, offset, index, admit), FunctionSource.INDEX);
         } catch (RuntimeException e) {
             // Continuations keep throwing so that the same cursor stays retryable.
-            if (requestedSource != null || offset > 0) {
+            if (offset > 0) {
                 throw e;
             }
             // A first page also carries imported and workspace functions, so a failed index must not lose them.

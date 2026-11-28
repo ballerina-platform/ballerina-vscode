@@ -224,7 +224,7 @@ const ORB_ICON = <Icon name="bi-ai-chat" sx={{ width: "16px", height: "16px" }} 
 
 const POPOVER_OPENED = "bi-anchored-popover-opened";
 
-function useExclusivePopover(open: boolean, close: () => void) {
+export function useExclusivePopover(open: boolean, close: () => void) {
     const id = useRef(Symbol("popover"));
     const closeRef = useRef(close);
     closeRef.current = close;

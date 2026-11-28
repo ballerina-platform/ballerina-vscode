@@ -187,9 +187,6 @@ export class RawTemplateEditorConfig extends ChipExpressionEditorDefaultConfigur
 }
 
 export class SQLExpressionEditorConfig extends ChipExpressionEditorDefaultConfiguration {
-    showHelperPane() {
-        return true;
-    }
     getHelperValue(value: string, token?: ParsedToken): string {
         if (token?.type === TokenType.FUNCTION) return value;
         return `\$\{${value}\}`;
@@ -280,6 +277,10 @@ export class NumberExpressionEditorConfig extends ChipExpressionEditorDefaultCon
         return false;
     }
 
+    acceptsInserts(): boolean {
+        return false;
+    }
+
     getIsValueCompatible(value: string): boolean {
         if (!value) return true;
         return this.DECIMAL_INPUT_REGEX.test(value);
@@ -298,9 +299,12 @@ export class RecordConfigExpressionEditorConfig extends ChipExpressionEditorDefa
 }
 
 // The minimized record field only displays the value as chips: focusing it opens the record
-// configuration modal, so it shows no helper pane and no fx adornment of its own.
+// configuration modal, so it shows no helper pane, value picker or fx adornment of its own.
 export class RecordPreviewEditorConfig extends RecordConfigExpressionEditorConfig {
     showHelperPane(): boolean {
+        return false;
+    }
+    acceptsInserts(): boolean {
         return false;
     }
     getAdornment() {

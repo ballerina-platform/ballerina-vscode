@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { BrowserViewContent } from "../DataBrowser";
 import { Banner, Button, Icon, ThemeColors, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -705,7 +706,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
                             subtitle={model.description}
                         />
                     )}
-                    <ViewContent>
+                    <BrowserViewContent>
                         <Container>
                             {mcpImportWizard || (
                                 visibleFormFields && visibleFormFields.length > 0 && (
@@ -720,7 +721,7 @@ function withEventResponse(seeded: FunctionModel, event: AgentEventChannel): Fun
                                 )
                             )}
                         </Container>
-                    </ViewContent>
+                    </BrowserViewContent>
                 </>
             )}
         </AssistView>
