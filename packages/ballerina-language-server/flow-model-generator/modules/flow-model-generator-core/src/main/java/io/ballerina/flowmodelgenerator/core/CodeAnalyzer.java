@@ -4044,14 +4044,14 @@ public class CodeAnalyzer extends NodeVisitor {
         SyntaxKind parentKind = node.parent().kind();
         if (parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION) {
             nodeBuilder.properties().checkError(true);
-        } else {
-            functionTypeSymbol.returnTypeDescriptor()
-                    .ifPresent(typeSymbol -> {
-                        if (CommonUtils.subTypeOf(typeSymbol, semanticModel.types().ERROR)
-                                && CommonUtils.withinDoClause(node)) {
-                            nodeBuilder.properties().checkError(false);
-                        }
-                    });
+            return;
+        }
+        // A form fills a missing checkError from the template, which checks every call that can fail.
+        boolean canFail = functionTypeSymbol.returnTypeDescriptor()
+                .map(typeSymbol -> CommonUtils.subTypeOf(typeSymbol, semanticModel.types().ERROR))
+                .orElse(false);
+        if (canFail) {
+            nodeBuilder.properties().checkError(false);
         }
     }
 
@@ -4261,7 +4261,7 @@ public class CodeAnalyzer extends NodeVisitor {
                     .stepOut()
                 .properties()
                 .scope(connectionScope)
-                .checkError(true, NewConnectionBuilder.CHECK_ERROR_DOC, false);
+                .checkError(isCheckedCall(newExpressionNode), NewConnectionBuilder.CHECK_ERROR_DOC, false);
 
         if (kind == NodeKind.AGENT) {
             AgentBuilder.hideAgentConfigProperties(nodeBuilder);
@@ -4947,7 +4947,8 @@ public class CodeAnalyzer extends NodeVisitor {
                             .stepOut()
                         .properties()
                             .scope(connectionScope)
-                            .checkError(true, NewConnectionBuilder.CHECK_ERROR_DOC, false);
+                            .checkError(isCheckedCall(functionCallExpressionNode),
+                                    NewConnectionBuilder.CHECK_ERROR_DOC, false);
                 return;
             }
             NodeKind nodeKind = AiUtils.isEvalTemplateFunction(functionSymbol)

@@ -33,6 +33,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.TypesManager;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.SourceCodeGenerator;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.DefaultValueGeneratorUtil;
@@ -245,6 +246,13 @@ public class SourceBuilder {
         return this;
     }
 
+    public SourceBuilder checkUnlessUnchecked() {
+        if (!FlowNodeUtil.isUnchecked(flowNode)) {
+            tokenBuilder.keyword(SyntaxKind.CHECK_KEYWORD);
+        }
+        return this;
+    }
+
     public SourceBuilder newVariableWithInferredType() {
         Optional<Property> optionalType = getProperty(Property.TYPE_KEY);
         Optional<Property> variable = getProperty(Property.VARIABLE_KEY);
@@ -350,7 +358,7 @@ public class SourceBuilder {
             //  to assign the error to a variable and handle it.
             // Add the import statements if exists in the return type
             if (type.imports() != null && getProperty(Property.CHECK_ERROR_KEY)
-                    .map(property -> property.value().equals("false")).orElse(true)) {
+                    .map(property -> "false".equals(String.valueOf(property.value()))).orElse(true)) {
                 // TODO: Improve this logic to process all the imports at once
                 type.imports().values().forEach(moduleId -> {
                     String[] importParts = moduleId.split("/");

@@ -17,11 +17,10 @@
  */
 
 import React, { useState } from "react";
-import { SidePanelBody } from "@wso2/ui-toolkit";
 import { FunctionModel, ServiceModel } from "@wso2/ballerina-core";
 import ButtonCard from "../../../../components/ButtonCard";
 
-import { EditorContentColumn } from "../styles";
+import { EditorContentColumn, PanelBody } from "../styles";
 
 interface FunctionConfigFormProps {
     serviceModel: ServiceModel;
@@ -65,7 +64,7 @@ export function FunctionConfigForm(props: FunctionConfigFormProps) {
     };
 
     return (
-        <SidePanelBody>
+        <PanelBody>
             <EditorContentColumn>
                 {nonEnabledFunctions.map((func, index) => (
                     <ButtonCard
@@ -81,7 +80,7 @@ export function FunctionConfigForm(props: FunctionConfigFormProps) {
                     <div>No functions available to enable.</div>
                 )}
             </EditorContentColumn>
-        </SidePanelBody>
+        </PanelBody>
     );
 }
 

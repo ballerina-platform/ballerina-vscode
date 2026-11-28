@@ -27,3 +27,11 @@ final ai:Agent chatAgent = check new ({
 public function main() returns error? {
     string result1 = check chatAgent.run("What's the weather in London?");
 }
+
+public function stringTemplateQuery(string payload) returns error? {
+    string result = check chatAgent.run(string `Answer the request: ${payload}`);
+}
+
+public function rawTemplateQuery(string payload) returns error? {
+    string result = check chatAgent.run(`Answer the request: ${payload}`);
+}

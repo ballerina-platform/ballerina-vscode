@@ -110,6 +110,7 @@ public class AgentCallBuilder extends CallBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         FlowNode callTemplate = getOrCreateCallFunctionTemplate(context);
         restoreFromTemplate(callTemplate);
+        uncheckWhereErrorCannotGo(context);
         fixQueryPromptType(this, true);
 
         Codedata contextCd = context.codedata();
@@ -327,7 +328,8 @@ public class AgentCallBuilder extends CallBuilder {
             }
         }
 
-        sourceBuilder.token().expressionWithType(typeName, variable.get()).keyword(SyntaxKind.EQUAL_TOKEN);
+        String writtenType = FlowNodeUtil.withErrorWhenUnchecked(flowNode, typeName);
+        sourceBuilder.token().expressionWithType(writtenType, variable.get()).keyword(SyntaxKind.EQUAL_TOKEN);
     }
 
     @Override

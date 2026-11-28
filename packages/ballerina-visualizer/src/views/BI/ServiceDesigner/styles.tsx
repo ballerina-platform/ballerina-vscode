@@ -150,3 +150,11 @@ export const ParamDescription = styled.div<CSSObject>`
     display: flex;
     padding: 10px;
 `;
+
+// SidePanelBody subtracts the panel title from its height, which PanelContainer's body has already left out.
+export const PanelBody = styled.div`
+    height: 100%;
+    box-sizing: border-box;
+    padding: 16px;
+    overflow-y: scroll;
+`;

@@ -209,6 +209,7 @@ import {
     getEnclosedFunction,
     getEndOfFile,
     getExpressionCompletions,
+    getExpressionCompletionsNow,
     getExpressionDiagnostics,
     getExpressionTokens,
     getFlowModel,
@@ -382,6 +383,10 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     getExpressionCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
         return this._messenger.sendRequest(getExpressionCompletions, HOST_EXTENSION, params);
+    }
+
+    getExpressionCompletionsNow(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
+        return this._messenger.sendRequest(getExpressionCompletionsNow, HOST_EXTENSION, params);
     }
 
     getDataMapperCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {

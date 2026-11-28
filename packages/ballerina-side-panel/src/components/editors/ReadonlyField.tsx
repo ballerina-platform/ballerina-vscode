@@ -23,6 +23,7 @@ import { capitalize } from "./utils";
 import styled from "@emotion/styled";
 import { FieldTypeChip } from "./FieldTypeChip";
 import { FIELD_INPUT_GAP, FIELD_RADIUS } from "./MultiModeExpressionEditor/ChipExpressionEditor/constants";
+import { BASE_CHIP_STYLES, BASE_ICON_STYLES, CHIP_TEXT_STYLES, DEFAULT_CHIP_COLOR } from "./MultiModeExpressionEditor/ChipExpressionEditor/chipStyles";
 
 interface ReadonlyFieldProps {
     field: FormField;
@@ -77,29 +78,18 @@ const ExpressionRibbon = styled.div`
     border-bottom-left-radius: 2px;
 `;
 
-const ReadonlyChip = styled.span`
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(128, 128, 128, 0.15);
-    border: 1px solid rgba(128, 128, 128, 0.4);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    min-height: 20px;
-    min-width: 25px;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
+// The same chip the expression editor draws for a value, without the pointer.
+const ReadonlyChip = styled.span({
+    ...BASE_CHIP_STYLES,
+    cursor: "default",
+    background: DEFAULT_CHIP_COLOR.background,
+    border: `1px solid ${DEFAULT_CHIP_COLOR.border}`,
+    fontFamily: "var(--vscode-editor-font-family, monospace)",
+});
 
-const ChipIcon = styled.i`
-    display: flex;
-    align-items: center;
-    color: var(--vscode-editorInfo-foreground, var(--vscode-list-deemphasizedForeground));
-    font-size: 14px;
-`;
+const ChipText = styled.span(CHIP_TEXT_STYLES);
+
+const ChipIcon = styled.i({ ...BASE_ICON_STYLES, color: DEFAULT_CHIP_COLOR.icon });
 
 const Value = styled.span`
     flex: 1;
@@ -180,7 +170,7 @@ function renderExpressionValue(value: string): React.ReactNode {
         parts.push(
             <ReadonlyChip key={match.index}>
                 <ChipIcon className="fw-bi-variable" />
-                {match[1]}
+                <ChipText>{match[1]}</ChipText>
             </ReadonlyChip>
         );
         lastIndex = regex.lastIndex;
@@ -195,7 +185,7 @@ function renderExpressionValue(value: string): React.ReactNode {
         return (
             <ReadonlyChip>
                 <ChipIcon className="fw-bi-variable" />
-                {value}
+                <ChipText>{value}</ChipText>
             </ReadonlyChip>
         );
     }

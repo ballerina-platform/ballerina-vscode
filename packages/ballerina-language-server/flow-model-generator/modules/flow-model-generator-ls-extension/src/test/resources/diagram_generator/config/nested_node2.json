@@ -725,7 +725,7 @@
                         "selected": true
                       }
                     ],
-                    "value": "()",
+                    "value": "error|()",
                     "placeholder": "var",
                     "optional": false,
                     "editable": true,

@@ -86,6 +86,7 @@ import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
 import { deserializeForDiagnosticsAPI } from "../form-utils";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
+import { createRequestGate } from "../../../../utils/request-gate";
 
 interface ArtifactTypeEditorState {
     isOpen: boolean;
@@ -211,6 +212,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
     /* Expression editor related state and ref variables */
     const prevCompletionFetchText = useRef<string>("");
+    // completionNow is not cancelled by a newer request, so only the newest response may publish.
+    const completionsGate = useRef(createRequestGate()).current;
     const [completions, setCompletions] = useState<CompletionItem[]>([]);
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const typesCache = useRef<Map<string, CompletionItem[]>>(new Map());
@@ -553,6 +556,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             offset: number,
             triggerCharacter?: string
         ) => {
+            const request = completionsGate.begin();
             let expressionCompletions: CompletionItem[] = [];
             const { parentContent, currentContent } = value
                 .slice(0, offset)
@@ -590,7 +594,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
                 let completions: ExpressionCompletionsResponse;
                 if (!isDataMapperEditor) {
-                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions(completionRequest);
+                    completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow(completionRequest);
                 } else {
                     completions = await rpcClient.getBIDiagramRpcClient().getDataMapperCompletions(completionRequest);
                 }
@@ -604,6 +608,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
                         convertedCompletions.push(convertBalCompletion(completion));
                     }
                 });
+                if (!completionsGate.isCurrent(request)) {
+                    return convertedCompletions;
+                }
                 setCompletions(convertedCompletions);
 
                 if (triggerCharacter) {
@@ -627,7 +634,11 @@ export function ArtifactForm(props: ArtifactFormProps) {
         [rpcClient, completions, fileName, targetLineRange]
     );
 
-    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
+    const debouncedRetrieveCompletions = useMemo(
+        // The first keystroke fetches at once; keystrokes after it are coalesced.
+        () => debounce(fetchCompletions, 250, { leading: true }),
+        [fetchCompletions]
+    );
 
     const handleRetrieveCompletions = useCallback(async (
         value: string,

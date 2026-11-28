@@ -18,7 +18,8 @@
 
 import React, { useState } from 'react';
 import styled from '@emotion/styled';
-import { ActionButtons, CheckBox, Divider, ProgressIndicator, SidePanelBody } from '@wso2/ui-toolkit';
+import { ActionButtons, CheckBox, Divider, ProgressIndicator } from '@wso2/ui-toolkit';
+import { PanelBody } from '../../styles';
 import { FunctionModel, ParameterModel } from '@wso2/ballerina-core';
 import { ResourcePath } from '../ResourceForm/ResourcePath/ResourcePath';
 
@@ -64,7 +65,7 @@ export function AiResourceForm(props: AiResourceFormProps) {
     return (
         <>
             {isSaving && <ProgressIndicator id="resource-loading-bar" />}
-            <SidePanelBody>
+            <PanelBody>
                 {/* Read-only, the way the HTTP form shows a resource that can't be edited. */}
                 <ResourcePathContainer>
                     <ResourcePath method={model.accessor} path={model.name} onChange={() => {}} onError={() => {}}
@@ -90,7 +91,7 @@ export function AiResourceForm(props: AiResourceFormProps) {
                     secondaryButton={{ text: "Cancel", onClick: onClose, tooltip: "Cancel", disabled: isSaving }}
                     sx={{ justifyContent: "flex-end", marginTop: 16 }}
                 />
-            </SidePanelBody>
+            </PanelBody>
         </>
     );
 }

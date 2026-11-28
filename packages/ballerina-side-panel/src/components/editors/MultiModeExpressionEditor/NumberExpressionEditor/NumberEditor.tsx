@@ -21,7 +21,7 @@ import { getValueForTextModeEditor } from "../../utils";
 import { ChipExpressionEditorComponent, ChipExpressionEditorComponentProps } from "../ChipExpressionEditor/components/ChipExpressionEditor";
 import { NumberExpressionEditorConfig } from "../Configurations";
 
-export const NumberExpressionEditor: React.FC<ChipExpressionEditorComponentProps> = (props) => {
+export const NumberExpressionEditor: React.FC<ChipExpressionEditorComponentProps & { onRejectedInput?: () => void }> = (props) => {
 
     return (
         <ChipExpressionEditorComponent
@@ -38,7 +38,7 @@ export const NumberExpressionEditor: React.FC<ChipExpressionEditorComponentProps
             onOpenExpandedMode={props.onOpenExpandedMode}
             onRemove={props.onRemove}
             isInExpandedMode={props.isInExpandedMode}
-            configuration={new NumberExpressionEditorConfig()}
+            configuration={new NumberExpressionEditorConfig(props.onRejectedInput)}
             placeholder={props.placeholder}
             onLoadingStateChange={props.onLoadingStateChange}
             onNormalizeValue={props.onNormalizeValue}

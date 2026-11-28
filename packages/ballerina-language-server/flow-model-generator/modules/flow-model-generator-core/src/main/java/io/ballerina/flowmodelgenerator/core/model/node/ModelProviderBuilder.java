@@ -76,7 +76,7 @@ public class ModelProviderBuilder extends CallBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable();
-        sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
+        sourceBuilder.checkUnlessUnchecked();
         if (sourceBuilder.flowNode.codedata().symbol().equals(GET_DEFAULT_MODEL_PROVIDER_FUNCTION_NAME)) {
             sourceBuilder.token().name(methodCallWithModulePrefix(sourceBuilder));
         } else {

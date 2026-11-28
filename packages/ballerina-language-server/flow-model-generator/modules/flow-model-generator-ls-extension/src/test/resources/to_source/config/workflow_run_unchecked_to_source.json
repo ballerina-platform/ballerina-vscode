@@ -1,0 +1,99 @@
+{
+  "source": "workflow_function/main.bal",
+  "description": "Write an unchecked workflow run without check, keeping the error in its type",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "orderWorkflow",
+      "description": "Run a workflow instance"
+    },
+    "codedata": {
+      "node": "WORKFLOW_RUN",
+      "org": "ballerina",
+      "module": "workflow",
+      "symbol": "orderWorkflow",
+      "isNew": true,
+      "lineRange": {
+        "startLine": {
+          "line": 5,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 5,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "input": {
+        "metadata": {
+          "label": "Input",
+          "description": "Input data for the workflow"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "anydata",
+        "value": "{orderId: \"123\"}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Workflow ID Variable Name",
+          "description": "Variable name to receive the started workflow ID."
+        },
+        "valueType": "IDENTIFIER",
+        "value": "workflowId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "valueType": "FLAG",
+        "value": false,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 1
+  },
+  "output": {
+    "workflow_function/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 0
+          },
+          "end": {
+            "line": 5,
+            "character": 0
+          }
+        },
+        "newText": "\nstring|error workflowId = workflow:run(orderWorkflow, {orderId: \"123\"});"
+      }
+    ]
+  }
+}

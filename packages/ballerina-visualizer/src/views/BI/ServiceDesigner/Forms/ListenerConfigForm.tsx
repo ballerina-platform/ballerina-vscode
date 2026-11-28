@@ -37,9 +37,9 @@ const Container = styled.div`
     }
 `;
 
-const FormContainer = styled.div`
+const FormContainer = styled.div<{ inModal?: boolean }>`
     /* padding-top: 15px; */
-    padding-bottom: 15px;
+    padding-bottom: ${({ inModal }: { inModal?: boolean }) => (inModal ? 0 : "15px")};
 `;
 
 const LoadingContainer = styled.div`
@@ -60,13 +60,15 @@ interface ListenerConfigFormProps {
     onDirtyChange?: (isDirty: boolean) => void;
     onValidityChange?: (isValid: boolean) => void;
     filePath?: string;
+    // In a popup the Save button spans the footer, as in the other popup forms.
+    inModal?: boolean;
 }
 
 export function ListenerConfigForm(props: ListenerConfigFormProps) {
     const { rpcClient } = useRpcContext();
 
     const [listenerFields, setListenerFields] = useState<FormField[]>([]);
-    const { listenerModel, onSubmit, onBack, formSubmitText = "Next", isSaving, onChange, onDirtyChange, onValidityChange, filePath: targetFilePath } = props;
+    const { listenerModel, onSubmit, onBack, formSubmitText = "Next", isSaving, onChange, onDirtyChange, onValidityChange, filePath: targetFilePath, inModal } = props;
     const [filePath, setFilePath] = useState<string>('');
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
@@ -181,7 +183,7 @@ export function ListenerConfigForm(props: ListenerConfigFormProps) {
             {listenerModel &&
                 <>
                     {listenerFields.length > 0 &&
-                        <FormContainer>
+                        <FormContainer inModal={inModal}>
                             {filePath && targetLineRange &&
                                 <ArtifactForm
                                     fileName={filePath}
@@ -189,7 +191,8 @@ export function ListenerConfigForm(props: ListenerConfigFormProps) {
                                     fields={listenerFields}
                                     onSubmit={handleListenerSubmit}
                                     onBack={onBack}
-                                    nestedForm={true}
+                                    nestedForm={!inModal}
+                                    footerActionButton={inModal}
                                     isSaving={isSaving}
                                     submitText={formSubmitText}
                                     recordTypeFields={recordTypeFields}

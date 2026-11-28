@@ -32,6 +32,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import org.ballerinalang.langserver.common.utils.NameUtil;
@@ -179,11 +180,12 @@ public class WorkflowRunBuilder extends NodeBuilder {
 
         // Generate: string workflowId = check workflow:run(workflowFunction, input);
         sourceBuilder.token()
-                .keyword(SyntaxKind.STRING_KEYWORD)
+                .name(FlowNodeUtil.withErrorWhenUnchecked(sourceBuilder.flowNode, "string"))
+                .whiteSpace()
                 .name(variableName)
                 .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .keyword(SyntaxKind.CHECK_KEYWORD);
+                .keyword(SyntaxKind.EQUAL_TOKEN);
+        sourceBuilder.checkUnlessUnchecked();
 
         // The form's selection wins; the codedata symbol is what the palette selected and remains
         // the fallback (and the only source for a durable agent, whose form has no dropdown).

@@ -43,7 +43,7 @@ const dropdownItems: OptionProps[] = [
     },
     {
         id: "default-option",
-        content: "No Selection",
+        content: "None",
         value: DEFAULT_NONE_SELECTED_VALUE
     }
 ]

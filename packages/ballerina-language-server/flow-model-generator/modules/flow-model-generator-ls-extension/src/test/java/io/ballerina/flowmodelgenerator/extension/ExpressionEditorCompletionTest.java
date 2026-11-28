@@ -19,12 +19,16 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.flowmodelgenerator.core.expressioneditor.ExpressionEditorContext;
 import io.ballerina.flowmodelgenerator.extension.request.ExpressionEditorCompletionRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import io.ballerina.tools.text.LinePosition;
 import org.eclipse.lsp4j.CompletionContext;
 import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.CompletionTriggerKind;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -32,7 +36,12 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Tests for the expression editor completion service.
@@ -42,6 +51,8 @@ import java.util.List;
 public class ExpressionEditorCompletionTest extends AbstractLSTest {
 
     public static final Type COMPLETION_RESPONSE_TYPE = new TypeToken<List<CompletionItem>>() { }.getType();
+    private static final List<String> SCOPE_VALUES =
+            List.of("reply", "fixed", "payload", "apiUrl", "region", "counter", "inbound");
 
     @Override
     @Test(dataProvider = "data-provider")
@@ -89,6 +100,78 @@ public class ExpressionEditorCompletionTest extends AbstractLSTest {
         Assert.assertEquals(secondCompletions.size(), 1);
         Assert.assertEquals(secondCompletions.getFirst().getLabel(), "classVar");
         notifyDidClose(sourcePath);
+    }
+
+    @Test
+    public void testRanksValuesByScope() throws IOException {
+        List<String> order = scopeCompletions("EXPRESSION").stream()
+                .filter(item -> SCOPE_VALUES.contains(item.getLabel()))
+                .sorted(Comparator.comparing(CompletionItem::getSortText))
+                .map(CompletionItem::getLabel)
+                .toList();
+        Assert.assertEquals(order.subList(0, 2).stream().sorted().toList(), List.of("fixed", "reply"),
+                order.toString());
+        Assert.assertEquals(order.get(2), "payload", order.toString());
+        Assert.assertEquals(order.subList(3, 6).stream().sorted().toList(), List.of("apiUrl", "counter", "region"),
+                order.toString());
+        Assert.assertEquals(order.get(6), "inbound", order.toString());
+    }
+
+    @Test
+    public void testOffersOnlyAssignableVariablesForAnAssignmentTarget() throws IOException {
+        List<String> labels = scopeCompletions("LV_EXPRESSION").stream().map(CompletionItem::getLabel).toList();
+        Assert.assertTrue(labels.containsAll(List.of("reply", "counter")), labels.toString());
+        Assert.assertTrue(Collections.disjoint(labels, List.of("fixed", "payload", "apiUrl", "region", "inbound")),
+                labels.toString());
+    }
+
+    @Test
+    public void testQuotesAFieldNamedLikeAKeyword() throws IOException {
+        String sourcePath = getSourcePath("keyword_field.bal");
+        notifyDidOpen(sourcePath);
+        JsonObject property = JsonParser.parseString(
+                "{\"types\": [{\"fieldType\": \"EXPRESSION\", \"ballerinaType\": \"any\", \"selected\": true}]}")
+                .getAsJsonObject();
+        ExpressionEditorContext.Info info =
+                new ExpressionEditorContext.Info("card.", LinePosition.from(8, 4), 5, 0, new JsonObject(), property);
+        JsonObject response = getResponse(new ExpressionEditorCompletionRequest(sourcePath, info,
+                new CompletionContext(CompletionTriggerKind.TriggerCharacter, ".")));
+        notifyDidClose(sourcePath);
+        List<CompletionItem> items = gson.fromJson(response.get("left").getAsJsonArray(), COMPLETION_RESPONSE_TYPE);
+        Set<String> inserts = items.stream().filter(item -> item.getKind() == CompletionItemKind.Field)
+                .map(CompletionItem::getInsertText).collect(Collectors.toSet());
+        Assert.assertEquals(inserts, Set.of("'type", "'from", "number"));
+    }
+
+    @Test
+    public void testRanksALocalThatShadowsAModuleVariableAsLocal() throws IOException {
+        List<CompletionItem> items = scopeCompletions("shadow.bal", LinePosition.from(7, 4), "EXPRESSION");
+        Map<String, String> sortTexts = items.stream()
+                .filter(item -> List.of("counter", "region", "total").contains(item.getLabel()))
+                .collect(Collectors.toMap(CompletionItem::getLabel, CompletionItem::getSortText));
+        Assert.assertTrue(sortTexts.get("counter").compareTo(sortTexts.get("total")) < 0, sortTexts.toString());
+        Assert.assertTrue(sortTexts.get("region").compareTo(sortTexts.get("total")) < 0, sortTexts.toString());
+        List<String> assignable = scopeCompletions("shadow.bal", LinePosition.from(7, 4), "LV_EXPRESSION").stream()
+                .map(CompletionItem::getLabel).toList();
+        Assert.assertTrue(assignable.containsAll(List.of("counter", "region", "total")), assignable.toString());
+    }
+
+    private List<CompletionItem> scopeCompletions(String fieldType) throws IOException {
+        return scopeCompletions("scope.bal", LinePosition.from(16, 4), fieldType);
+    }
+
+    private List<CompletionItem> scopeCompletions(String source, LinePosition position, String fieldType)
+            throws IOException {
+        String sourcePath = getSourcePath(source);
+        notifyDidOpen(sourcePath);
+        JsonObject property = JsonParser.parseString(
+                "{\"types\": [{\"fieldType\": \"%s\", \"selected\": true}]}".formatted(fieldType)).getAsJsonObject();
+        ExpressionEditorContext.Info info =
+                new ExpressionEditorContext.Info("", position, 0, 0, new JsonObject(), property);
+        JsonObject response = getResponse(new ExpressionEditorCompletionRequest(sourcePath, info,
+                new CompletionContext(CompletionTriggerKind.Invoked)));
+        notifyDidClose(sourcePath);
+        return gson.fromJson(response.get("left").getAsJsonArray(), COMPLETION_RESPONSE_TYPE);
     }
 
     @Override

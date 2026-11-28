@@ -20,12 +20,20 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
+import io.ballerina.compiler.api.symbols.FunctionSymbol;
+import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.api.symbols.WorkerSymbol;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.TypeParameterReplacer;
 import io.ballerina.flowmodelgenerator.core.TypesManager;
@@ -60,6 +68,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_WITH_ID_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
@@ -80,6 +89,9 @@ public abstract class CallBuilder extends NodeBuilder {
      */
     public static final String DATABINDING_TYPE_KEY = "databindingType";
     public static final String DATABINDING_TYPE_LABEL = "Databinding Type";
+
+    private static final Set<NodeKind> CHECKED_BY_POSITION =
+            Set.of(NodeKind.FUNCTION_CALL, NodeKind.METHOD_CALL, NodeKind.REMOTE_ACTION_CALL);
 
     protected abstract NodeKind getFunctionNodeKind();
 
@@ -162,13 +174,113 @@ public abstract class CallBuilder extends NodeBuilder {
                     workflowParam.name());
         }
 
-        if (CommonUtils.hasReturn(functionData.returnType())) {
+        setResultProperties(functionData, context);
+    }
+
+    // A call that can fail is checked where its error has somewhere to go; elsewhere its result keeps the error.
+    private void setResultProperties(FunctionData functionData, TemplateContext context) {
+        boolean keepsError = keepsErrorAt(context, functionData);
+        if (keepsError) {
+            String returnType = functionData.returnType();
+            boolean hasValue = !returnType.isBlank() && CommonUtils.hasReturn(returnType);
+            String nameFrom = hasValue ? returnType : "error";
+            properties()
+                    .type(FlowNodeUtil.withErrorReturn(hasValue ? returnType : ""), false,
+                            functionData.importStatements(), false, Property.RESULT_TYPE_LABEL)
+                    .data(nameFrom, context.getAllVisibleSymbolNames(), Property.RESULT_NAME, Property.RESULT_DOC,
+                            false);
+        } else if (CommonUtils.hasReturn(functionData.returnType())) {
             setReturnTypeProperties(functionData, context, Property.RESULT_NAME, Property.RESULT_DOC, false);
         }
 
         if (functionData.returnError()) {
-            properties().checkError(true);
+            properties().checkError(!keepsError);
         }
+    }
+
+    private boolean keepsErrorAt(TemplateContext context, FunctionData functionData) {
+        return functionData.returnError() && !functionData.inferredReturnType()
+                && CHECKED_BY_POSITION.contains(getFunctionNodeKind()) && checkHasNowhereToGo(context);
+    }
+
+    // Agent templates are cached per agent, so they are unchecked here where the error can't go.
+    protected void uncheckWhereErrorCannotGo(TemplateContext context) {
+        if (properties().build().containsKey(Property.CHECK_ERROR_KEY) && checkHasNowhereToGo(context)) {
+            properties().checkError(false);
+        }
+    }
+
+    // No do clause with on fail and no error return to take a check's error; false when the position is unknown.
+    protected static boolean checkHasNowhereToGo(TemplateContext context) {
+        if (context.position() == null) {
+            return false;
+        }
+        try {
+            WorkspaceManager workspaceManager = context.workspaceManager();
+            workspaceManager.loadProject(context.filePath());
+            Document document = FileSystemUtils.getDocument(workspaceManager, context.filePath());
+            SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, context.filePath());
+            int offset = document.textDocument().textPositionFrom(context.position());
+            ModulePartNode root = document.syntaxTree().rootNode();
+            Token token = root.findToken(offset);
+            return !caughtByOnFail(token) && enclosingReturnType(token.parent(), semanticModel)
+                    .map(CommonUtils::getRawType)
+                    .map(type -> type.typeKind() == TypeDescKind.NEVER
+                            || !CommonUtils.subTypeOf(type, semanticModel.types().ERROR))
+                    .orElse(false);
+        } catch (RuntimeException | WorkspaceDocumentException | EventSyncException e) {
+            return false;
+        }
+    }
+
+    // An on fail clause takes the errors of its statement's body, up to the enclosing invocable.
+    private static boolean caughtByOnFail(Token token) {
+        Node child = token;
+        for (NonTerminalNode current = token.parent(); current != null; child = current, current = current.parent()) {
+            boolean fromBody = child.kind() == SyntaxKind.BLOCK_STATEMENT || child.kind() == SyntaxKind.MATCH_CLAUSE;
+            if (fromBody && hasOnFailClause(current)) {
+                return true;
+            }
+            if (isInvocable(current)) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasOnFailClause(NonTerminalNode node) {
+        for (Node child : node.children()) {
+            if (child.kind() == SyntaxKind.ON_FAIL_CLAUSE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isInvocable(Node node) {
+        return node instanceof FunctionDefinitionNode || node.kind() == SyntaxKind.NAMED_WORKER_DECLARATION
+                || node.kind() == SyntaxKind.EXPLICIT_ANONYMOUS_FUNCTION_EXPRESSION;
+    }
+
+    // Empty outside an invocable; nil for one that declares no return type.
+    private static Optional<TypeSymbol> enclosingReturnType(Node node, SemanticModel semanticModel) {
+        for (Node current = node; current != null; current = current.parent()) {
+            if (current instanceof FunctionDefinitionNode || current.kind() == SyntaxKind.NAMED_WORKER_DECLARATION) {
+                return semanticModel.symbol(current).flatMap(symbol -> switch (symbol) {
+                    case FunctionSymbol function -> Optional.of(
+                            function.typeDescriptor().returnTypeDescriptor().orElse(semanticModel.types().NIL));
+                    case WorkerSymbol worker -> Optional.of(worker.returnType());
+                    default -> Optional.empty();
+                });
+            }
+            if (current.kind() == SyntaxKind.EXPLICIT_ANONYMOUS_FUNCTION_EXPRESSION) {
+                return semanticModel.typeOf(current).map(CommonUtils::getRawType)
+                        .filter(FunctionTypeSymbol.class::isInstance)
+                        .map(type -> ((FunctionTypeSymbol) type).returnTypeDescriptor()
+                                .orElse(semanticModel.types().NIL));
+            }
+        }
+        return Optional.empty();
     }
 
     /**

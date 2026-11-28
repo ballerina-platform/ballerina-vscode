@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// BooleanEditor selection behaviour: which of True/False/No Selection the
+// BooleanEditor selection behaviour: which of True/False/None the
 // dropdown presents as the current one. An empty field applies the declared
 // default of the parameter, which `defaultValue` holds and the documentation of
 // the field states, so the entry standing for that default is presented.
@@ -56,7 +56,7 @@ const renderEditor = (value: any, defaultValue?: string, placeholder?: string) =
 
 describe("BooleanEditor", () => {
     it("offers True, False and the empty selection", () => {
-        expect(renderEditor("", "true").contents).toEqual(["True", "False", "No Selection"]);
+        expect(renderEditor("", "true").contents).toEqual(["True", "False", "None"]);
     });
 
     it("presents the declared default as the current entry while the field is empty", () => {

@@ -959,7 +959,7 @@ export function ServiceConfigureView(props: ServiceConfigureProps) {
                                                                                 onAttachListener={handleOnAttachListener}
                                                                                 attachedListeners={getAttachedListenerNames(serviceModel.properties?.listener)}
                                                                             />
-                                                                            , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", 600, 500);
+                                                                            , POPUP_IDS.ATTACH_LISTENER, "Attach Listener", undefined, 480);
                                                                     }}> <Codicon name="add" /> Attach Listener</LinkButton>
                                                                 )}
                                                             </div>
@@ -1110,6 +1110,13 @@ namespace S {
         flex-direction: column;
     `;
 
+    export const EmptyText = styled.p`
+        margin: 16px 0 0;
+        font-size: 14px;
+        text-align: center;
+        color: var(--vscode-descriptionForeground);
+    `;
+
     export const LoadingContainer = styled.div`
         display: flex;
         flex-direction: column;
@@ -1143,6 +1150,8 @@ function AttachListenerModal(props: AttachListenerModalProps) {
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
     const [attachingListener, setAttachingListener] = useState<string | undefined>(undefined);
+    // Whether the project has listeners of this kind that are all on this service already.
+    const [allAttached, setAllAttached] = useState(false);
 
 
     const [listenerModel, setListenerModel] = useState<ListenerModel>(undefined);
@@ -1154,7 +1163,14 @@ function AttachListenerModal(props: AttachListenerModalProps) {
             moduleName: props.moduleName,
             removeDeprecated: props.removeDeprecated
         }).then(res => {
-            setExistingListeners(res.listeners.filter(listener => !props.attachedListeners.includes(listener)).filter(listener => !listener.includes("+")));
+            const listeners = res.listeners.filter(listener => !listener.includes("+"));
+            const available = listeners.filter(listener => !props.attachedListeners.includes(listener));
+            setExistingListeners(available);
+            setAllAttached(listeners.length > 0);
+            // Nothing to pick, so the form opens on creating one.
+            if (available.length === 0) {
+                handleTabChange("new");
+            }
         }).finally(() => {
             setIsLoading(false);
         });
@@ -1254,8 +1270,12 @@ function AttachListenerModal(props: AttachListenerModalProps) {
 
                     {!isLoading && existingListeners.length === 0 && (
                         <S.LoadingContainer>
-                            <Typography variant="h4" sx={{ marginTop: '16px', textAlign: 'center' }}>No existing listeners found</Typography>
-                            <LinkButton sx={{ marginTop: '10px' }} onClick={() => {
+                            <S.EmptyText>
+                                {allAttached
+                                    ? `All ${props.moduleName} listeners are already attached to this service.`
+                                    : `No ${props.moduleName} listeners in this project yet.`}
+                            </S.EmptyText>
+                            <LinkButton sx={{ marginTop: '4px' }} onClick={() => {
                                 handleTabChange("new");
                             }}> <Codicon name="add" /> Create New Listener</LinkButton>
                         </S.LoadingContainer>
@@ -1303,6 +1323,7 @@ function AttachListenerModal(props: AttachListenerModalProps) {
                             onSubmit={onCreateNewListener}
                             formSubmitText={attachingListener ? "Saving..." : "Save"}
                             isSaving={!!attachingListener}
+                            inModal
                         />
                     )}
                 </S.TabContainer>

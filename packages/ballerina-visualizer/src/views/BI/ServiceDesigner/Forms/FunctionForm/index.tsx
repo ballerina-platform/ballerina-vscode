@@ -18,13 +18,13 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ActionButtons, Divider, SidePanelBody, Typography, ProgressIndicator } from '@wso2/ui-toolkit';
+import { ActionButtons, Divider, Typography, ProgressIndicator } from '@wso2/ui-toolkit';
 import { FunctionName } from './FunctionName/FunctionName';
 import { FunctionReturn } from './Return/FunctionReturn';
 import styled from '@emotion/styled';
 import { FunctionModel, ParameterModel, PropertyModel, ReturnTypeModel } from '@wso2/ballerina-core';
 import { Parameters } from './Parameters/Parameters';
-import { EditorContentColumn } from '../../styles';
+import { EditorContentColumn, PanelBody } from '../../styles';
 
 export interface ResourceFormProps {
 	model: FunctionModel;
@@ -77,7 +77,7 @@ export function FunctionForm(props: ResourceFormProps) {
 	return (
 		<>
 			{isLoading && <ProgressIndicator id="resource-loading-bar" />}
-			<SidePanelBody>
+			<PanelBody>
 				<EditorContentColumn>
 					<FunctionName name={functionModel.name} onChange={onNameChange} readonly={!functionModel.name.editable} />
 					<Divider />
@@ -90,7 +90,7 @@ export function FunctionForm(props: ResourceFormProps) {
 					secondaryButton={{ text: "Cancel", onClick: onClose, tooltip: "Cancel" }}
 					sx={{ justifyContent: "flex-end" }}
 				/>
-			</SidePanelBody>
+			</PanelBody>
 		</>
 	);
 }

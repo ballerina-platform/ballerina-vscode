@@ -1155,6 +1155,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
+    async getExpressionCompletionsNow(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
+        return StateMachine.langClient().getExpressionCompletionsNow(params);
+    }
+
     async getDataMapperCompletions(params: ExpressionCompletionsRequest): Promise<ExpressionCompletionsResponse> {
         return new Promise((resolve, reject) => {
             StateMachine.langClient()

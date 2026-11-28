@@ -27,6 +27,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.modelgenerator.commons.ApprovalFunctionSync;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -36,7 +37,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * Represents the properties of a function definition node.
@@ -60,7 +60,6 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
     public static final String METADATA_PARAMETERS_KEY = "parameters";
 
     private static final Gson gson = new Gson();
-    private static final Pattern ERROR_MEMBER_PATTERN = Pattern.compile("error(\\s*<.*>)?");
 
     public static Property getParameterSchema() {
         return ParameterSchemaHolder.PARAMETER_SCHEMA;
@@ -201,7 +200,7 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
         String returnTypeText = returnType.map(property -> property.value().toString().trim()).orElse("");
         boolean isActivity = codedata.node() == NodeKind.ACTIVITY || codedata.node() == NodeKind.ACTIVITY_CREATION;
         if (isNewDefinition && isActivity) {
-            returnTypeText = withErrorReturn(returnTypeText);
+            returnTypeText = FlowNodeUtil.withErrorReturn(returnTypeText);
         }
         if (!returnTypeText.isEmpty()) {
             sourceBuilder.token()
@@ -256,39 +255,5 @@ public class FunctionDefinitionBuilder extends NodeBuilder {
             Map<String, Property> nodeProperties = formBuilder.build();
             return nodeProperties.get("");
         }
-    }
-
-    // A new activity can error: connection actions added to its body use `check`, as ActivityGenerator assumes.
-    private static String withErrorReturn(String returnType) {
-        if (returnType.isEmpty()) {
-            return "error?";
-        }
-        return admitsError(returnType) ? returnType : returnType + "|error";
-    }
-
-    // Whether the type can hold an error itself: a top-level union member is `error` (`error[]` holds only arrays).
-    private static boolean admitsError(String type) {
-        int depth = 0;
-        int start = 0;
-        for (int i = 0; i <= type.length(); i++) {
-            char c = i < type.length() ? type.charAt(i) : '|';
-            if (c == '(' || c == '<' || c == '[' || c == '{') {
-                depth++;
-            } else if (c == ')' || c == '>' || c == ']' || c == '}') {
-                depth--;
-            } else if (c == '|' && depth == 0) {
-                String member = type.substring(start, i).trim();
-                if (member.endsWith("?")) {
-                    member = member.substring(0, member.length() - 1).trim();
-                }
-                if (member.startsWith("(") && member.endsWith(")")
-                        ? admitsError(member.substring(1, member.length() - 1))
-                        : ERROR_MEMBER_PATTERN.matcher(member).matches()) {
-                    return true;
-                }
-                start = i + 1;
-            }
-        }
-        return false;
     }
 }

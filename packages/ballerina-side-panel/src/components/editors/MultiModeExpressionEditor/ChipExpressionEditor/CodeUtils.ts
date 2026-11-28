@@ -136,7 +136,43 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
                 this.view.focus();
             });
 
+            // Any chip, not only value chips, turns back into editable text on double-click.
+            span.addEventListener("dblclick", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!this.view.state.facet(EditorView.editable)) {
+                    return;
+                }
+                const start = this.view.posAtDOM(span);
+                this.view.dispatch({
+                    selection: { anchor: start + this.end - this.start },
+                    effects: setActiveEditableTokenEffect.of(start)
+                });
+                this.view.focus();
+            });
+
             return span;
+        }
+
+        private createRemoveButton(span: HTMLSpanElement, background: string) {
+            const button = document.createElement("span");
+            button.className = "cm-chip-remove codicon codicon-close";
+            button.setAttribute("role", "button");
+            button.setAttribute("aria-label", "Remove");
+            button.title = "Remove";
+            button.style.background = `linear-gradient(${background}, ${background}), var(--vscode-input-background)`;
+            button.addEventListener("mousedown", (event) => event.preventDefault());
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!this.view.state.facet(EditorView.editable)) {
+                    return;
+                }
+                const start = this.view.posAtDOM(span);
+                removeChipRange(this.view, start, start + this.end - this.start);
+                this.view.focus();
+            });
+            span.appendChild(button);
         }
 
         private createChip(span: HTMLSpanElement) {
@@ -161,6 +197,8 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
                 border: `1px solid ${colors.border}`,
                 marginRight: "2px",
                 marginLeft: "2px",
+                // A full-width chip plus its margins would wrap below an empty first line.
+                maxWidth: "calc(100% - 4px)",
             });
 
             if (!isPlaceholder) {
@@ -183,6 +221,9 @@ export function createChip(text: string, type: TokenType, start: number, end: nu
             Object.assign(textSpan.style, CHIP_TEXT_STYLES);
 
             span.appendChild(textSpan);
+            if (!isPlaceholder) {
+                this.createRemoveButton(span, colors.background);
+            }
         }
 
         ignoreEvent() {
@@ -213,6 +254,8 @@ export const chipTheme = EditorView.theme({
         outline: "none"
     },
     ".cm-content": {
+        // Lets the wrapped content shrink below a long chip's text, so the chip's max-width ellipsizes it.
+        minWidth: "0",
         caretColor: ThemeColors.ON_SURFACE,
         padding: "5.5px 1px",
         // The field's buttons float over the bottom-right corner; the editor measures them into this variable.
@@ -227,6 +270,35 @@ export const chipTheme = EditorView.theme({
     },
     "&.cm-editor .cm-cursor, &.cm-editor .cm-dropCursor": {
         borderLeftColor: ThemeColors.ON_SURFACE
+    },
+    "[data-chip-widget]": {
+        position: "relative"
+    },
+    // Overlays the chip's end while hovered, so chips keep their width and the text does not shift.
+    ".cm-chip-remove": {
+        position: "absolute",
+        top: "50%",
+        right: "3px",
+        width: "16px",
+        height: "16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "3px",
+        fontSize: "12px",
+        color: "var(--vscode-descriptionForeground)",
+        transform: "translateY(-50%)",
+        opacity: "0",
+        pointerEvents: "none",
+        transition: "opacity 100ms ease, color 100ms ease"
+    },
+    // A read-only editor keeps its chips.
+    ".cm-content[contenteditable=true] [data-chip-widget]:hover .cm-chip-remove": {
+        opacity: "1",
+        pointerEvents: "auto"
+    },
+    ".cm-chip-remove:hover": {
+        color: "var(--vscode-foreground)"
     }
 });
 
@@ -357,15 +429,15 @@ export const tokenField = StateField.define<TokenFieldState>({
             };
         });
 
-        // Compounds are never individually editable today - CompoundTokenSequence.tokenType is
-        // TokenType.VARIABLE | TokenType.DOCUMENT, and isEditableValueChip only allows PARAMETER
-        // and VALUE - so a compound's start can never equal activeStartBeforeChange, and it
-        // always gets the plain, non-absorbing assoc.
-        let compounds = oldState.compounds.map(compound => ({
-            ...compound,
-            start: tr.changes.mapPos(compound.start, 1),
-            end: tr.changes.mapPos(compound.end, -1)
-        }));
+        // A double-clicked compound is edited like a value chip, so it absorbs boundary typing the same way.
+        let compounds = oldState.compounds.map(compound => {
+            const isActive = activeStartBeforeChange !== undefined && compound.start === activeStartBeforeChange;
+            return {
+                ...compound,
+                start: tr.changes.mapPos(compound.start, isActive ? -1 : 1),
+                end: tr.changes.mapPos(compound.end, isActive ? 1 : -1)
+            };
+        });
 
         // A chip is actively being edited: its containing expression is typically mid-edit
         // (often syntactically incomplete), so an LS-backed token refresh landing right now
@@ -514,6 +586,16 @@ const getEditableChipRanges = (view: EditorView): { start: number; end: number }
     return ranges.sort((a, b) => a.start - b.start);
 };
 
+const removeChipRange = (view: EditorView, start: number, end: number) => {
+    const { tokens } = view.state.field(tokenField);
+    const removed = tokens.filter(token => token.start >= start && token.end <= end);
+    view.dispatch({
+        effects: removed.map(token => removeChipEffect.of(token.id)),
+        changes: { from: start, to: end, insert: "" },
+        userEvent: "delete"
+    });
+};
+
 export const chipPlugin = ViewPlugin.fromClass(
     class {
         decorations: RangeSet<Decoration>;
@@ -545,9 +627,10 @@ export const chipPlugin = ViewPlugin.fromClass(
                         return;
                     }
 
-                    // Compounds are never individually editable today (see the note on
-                    // getEditableChipRanges above), so they always render as a plain chip -
-                    // never the live/editable activeChipMark box the branch below gives tokens.
+                    if (compound.start === activeStart) {
+                        widgets.push(activeChipMark.range(compound.start, compound.end));
+                        return;
+                    }
                     widgets.push(
                         createChip(
                             compound.displayText,
@@ -564,11 +647,7 @@ export const chipPlugin = ViewPlugin.fromClass(
                         return;
                     }
 
-                    if (
-                        isEditableValueChip(token.type) &&
-                        token.start === activeStart &&
-                        token.start < token.end
-                    ) {
+                    if (token.start === activeStart && token.start < token.end) {
                         widgets.push(activeChipMark.range(token.start, token.end));
                         return;
                     }
@@ -648,8 +727,9 @@ export const activeChipSelectionGuard = EditorView.updateListener.of((update) =>
     const tokenState = update.state.field(tokenField, false);
     if (!tokenState) return;
 
-    const activeRange = tokenState.tokens.find(token => token.start === activeStart)
-        ?? tokenState.compounds.find(compound => compound.start === activeStart);
+    // A compound and its `${` token share a start; the compound is the chip being edited, as in buildDecorations.
+    const activeRange = tokenState.compounds.find(compound => compound.start === activeStart)
+        ?? tokenState.tokens.find(token => token.start === activeStart);
     if (!activeRange) {
         // The tracked chip no longer exists - clear instead of leaving isEditingChip stuck
         // true, which would otherwise keep suppressing LS-backed token refreshes until an
@@ -984,6 +1064,8 @@ export const buildCompletionSource = (
 
         return {
             from: word.from,
+            // Typing more of the word filters this list locally instead of waiting for a new LS round trip.
+            validFor: (text: string) => text.startsWith(prefix) && /^\w*$/.test(text),
             options: filteredCompletions.map(item => {
                 // Manipulating the value to handle the LSP snippet completions
                 const applyText = item.value

@@ -46,7 +46,6 @@ jest.mock("@wso2/ui-toolkit", () => ({
     ),
     Divider: (): null => null,
     ProgressIndicator: () => <div data-testid="progress" />,
-    SidePanelBody: ({ children }: any) => <div>{children}</div>,
 }));
 
 // The real component pulls in the HTTP form's editors; only what it is given matters here.

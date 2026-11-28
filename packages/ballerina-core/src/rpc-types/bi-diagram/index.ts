@@ -187,6 +187,7 @@ export interface BIDiagramAPI {
     handleReadmeContent: (params: ReadmeContentRequest) => Promise<ReadmeContentResponse>;
     getVisibleVariableTypes: (params: BIGetVisibleVariableTypesRequest) => Promise<BIGetVisibleVariableTypesResponse>;
     getExpressionCompletions: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
+    getExpressionCompletionsNow: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
     getDataMapperCompletions: (params: ExpressionCompletionsRequest) => Promise<ExpressionCompletionsResponse>;
     getConfigVariablesV2: (params: ConfigVariableRequest) => Promise<ConfigVariableResponse>;
     updateConfigVariablesV2: (params: UpdateConfigVariableRequestV2) => Promise<UpdateConfigVariableResponseV2>;

@@ -91,6 +91,7 @@ import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { createPromptHelperPane } from "./utils";
 import { useAssistantName, useProductMode } from "../../../hooks/useProductMode";
 import { useAgentDeletion } from "../AgentBuilderOverview/DeleteAgentDialog";
+import { createRequestGate } from "../../../utils/request-gate";
 
 const USAGE_REFETCH_WINDOW_MS = 600;
 
@@ -165,6 +166,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const showEditForm = useRef<boolean>(false);
 
     const prevCompletionFetchText = useRef<string>();
+    // completionNow is not cancelled by a newer request, so only the newest response may publish.
+    const completionsGate = useRef(createRequestGate()).current;
     const [completions, setCompletions] = useState<CompletionItem[]>([]);
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const triggerCompletionOnNextRequest = useRef<boolean>(false);
@@ -808,6 +811,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 offset: number,
                 triggerCharacter?: string
             ) => {
+                const request = completionsGate.begin();
                 let expressionCompletions: CompletionItem[] = [];
                 const { parentContent, currentContent } = value
                     .slice(0, offset)
@@ -827,7 +831,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                         .sort((a, b) => a.sortText.localeCompare(b.sortText));
                 } else {
                     const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                    let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                         filePath: filePath,
                         context: {
                             expression: value,
@@ -855,6 +859,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                             convertedCompletions.push(convertBalCompletion(completion));
                         }
                     });
+                    if (!completionsGate.isCurrent(request)) {
+                        return;
+                    }
                     setCompletions(convertedCompletions);
 
                     if (triggerCharacter) {
@@ -874,7 +881,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 prevCompletionFetchText.current = parentContent ?? "";
                 setFilteredCompletions(expressionCompletions);
             },
-            250
+            250,
+            { leading: true } // The first keystroke fetches at once; keystrokes after it are coalesced.
         ),
         [rpcClient, completions, filePath, selectedNode]
     );

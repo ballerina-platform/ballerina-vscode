@@ -50,7 +50,7 @@
       "label": "readonly",
       "kind": "Keyword",
       "detail": "Keyword",
-      "sortText": "U",
+      "sortText": "4U",
       "filterText": "readonly",
       "insertText": "readonly ",
       "insertTextFormat": "Snippet"
@@ -59,7 +59,7 @@
       "label": "Fill Location Required Fields",
       "kind": "Property",
       "detail": "Location",
-      "sortText": "R",
+      "sortText": "4R",
       "filterText": "fill",
       "insertText": "country: ${1:\"\"},\ncity: ${2:\"\"}",
       "insertTextFormat": "Snippet"
@@ -68,7 +68,7 @@
       "label": "...__reserved__",
       "kind": "Variable",
       "detail": "Location",
-      "sortText": "AC",
+      "sortText": "4AC",
       "filterText": "__reserved__",
       "insertText": "...__reserved__",
       "insertTextFormat": "Snippet"
@@ -80,7 +80,7 @@
       },
       "kind": "Field",
       "detail": "Location.country",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "country: ${1:\"\"}",
       "insertTextFormat": "Snippet"
     },
@@ -91,7 +91,7 @@
       },
       "kind": "Field",
       "detail": "Location.city",
-      "sortText": "K",
+      "sortText": "4K",
       "insertText": "city: ${1:\"\"}",
       "insertTextFormat": "Snippet"
     }

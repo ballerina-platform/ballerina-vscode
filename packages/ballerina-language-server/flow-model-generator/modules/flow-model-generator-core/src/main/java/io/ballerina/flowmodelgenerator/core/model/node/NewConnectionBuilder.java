@@ -112,9 +112,7 @@ public class NewConnectionBuilder extends CallBuilder {
                 .token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut()
                 .newVariable();
 
-        sourceBuilder.token()
-                .keyword(SyntaxKind.CHECK_KEYWORD)
-                .stepOut()
+        sourceBuilder.checkUnlessUnchecked()
                 .newExpression()
                 .functionParameters(sourceBuilder.flowNode,
                         Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY, Property.SCOPE_KEY,

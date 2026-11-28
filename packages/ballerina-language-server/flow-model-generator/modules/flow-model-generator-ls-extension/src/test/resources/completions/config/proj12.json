@@ -52,7 +52,7 @@
       },
       "kind": "Variable",
       "detail": "int",
-      "sortText": "B",
+      "sortText": "1B",
       "insertText": "i",
       "insertTextFormat": "Snippet"
     },
@@ -64,7 +64,7 @@
       },
       "kind": "Variable",
       "detail": "MyRecord",
-      "sortText": "B",
+      "sortText": "3B",
       "insertText": "rec",
       "insertTextFormat": "Snippet"
     },
@@ -76,7 +76,7 @@
       },
       "kind": "Variable",
       "detail": "MyRecord",
-      "sortText": "B",
+      "sortText": "3B",
       "insertText": "strucrturedRec",
       "insertTextFormat": "Snippet"
     },
@@ -87,7 +87,7 @@
       },
       "kind": "Variable",
       "detail": "int[]",
-      "sortText": "B",
+      "sortText": "3B",
       "insertText": "structuredArray",
       "insertTextFormat": "Snippet"
     },
@@ -98,7 +98,7 @@
       },
       "kind": "Variable",
       "detail": "map<string>",
-      "sortText": "B",
+      "sortText": "3B",
       "insertText": "structuredMap",
       "insertTextFormat": "Snippet"
     }

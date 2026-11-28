@@ -17,12 +17,11 @@
  */
 
 import React from "react";
-import { SidePanelBody } from "@wso2/ui-toolkit";
 import { FunctionModel, ServiceModel } from "@wso2/ballerina-core";
 import { cloneDeep } from "lodash";
 import ButtonCard from "../../../../../components/ButtonCard";
 
-import { EditorContentColumn } from "../../styles";
+import { EditorContentColumn, PanelBody } from "../../styles";
 import { computeHandlerGroups, HandlerGroup } from "./payloadComposer";
 
 interface TriggerHandlerConfigFormProps {
@@ -58,7 +57,7 @@ export function TriggerHandlerConfigForm(props: TriggerHandlerConfigFormProps) {
     };
 
     return (
-        <SidePanelBody>
+        <PanelBody>
             <EditorContentColumn>
                 {handlerGroups.map((group, index) => (
                     <ButtonCard
@@ -72,7 +71,7 @@ export function TriggerHandlerConfigForm(props: TriggerHandlerConfigFormProps) {
                 ))}
                 {handlerGroups.length === 0 && <div>No handlers available to add.</div>}
             </EditorContentColumn>
-        </SidePanelBody>
+        </PanelBody>
     );
 }
 

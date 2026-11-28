@@ -227,6 +227,50 @@ const EXPRESSION_FIELD_TYPES = new Set([
     "EXPRESSION_SET",
 ]);
 
+const propertyDiagnostics = (nodeWithDiagnostics: FlowNode | null): DiagnosticMessage[] =>
+    Object.values(nodeWithDiagnostics?.properties ?? {}).flatMap((property): DiagnosticMessage[] => {
+        if (property?.types?.length === 1 && getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_LIST") {
+            // For repeatable list, check diagnostics for each element in the list
+            return Array.isArray(property.value)
+                ? property.value.map((val: any) => val?.diagnostics?.diagnostics ?? []).flat()
+                : [];
+        }
+        if (property?.types?.some(t => t.fieldType === "REPEATABLE_MAP") && typeof property.value === 'object' && property.value !== null && !Array.isArray(property.value)) {
+            // For repeatable map, check diagnostics for each entry in the map
+            return Object.values(property.value as Record<string, any>).map((val) => val?.diagnostics?.diagnostics ?? []).flat();
+        }
+        return property?.diagnostics?.diagnostics ?? [];
+    });
+
+const hasPropertyDiagnosticMessages = (nodeWithDiagnostics: FlowNode | null): boolean =>
+    propertyDiagnostics(nodeWithDiagnostics).some((diagnostic) => Boolean(diagnostic?.message?.trim()));
+
+// The node's diagnostics that no field shows; a field's own error is fixed from that field.
+const nodeOnlyDiagnostics = (nodeWithDiagnostics: FlowNode | null): DiagnosticMessage[] => {
+    const shownOnFields = new Set(propertyDiagnostics(nodeWithDiagnostics).map((diagnostic) => diagnostic.message));
+    return (nodeWithDiagnostics?.diagnostics?.diagnostics ?? []).filter((diagnostic) => !shownOnFields.has(diagnostic.message));
+};
+
+// Statement-level errors (an empty `return;`) belong to the form's only expression field when it has one, so they
+// show and get fixed there; anything else stays on the form. `keepOnly` limits them to errors already on screen.
+const placeNodeDiagnostics = (fields: FormField[], nodeWithDiagnostics: FlowNode | null, keepOnly?: Set<string>) => {
+    const nodeDiagnostics = nodeOnlyDiagnostics(nodeWithDiagnostics)
+        .filter((diagnostic) => !keepOnly || keepOnly.has(diagnostic.message));
+    const expressionFields = fields.filter((field) => !field.hidden && !field.advanced && field.editable !== false
+        && field.types?.some((type) => EXPRESSION_FIELD_TYPES.has(type.fieldType)));
+    if (nodeDiagnostics.length === 0 || expressionFields.length !== 1) {
+        return { fields, formDiagnostics: nodeDiagnostics, shown: nodeDiagnostics };
+    }
+    const owner = expressionFields[0];
+    return {
+        fields: fields.map((field) => field === owner
+            ? { ...field, diagnostics: [...(field.diagnostics ?? []), ...nodeDiagnostics] }
+            : field),
+        formDiagnostics: [] as DiagnosticMessage[],
+        shown: nodeDiagnostics,
+    };
+};
+
 type RepeatableMapEntry = {
     key: string;
     value: string;
@@ -382,6 +426,8 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     const prevCompletionFetchText = useRef<string>("");
     const [completions, setCompletions] = useState<CompletionItem[]>([]);
     const completionsRef = useRef<CompletionItem[]>([]);
+    // completionNow is not cancelled by a newer request, so only the newest response may publish.
+    const completionsGate = useRef(createRequestGate()).current;
     const [filteredCompletions, setFilteredCompletions] = useState<CompletionItem[]>([]);
     const [types, setTypes] = useState<CompletionItem[]>([]);
     // The last fetched list, set only together with typesCacheKeyRef so the two always describe the same fetch.
@@ -644,7 +690,6 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     };
 
     const initForm = (node: FlowNode) => {
-        setFormDiagnostics(node.diagnostics?.diagnostics ?? []);
         const formProperties = getFormProperties(node);
         let enrichedNodeProperties;
         if (nodeFormTemplate) {
@@ -718,7 +763,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         fields = normalizeTextFields(fields);
         fields = hideTypeDescriptionField(fields);
 
-        const sortedFields = sortFieldsByPriority(fields);
+        const placed = placeNodeDiagnostics(sortFieldsByPriority(fields), node);
+        shownNodeErrors.current = new Set(placed.shown.map((diagnostic) => diagnostic.message));
+        setFormDiagnostics(placed.formDiagnostics);
+        const sortedFields = placed.fields;
         // `Form` reports every field as changed on first render; the opening values must not count.
         retypedForRef.current = Object.fromEntries(sortedFields.map((field) => [field.key, field.value]));
         // A template still in flight for the node that was open belongs to that node, not this one.
@@ -728,12 +776,13 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
     };
 
     const diagnosticsRequestRef = useRef(0);
+    // Node-level errors on screen; a blur check of a half-filled form may only clear them, never add new ones.
+    const shownNodeErrors = useRef(new Set<string>());
     // The newest check asked for, and the tail of the checks queued before it.
     const latestDiagnostics = useRef<{ form: string; result: Promise<FlowNode | null> }>();
     const diagnosticsQueue = useRef<Promise<unknown>>(Promise.resolve());
 
-    const setDiagnosticsToFields = (data: FormValues, nodeWithDiagnostics: FlowNode) => {
-        setFormDiagnostics(nodeWithDiagnostics?.diagnostics?.diagnostics ?? []);
+    const setDiagnosticsToFields = (data: FormValues, nodeWithDiagnostics: FlowNode, onBlur = false) => {
         const updatedFields = fields.map((field) => {
             const updatedField = { ...field };
 
@@ -851,7 +900,10 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             }
             return updatedField;
         });
-        setBaseFields(updatedFields);
+        const placed = placeNodeDiagnostics(updatedFields, nodeWithDiagnostics, onBlur ? shownNodeErrors.current : undefined);
+        shownNodeErrors.current = new Set(placed.shown.map((diagnostic) => diagnostic.message));
+        setFormDiagnostics(placed.formDiagnostics);
+        setBaseFields(placed.fields);
     }
 
     const handleOnSubmit = (data: FormValues, dirtyFields: any) => {
@@ -932,7 +984,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             const nodeWithDiagnostics = await getFormWithDiagnostics(updatedNode);
             // No LS verdict: keep the diagnostics already shown rather than clearing them
             if (nodeWithDiagnostics && requestId === diagnosticsRequestRef.current) {
-                setDiagnosticsToFields(data, nodeWithDiagnostics);
+                setDiagnosticsToFields(data, nodeWithDiagnostics, true);
             }
         }
     };
@@ -1125,6 +1177,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             offset: number,
             triggerCharacter?: string
         ) => {
+            const request = completionsGate.begin();
             let expressionCompletions: CompletionItem[] = [];
             const { parentContent, currentContent } = value
                 .slice(0, offset)
@@ -1146,7 +1199,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                     .sort((a, b) => a.sortText.localeCompare(b.sortText));
             } else {
                 const { lineOffset, charOffset } = calculateExpressionOffsets(value, offset);
-                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletions({
+                let completions = await rpcClient.getBIDiagramRpcClient().getExpressionCompletionsNow({
                     filePath: fileName,
                     context: {
                         expression: value,
@@ -1171,6 +1224,9 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
                         convertedCompletions.push(convertBalCompletion(completion));
                     }
                 });
+                if (!completionsGate.isCurrent(request)) {
+                    return convertedCompletions;
+                }
                 setCompletions(convertedCompletions);
 
                 if (triggerCharacter) {
@@ -1194,7 +1250,11 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         [rpcClient, fileName, targetLineRange, node]
     );
 
-    const debouncedRetrieveCompletions = useMemo(() => debounce(fetchCompletions, 250), [fetchCompletions]);
+    const debouncedRetrieveCompletions = useMemo(
+        // The first keystroke fetches at once; keystrokes after it are coalesced.
+        () => debounce(fetchCompletions, 250, { leading: true }),
+        [fetchCompletions]
+    );
 
     const handleRetrieveCompletions = useCallback(
         async (
@@ -1424,31 +1484,6 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
         return check.result;
     };
 
-    const hasPropertyDiagnosticMessages = (nodeWithDiagnostics: FlowNode | null): boolean => {
-        const nodeProperties = nodeWithDiagnostics?.properties;
-        if (!nodeProperties) {
-            return false;
-        }
-
-        return Object.values(nodeProperties).some((property) => {
-            let diagnostics: DiagnosticMessage[] = [];
-            if (property?.types?.length === 1 && getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_LIST") {
-                // For repeatable list, check diagnostics for each element in the list
-                const valueDiagnostics = Array.isArray(property.value)
-                    ? property.value.map((val: any) => val?.diagnostics?.diagnostics ?? []).flat()
-                    : [];
-                diagnostics = [...diagnostics, ...valueDiagnostics];
-            } else if (property?.types?.some(t => t.fieldType === "REPEATABLE_MAP") && typeof property.value === 'object' && property.value !== null && !Array.isArray(property.value)) {
-                // For repeatable map, check diagnostics for each entry in the map
-                const valueDiagnostics = Object.values(property.value as Record<string, any>)?.map((val) => val?.diagnostics?.diagnostics ?? []).flat() ?? [];
-                diagnostics = [...diagnostics, ...valueDiagnostics];
-            } else {
-                diagnostics = property.diagnostics?.diagnostics ?? [];
-            }
-            return Array.isArray(diagnostics) && diagnostics.some((diagnostic) => Boolean(diagnostic?.message?.trim()));
-        });
-    };
-
     const hasNodeErrorMessages = (nodeWithDiagnostics: FlowNode | null): boolean =>
         (nodeWithDiagnostics?.diagnostics?.diagnostics ?? []).some(
             (diagnostic) => diagnostic?.severity === "ERROR" && Boolean(diagnostic?.message?.trim())
@@ -1479,7 +1514,7 @@ export const FlowNodeForm = forwardRef<FormHandle, FlowNodeFormProps>(function F
             }
 
             // HACK: Ignore top-level hasDiagnostics when LS sends no diagnostic message. Node-level errors also block,
-            // since a call-wide error sits only on the node and the banner shows it.
+            // since a call-wide error sits only on the node and the banner or the only expression field shows it.
             if (nodeWithDiagnostics?.diagnostics?.hasDiagnostics &&
                 (hasPropertyDiagnosticMessages(nodeWithDiagnostics) || hasNodeErrorMessages(nodeWithDiagnostics))) {
                 return false

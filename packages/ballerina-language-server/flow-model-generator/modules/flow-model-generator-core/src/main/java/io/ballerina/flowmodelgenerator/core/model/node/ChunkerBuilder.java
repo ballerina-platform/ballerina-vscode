@@ -69,8 +69,7 @@ public class ChunkerBuilder extends CallBuilder {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable();
         if (AI_DEVANT_PACKAGE_NAME.equals(sourceBuilder.flowNode.codedata().packageName())) {
-            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
-
+            sourceBuilder.checkUnlessUnchecked();
         }
         return sourceBuilder.newExpression()
                 .functionParameters(sourceBuilder.flowNode,

@@ -1,0 +1,43 @@
+{
+  "description": "A text field's value is checked as the string template it writes",
+  "filePath": "source.bal",
+  "context": {
+    "expression": "string `hello`",
+    "startLine": {
+      "line": 13,
+      "offset": 8
+    },
+    "offset": 0,
+    "codedata": {
+      "node": "FUNCTION_CALL",
+      "org": "ballerina",
+      "module": "log",
+      "symbol": "printInfo"
+    },
+    "property": {
+      "metadata": {
+        "label": "msg",
+        "description": "The message to be logged"
+      },
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": false
+        }
+      ],
+      "value": "\"\"",
+      "placeholder": "\"\"",
+      "optional": false,
+      "editable": true,
+      "advanced": false,
+      "kind": "REQUIRED"
+    }
+  },
+  "diagnostics": []
+}

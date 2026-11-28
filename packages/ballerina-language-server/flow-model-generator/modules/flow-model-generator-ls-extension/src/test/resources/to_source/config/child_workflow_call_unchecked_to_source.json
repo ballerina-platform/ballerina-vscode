@@ -1,0 +1,105 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Write an unchecked child workflow call without check, keeping the error in its type",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Child Workflow"
+    },
+    "codedata": {
+      "node": "CHILD_WORKFLOW_CALL",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "symbol": "orderWorkflow2"
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Child Workflow"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "orderWorkflow2",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "input": {
+        "metadata": {
+          "label": "Input"
+        },
+        "valueType": "EXPRESSION",
+        "value": "{orderId: \"1\", customerName: \"Alice\"}",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type"
+        },
+        "valueType": "TYPE",
+        "value": "json",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result Variable Name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "childResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "valueType": "FLAG",
+        "value": false,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\njson|error childResult = context->callWorkflow(orderWorkflow2, {orderId: \"1\", customerName: \"Alice\"});"
+      }
+    ]
+  }
+}
